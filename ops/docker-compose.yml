@@ -1,0 +1,343 @@
+x-app-env: &app-env
+  APP_ENV: dev
+  APP_DEBUG: "1"
+  PYTHONPATH: /app
+  AUTO_INIT_SCHEMA_ON_STARTUP: "0"
+  DATABASE_URL: postgresql+asyncpg://postgres:postgres@pgbouncer:6432/glass_factory
+  REDIS_URL: redis://redis:6379/0
+  EVENT_BROKER_BACKEND: kafka
+  EVENT_BROKER_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+  EVENT_BROKER_KAFKA_TOPIC: factory.events
+  EVENT_BROKER_REDIS_STREAM: factory.events
+  CLICKHOUSE_BASE_URL: http://clickhouse:8123
+  CLICKHOUSE_DATABASE: default
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: gf-postgres
+    environment:
+      POSTGRES_DB: glass_factory
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "15432:5432"
+    volumes:
+      - gf_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d glass_factory"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    container_name: gf-redis
+    command: redis-server --appendonly yes --maxmemory-policy volatile-ttl
+    ports:
+      - "16379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  kafka:
+    image: apache/kafka:3.8.0
+    container_name: gf-kafka
+    environment:
+      CLUSTER_ID: abcdefghijklmnopqrstuv
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+    ports:
+      - "19092:9092"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    container_name: gf-clickhouse
+    ports:
+      - "18123:8123"
+      - "19009:9000"
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8123/ping | grep -q Ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  minio:
+    image: minio/minio:latest
+    container_name: gf-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio12345
+    ports:
+      - "19000:9000"
+      - "19001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9000/minio/health/live >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  pgbouncer:
+    build:
+      context: ./pgbouncer
+    container_name: gf-pgbouncer
+    depends_on:
+      - postgres
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: glass_factory
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      PGBOUNCER_LISTEN_PORT: 6432
+    ports:
+      - "16432:6432"
+
+  migrate:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: gf-migrate
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      - pgbouncer
+    environment:
+      <<: *app-env
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/glass_factory
+    restart: "no"
+
+  kafka-setup:
+    image: apache/kafka:3.8.0
+    container_name: gf-kafka-setup
+    depends_on:
+      - kafka
+    command: >
+      /opt/kafka/bin/kafka-topics.sh
+      --bootstrap-server kafka:9092
+      --create --if-not-exists
+      --topic factory.events
+      --partitions 3
+      --replication-factor 1
+    restart: "no"
+
+  minio-setup:
+    image: minio/mc:latest
+    container_name: gf-minio-setup
+    depends_on:
+      - minio
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio12345
+    volumes:
+      - ./minio/entrypoint.sh:/entrypoint.sh:ro
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    restart: "no"
+
+  public-api:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: gf-public-api
+    depends_on:
+      - pgbouncer
+      - redis
+      - kafka
+      - migrate
+      - kafka-setup
+      - minio-setup
+    environment:
+      <<: *app-env
+    ports:
+      - "18000:8000"
+    restart: unless-stopped
+
+  admin-api:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: gf-admin-api
+    command: ["uvicorn", "apps.admin_api.main:app", "--host", "0.0.0.0", "--port", "8001"]
+    depends_on:
+      - pgbouncer
+      - redis
+      - kafka
+      - migrate
+      - kafka-setup
+      - minio-setup
+    environment:
+      <<: *app-env
+    ports:
+      - "18001:8001"
+    restart: unless-stopped
+
+  scheduler:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: gf-scheduler
+    command: ["python", "-m", "apps.scheduler"]
+    depends_on:
+      - pgbouncer
+      - redis
+      - kafka
+      - migrate
+      - kafka-setup
+    environment:
+      <<: *app-env
+      SCHEDULER_HEARTBEAT_ONLY: "1"
+    restart: unless-stopped
+
+  event-pipeline:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: gf-event-pipeline
+    command: ["python", "-m", "apps.workers.daemon", "--worker", "event-pipeline"]
+    depends_on:
+      - pgbouncer
+      - redis
+      - kafka
+      - migrate
+      - kafka-setup
+    environment:
+      <<: *app-env
+    restart: unless-stopped
+
+  order-timeout:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: gf-order-timeout
+    command: ["python", "-m", "apps.workers.daemon", "--worker", "order-timeout"]
+    depends_on:
+      - pgbouncer
+      - redis
+      - migrate
+    environment:
+      <<: *app-env
+    restart: unless-stopped
+
+  inventory-sync:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: gf-inventory-sync
+    command: ["python", "-m", "apps.workers.daemon", "--worker", "inventory-sync"]
+    depends_on:
+      - pgbouncer
+      - redis
+      - migrate
+    environment:
+      <<: *app-env
+    restart: unless-stopped
+
+  production-scheduler:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: gf-production-scheduler
+    command: ["python", "-m", "apps.workers.daemon", "--worker", "production-scheduler"]
+    depends_on:
+      - pgbouncer
+      - redis
+      - migrate
+    environment:
+      <<: *app-env
+    restart: unless-stopped
+
+  notification-dispatch:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: gf-notification-dispatch
+    command: ["python", "-m", "apps.workers.daemon", "--worker", "notification-dispatch"]
+    depends_on:
+      - pgbouncer
+      - redis
+      - migrate
+    environment:
+      <<: *app-env
+    restart: unless-stopped
+
+  analytics-sink:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: gf-analytics-sink
+    command: ["python", "-m", "apps.workers.daemon", "--worker", "analytics-sink"]
+    depends_on:
+      - pgbouncer
+      - clickhouse
+      - migrate
+    environment:
+      <<: *app-env
+    restart: unless-stopped
+
+  retention:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: gf-retention
+    command: ["python", "-m", "apps.workers.daemon", "--worker", "retention"]
+    depends_on:
+      - pgbouncer
+      - minio
+      - migrate
+    environment:
+      <<: *app-env
+    restart: unless-stopped
+
+  cold-storage:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: gf-cold-storage
+    command: ["python", "-m", "apps.workers.daemon", "--worker", "cold-storage"]
+    depends_on:
+      - pgbouncer
+      - minio
+      - migrate
+    environment:
+      <<: *app-env
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:1.27
+    container_name: gf-nginx
+    depends_on:
+      - public-api
+      - admin-api
+    ports:
+      - "28080:8080"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    restart: unless-stopped
+
+volumes:
+  gf_postgres_data:
+  clickhouse_data:
+  minio_data:

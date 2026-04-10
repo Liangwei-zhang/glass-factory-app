@@ -1,0 +1,30 @@
+node_modules/
+.env
+data/*.db
+data/*.db-*
+uploads/drawings/*
+!uploads/drawings/.gitkeep
+uploads/signatures/*
+!uploads/signatures/.gitkeep
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Build and reports
+dist/
+build/
+htmlcov/
+.coverage
+coverage.xml
+
+# Local runtime assets
+backups/
+*.log

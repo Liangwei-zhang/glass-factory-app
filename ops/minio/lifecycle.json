@@ -1,0 +1,11 @@
+{
+  "Rules": [
+    {
+      "ID": "archive-non-current",
+      "Status": "Enabled",
+      "NoncurrentVersionExpiration": {
+        "NoncurrentDays": 180
+      }
+    }
+  ]
+}

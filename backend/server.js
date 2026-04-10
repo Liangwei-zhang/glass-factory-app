@@ -1,299 +1,546 @@
-import express from 'express';
+import fs from 'node:fs';
+import path from 'node:path';
+import { randomUUID } from 'node:crypto';
+
 import cors from 'cors';
-import dotenv from 'dotenv';
-import jwt from 'jsonwebtoken';
+import express from 'express';
 import multer from 'multer';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { v4 as uuidv4 } from 'uuid';
-import db from './db.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { authenticateUser, issueToken, requireAuth } from './auth.js';
+import {
+  DRAWINGS_DIR,
+  PORT,
+  PUBLIC_DIR,
+  SIGNATURES_DIR,
+  UPLOADS_DIR,
+} from './config.js';
+import {
+  FILE_UPLOAD_LIMIT_BYTES,
+  PRIORITIES,
+  ROLES,
+} from './constants.js';
+import {
+  getPersistenceHealth,
+  initDatabase,
+} from './persistence/index.js';
+import {
+  createCustomerProfile,
+  listCustomerDirectory,
+  updateCustomerProfile,
+} from './domains/customers.js';
+import {
+  listUserNotifications,
+  markUserNotificationsRead,
+} from './domains/notifications.js';
+import {
+  approveOrderPickupAndNotify,
+  assertOrderExportAllowed,
+  createSalesOrder,
+  getOrderDetail,
+  listOrderBoard,
+  markSalesOrderEntered,
+  recordOrderPickupSignature,
+  sendPickupReminder,
+  updateSalesOrder,
+  cancelSalesOrder,
+} from './domains/orders.js';
+import {
+  handleProductionAction,
+} from './domains/production.js';
+import {
+  buildClientOptions,
+  createManageableGlassType,
+  getNotificationTemplateConfig,
+  listManageableGlassTypes,
+  listRecentEmailLogs,
+  updateManageableGlassType,
+  updateNotificationTemplateConfig,
+} from './domains/settings.js';
+import {
+  getWorkspaceBootstrap,
+  getWorkspaceSummary,
+} from './domains/workspace.js';
+import { sendOrderPdf } from './pdf.js';
 
-dotenv.config();
+fs.mkdirSync(DRAWINGS_DIR, { recursive: true });
+fs.mkdirSync(SIGNATURES_DIR, { recursive: true });
+
+await initDatabase();
+
 const app = express();
-const PORT = process.env.PORT || 3000;
-const JWT_SECRET = process.env.JWT_SECRET || 'glass-factory-secret-key';
+
+const drawingStorage = multer.diskStorage({
+  destination: (_req, _file, callback) => callback(null, DRAWINGS_DIR),
+  filename: (_req, file, callback) => {
+    const extension = path.extname(file.originalname).toLowerCase() || '.bin';
+    callback(null, `${Date.now()}-${randomUUID()}${extension}`);
+  },
+});
+
+const drawingUpload = multer({
+  storage: drawingStorage,
+  limits: { fileSize: FILE_UPLOAD_LIMIT_BYTES },
+  fileFilter: (_req, file, callback) => {
+    const allowedMimeTypes = [
+      'application/pdf',
+      'image/png',
+      'image/jpeg',
+      'image/webp',
+    ];
+
+    if (allowedMimeTypes.includes(file.mimetype)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error('图纸仅支持 PDF / PNG / JPG / WEBP。'));
+  },
+});
 
 app.use(cors());
-app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use(express.json({ limit: '12mb' }));
+app.use(express.urlencoded({ extended: true }));
+app.use('/uploads', express.static(UPLOADS_DIR));
+app.use(express.static(PUBLIC_DIR));
 
-// Multer for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, path.join(__dirname, 'uploads')),
-  filename: (req, file, cb) => cb(null, `${Date.now()}-${file.originalname}`)
-});
-const upload = multer({ storage });
+function parseQuantity(value, fieldLabel = '数量') {
+  const quantity = Number.parseInt(value, 10);
 
-// Auth middleware
-const authenticate = (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return res.status(401).json({ error: 'No token provided' });
-  
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded;
-    next();
-  } catch (err) {
-    res.status(401).json({ error: 'Invalid token' });
+  if (!Number.isInteger(quantity) || quantity <= 0) {
+    throw new Error(`${fieldLabel}必须是大于 0 的整数。`);
   }
-};
 
-// Role check middleware
-const checkRole = (...roles) => (req, res, next) => {
-  if (!roles.includes(req.user.role)) {
-    return res.status(403).json({ error: 'Insufficient permissions' });
-  }
-  next();
-};
-
-// ============ AUTH ROUTES ============
-app.post('/api/auth/login', (req, res) => {
-  const { username, password } = req.body;
-  const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
-  
-  if (!user || !bcrypt.compareSync(password, user.password)) {
-    return res.status(401).json({ error: 'Invalid credentials' });
-  }
-  
-  const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
-  res.json({ token, user: { id: user.id, username: user.username, role: user.role, name: user.name } });
-});
-
-// ============ CUSTOMER ROUTES ============
-app.get('/api/customers', authenticate, (req, res) => {
-  const customers = db.prepare('SELECT * FROM customers ORDER BY company_name').all();
-  res.json(customers);
-});
-
-app.post('/api/customers', authenticate, checkRole('office', 'admin'), (req, res) => {
-  const { company_name, contact_name, phone, email, notes } = req.body;
-  const id = uuidv4();
-  db.prepare('INSERT INTO customers (id, company_name, contact_name, phone, email, notes) VALUES (?, ?, ?, ?, ?, ?)')
-    .run(id, company_name, contact_name, phone, email, notes);
-  res.json({ id, company_name, contact_name, phone, email, notes });
-});
-
-app.put('/api/customers/:id', authenticate, checkRole('office', 'admin'), (req, res) => {
-  const { company_name, contact_name, phone, email, notes } = req.body;
-  db.prepare('UPDATE customers SET company_name = ?, contact_name = ?, phone = ?, email = ?, notes = ? WHERE id = ?')
-    .run(company_name, contact_name, phone, email, notes, req.params.id);
-  res.json({ success: true });
-});
-
-// ============ ORDER ROUTES ============
-app.get('/api/orders', authenticate, (req, res) => {
-  const { status, customer_id, date_from, date_to } = req.query;
-  let query = `
-    SELECT o.*, c.company_name, c.contact_name, c.phone
-    FROM orders o
-    JOIN customers c ON o.customer_id = c.id
-    WHERE 1=1
-  `;
-  const params = [];
-  
-  if (status) { query += ' AND o.status = ?'; params.push(status); }
-  if (customer_id) { query += ' AND o.customer_id = ?'; params.push(customer_id); }
-  if (date_from) { query += ' AND o.created_at >= ?'; params.push(date_from); }
-  if (date_to) { query += ' AND o.created_at <= ?'; params.push(date_to); }
-  
-  query += ' ORDER BY o.created_at DESC';
-  const orders = db.prepare(query).all(...params);
-  res.json(orders);
-});
-
-app.get('/api/orders/:id', authenticate, (req, res) => {
-  const order = db.prepare(`
-    SELECT o.*, c.company_name, c.contact_name, c.phone, c.email
-    FROM orders o
-    JOIN customers c ON o.customer_id = c.id
-    WHERE o.id = ?
-  `).get(req.params.id);
-  
-  if (!order) return res.status(404).json({ error: 'Order not found' });
-  
-  const stages = db.prepare('SELECT * FROM production_stages WHERE order_id = ? ORDER BY stage').all(req.params.id);
-  res.json({ ...order, stages });
-});
-
-app.post('/api/orders', authenticate, checkRole('office', 'admin'), upload.single('drawing'), (req, res) => {
-  const { customer_id, glass_type, thickness, quantity, special_instructions, priority, estimated_completion_date } = req.body;
-  const id = uuidv4();
-  const order_number = `GF-${Date.now().toString(36).toUpperCase()}`;
-  const drawing_path = req.file ? `/uploads/${req.file.filename}` : null;
-  
-  db.prepare(`
-    INSERT INTO orders (id, order_number, customer_id, glass_type, thickness, quantity, drawing_path, special_instructions, priority, estimated_completion_date, created_by)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(id, order_number, customer_id, glass_type, thickness, quantity, drawing_path, special_instructions, priority, estimated_completion_date, req.user.id);
-  
-  // Create production stages
-  const stages = ['cut', 'edge', 'tempering', 'finished'];
-  stages.forEach(stage => {
-    db.prepare('INSERT INTO production_stages (id, order_id, stage) VALUES (?, ?, ?)').run(uuidv4(), id, stage);
-  });
-  
-  // Log history
-  db.prepare('INSERT INTO order_history (id, order_id, action, user_id, details) VALUES (?, ?, ?, ?, ?)')
-    .run(uuidv4(), id, 'created', req.user.id, 'Order created');
-  
-  res.json({ id, order_number, success: true });
-});
-
-app.put('/api/orders/:id', authenticate, checkRole('office', 'admin'), upload.single('drawing'), (req, res) => {
-  const { glass_type, thickness, quantity, special_instructions, priority, estimated_completion_date, status } = req.body;
-  const drawing_path = req.file ? `/uploads/${req.file.filename}` : null;
-  
-  let query = 'UPDATE orders SET ';
-  const params = [];
-  
-  if (glass_type) { query += 'glass_type = ?, '; params.push(glass_type); }
-  if (thickness) { query += 'thickness = ?, '; params.push(thickness); }
-  if (quantity) { query += 'quantity = ?, '; params.push(quantity); }
-  if (drawing_path) { query += 'drawing_path = ?, '; params.push(drawing_path); }
-  if (special_instructions) { query += 'special_instructions = ?, '; params.push(special_instructions); }
-  if (priority) { query += 'priority = ?, '; params.push(priority); }
-  if (estimated_completion_date) { query += 'estimated_completion_date = ?, '; params.push(estimated_completion_date); }
-  if (status) { query += 'status = ?, '; params.push(status); }
-  
-  query += 'updated_at = CURRENT_TIMESTAMP WHERE id = ?';
-  params.push(req.params.id);
-  
-  db.prepare(query).run(...params);
-  res.json({ success: true });
-});
-
-app.patch('/api/orders/:id/status', authenticate, (req, res) => {
-  const { status } = req.body;
-  db.prepare('UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(status, req.params.id);
-  db.prepare('INSERT INTO order_history (id, order_id, action, user_id, details) VALUES (?, ?, ?, ?, ?)')
-    .run(uuidv4(), req.params.id, `status_changed_to_${status}`, req.user.id, `Status changed to ${status}`);
-  res.json({ success: true });
-});
-
-// ============ PRODUCTION STAGES ============
-app.get('/api/orders/:id/stages', authenticate, (req, res) => {
-  const stages = db.prepare('SELECT * FROM production_stages WHERE order_id = ? ORDER BY stage').all(req.params.id);
-  res.json(stages);
-});
-
-app.patch('/api/stages/:id', authenticate, checkRole('worker', 'supervisor', 'admin'), (req, res) => {
-  const { status, notes } = req.body;
-  db.prepare('UPDATE production_stages SET status = ?, worker_id = ?, started_at = COALESCE(started_at, CURRENT_TIMESTAMP), completed_at = ?, notes = ? WHERE id = ?')
-    .run(status, req.user.id, status === 'completed' ? new Date().toISOString() : null, notes, req.params.id);
-  res.json({ success: true });
-});
-
-// ============ PICKUP ============
-app.get('/api/orders/ready-pickup', authenticate, (req, res) => {
-  const orders = db.prepare(`
-    SELECT o.*, c.company_name, c.contact_name, c.phone
-    FROM orders o
-    JOIN customers c ON o.customer_id = c.id
-    WHERE o.status = 'ready_pickup'
-    ORDER BY o.updated_at DESC
-  `).all();
-  res.json(orders);
-});
-
-app.post('/api/orders/:id/pickup', authenticate, checkRole('office', 'supervisor', 'admin'), (req, res) => {
-  const { signed_by, signature_data, picked_by, notes } = req.body;
-  const id = uuidv4();
-  
-  db.prepare('INSERT INTO pickup_records (id, order_id, signed_by, signature_data, picked_by, notes) VALUES (?, ?, ?, ?, ?, ?)')
-    .run(id, req.params.id, signed_by, signature_data, picked_by, notes);
-  db.prepare('UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('picked_up', req.params.id);
-  
-  res.json({ success: true, pickup_id: id });
-});
-
-app.get('/api/pickup-records', authenticate, (req, res) => {
-  const records = db.prepare(`
-    SELECT p.*, o.order_number, c.company_name
-    FROM pickup_records p
-    JOIN orders o ON p.order_id = o.id
-    JOIN customers c ON o.customer_id = c.id
-    ORDER BY p.pickup_time DESC
-  `).all();
-  res.json(records);
-});
-
-// ============ DASHBOARD ============
-app.get('/api/dashboard/stats', authenticate, (req, res) => {
-  const totalOrders = db.prepare('SELECT COUNT(*) as count FROM orders').get().count;
-  const pendingOrders = db.prepare("SELECT COUNT(*) as count FROM orders WHERE status NOT IN ('ready_pickup', 'picked_up')").get().count;
-  const completedToday = db.prepare("SELECT COUNT(*) as count FROM orders WHERE status = 'completed' AND date(updated_at) = date('now')").get().count;
-  const readyPickup = db.prepare("SELECT COUNT(*) as count FROM orders WHERE status = 'ready_pickup'").get().count;
-  
-  const recentOrders = db.prepare(`
-    SELECT o.*, c.company_name
-    FROM orders o
-    JOIN customers c ON o.customer_id = c.id
-    ORDER BY o.created_at DESC
-    LIMIT 10
-  `).all();
-  
-  res.json({
-    totalOrders,
-    pendingOrders,
-    completedToday,
-    readyPickup,
-    recentOrders
-  });
-});
-
-// ============ GLASS TYPES ============
-app.get('/api/glass-types', authenticate, (req, res) => {
-  const types = db.prepare('SELECT * FROM glass_types ORDER BY name').all();
-  res.json(types);
-});
-
-// ============ PRODUCTION VIEW (Worker) ============
-app.get('/api/production/by-company', authenticate, checkRole('worker', 'supervisor', 'admin'), (req, res) => {
-  const orders = db.prepare(`
-    SELECT o.*, c.company_name,
-           (SELECT stage FROM production_stages WHERE order_id = o.id AND status != 'completed' ORDER BY stage LIMIT 1) as current_stage
-    FROM orders o
-    JOIN customers c ON o.customer_id = c.id
-    WHERE o.status IN ('received', 'drawing', 'production')
-    ORDER BY c.company_name, o.created_at
-  `).all();
-  
-  // Group by company
-  const grouped = {};
-  orders.forEach(order => {
-    if (!grouped[order.company_name]) {
-      grouped[order.company_name] = [];
-    }
-    grouped[order.company_name].push(order);
-  });
-  
-  res.json(grouped);
-});
-
-app.get('/api/production/by-date', authenticate, checkRole('worker', 'supervisor', 'admin'), (req, res) => {
-  const orders = db.prepare(`
-    SELECT o.*, c.company_name,
-           (SELECT stage FROM production_stages WHERE order_id = o.id AND status != 'completed' ORDER BY stage LIMIT 1) as current_stage
-    FROM orders o
-    JOIN customers c ON o.customer_id = c.id
-    WHERE o.status IN ('received', 'drawing', 'production')
-    ORDER BY o.created_at DESC
-  `).all();
-  res.json(orders);
-});
-
-// Create uploads directory
-import fs from 'fs';
-if (!fs.existsSync('./uploads')) {
-  fs.mkdirSync('./uploads');
+  return quantity;
 }
 
-app.listen(PORT, () => {
-  console.log(`Glass Factory API running on http://localhost:${PORT}`);
-  console.log('Default admin: admin / admin123');
+function parsePieceNumbers(value) {
+  const rawValues = Array.isArray(value)
+    ? value
+    : typeof value === 'string'
+      ? value.split(/[,\s]+/)
+      : [];
+
+  const pieceNumbers = [...new Set(
+    rawValues
+      .map((item) => Number.parseInt(item, 10))
+      .filter((item) => Number.isInteger(item) && item > 0)
+  )].sort((left, right) => left - right);
+
+  if (!pieceNumbers.length) {
+    throw new Error('请至少选择一片需要返工的玻璃。');
+  }
+
+  return pieceNumbers;
+}
+
+function parseOrderInput(body, file, { partial = false } = {}) {
+  const payload = {};
+
+  if (!partial || body.customerId !== undefined) {
+    payload.customerId = String(body.customerId || '').trim();
+  }
+
+  if (!partial || body.glassType !== undefined) {
+    payload.glassType = String(body.glassType || '').trim();
+  }
+
+  if (!partial || body.thickness !== undefined) {
+    payload.thickness = String(body.thickness || '').trim();
+  }
+
+  if (!partial || body.quantity !== undefined) {
+    payload.quantity = parseQuantity(body.quantity);
+  }
+
+  if (body.estimatedCompletionDate !== undefined) {
+    payload.estimatedCompletionDate = body.estimatedCompletionDate || null;
+  }
+
+  if (body.specialInstructions !== undefined) {
+    payload.specialInstructions = String(body.specialInstructions || '').trim();
+  }
+
+  if (body.priority !== undefined) {
+    payload.priority = String(body.priority || PRIORITIES.NORMAL).trim();
+  }
+
+  if (file) {
+    payload.drawingPath = `/uploads/drawings/${path.basename(file.path)}`;
+    payload.drawingName = file.originalname;
+  }
+
+  if (!partial) {
+    if (!payload.customerId) {
+      throw new Error('请选择客户。');
+    }
+    if (!payload.glassType) {
+      throw new Error('请选择玻璃类型。');
+    }
+    if (!payload.thickness) {
+      throw new Error('请选择厚度。');
+    }
+  }
+
+  return payload;
+}
+
+function parseCustomerInput(body) {
+  const companyName = String(body.companyName || '').trim();
+
+  if (!companyName) {
+    throw new Error('公司名称不能为空。');
+  }
+
+  return {
+    companyName,
+    contactName: String(body.contactName || '').trim(),
+    phone: String(body.phone || '').trim(),
+    email: String(body.email || '').trim(),
+    notes: String(body.notes || '').trim(),
+  };
+}
+
+function getSignaturePathFromDataUrl(dataUrl, orderId) {
+  const match = String(dataUrl || '').match(/^data:image\/(png|jpeg|jpg|webp);base64,(.+)$/i);
+
+  if (!match) {
+    throw new Error('签名格式无效，请重新签字。');
+  }
+
+  const extension = match[1] === 'jpeg' ? 'jpg' : match[1].toLowerCase();
+  const buffer = Buffer.from(match[2], 'base64');
+  const fileName = `${orderId}-${Date.now()}.${extension}`;
+  const filePath = path.join(SIGNATURES_DIR, fileName);
+
+  fs.writeFileSync(filePath, buffer);
+  return `/uploads/signatures/${fileName}`;
+}
+
+async function serializeOptions() {
+  return await buildClientOptions();
+}
+
+function asyncHandler(handler) {
+  return (req, res, next) => {
+    Promise.resolve(handler(req, res, next)).catch(next);
+  };
+}
+
+app.get('/api/health', async (_req, res, next) => {
+  try {
+    const persistence = await getPersistenceHealth();
+
+    res.json({
+      status: 'ok',
+      databasePath: persistence.databasePath,
+      databaseProvider: persistence.provider,
+      targetDatabaseProvider: persistence.targetProvider,
+      databaseRuntimeReady: persistence.runtimeReady,
+      postgres: persistence.postgres,
+      uptimeSeconds: Math.round(process.uptime()),
+      now: new Date().toISOString(),
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
-export default app;
+app.post('/api/auth/login', asyncHandler(async (req, res) => {
+  const email = String(req.body.email || '').trim();
+  const password = String(req.body.password || '');
+
+  if (!email || !password) {
+    return res.status(400).json({ error: '请输入邮箱和密码。' });
+  }
+
+  const user = await authenticateUser(email, password);
+  if (!user) {
+    return res.status(401).json({ error: '账号或密码错误。' });
+  }
+
+  return res.json({
+    token: issueToken(user),
+    user,
+  });
+}));
+
+app.get('/api/me', requireAuth(), (req, res) => {
+  res.json({ user: req.user });
+});
+
+app.get('/api/bootstrap', requireAuth(), asyncHandler(async (req, res) => {
+  res.json({
+    user: req.user,
+    options: await serializeOptions(),
+    data: await getWorkspaceBootstrap(req.user),
+  });
+}));
+
+app.get('/api/customers', requireAuth(), asyncHandler(async (_req, res) => {
+  res.json({ customers: await listCustomerDirectory() });
+}));
+
+app.get(
+  '/api/settings/glass-types',
+  requireAuth([ROLES.OFFICE, ROLES.SUPERVISOR]),
+  asyncHandler(async (_req, res) => {
+    res.json({ glassTypes: await listManageableGlassTypes() });
+  })
+);
+
+app.post(
+  '/api/settings/glass-types',
+  requireAuth([ROLES.OFFICE, ROLES.SUPERVISOR]),
+  asyncHandler(async (req, res) => {
+    res.status(201).json({
+      glassType: await createManageableGlassType(req.body.name, req.user.id),
+      glassTypes: await listManageableGlassTypes(),
+    });
+  })
+);
+
+app.patch(
+  '/api/settings/glass-types/:glassTypeId',
+  requireAuth([ROLES.OFFICE, ROLES.SUPERVISOR]),
+  asyncHandler(async (req, res) => {
+    res.json({
+      glassType: await updateManageableGlassType(
+        req.params.glassTypeId,
+        {
+          name: req.body.name,
+          isActive: req.body.isActive,
+        },
+        req.user.id
+      ),
+      glassTypes: await listManageableGlassTypes(),
+    });
+  })
+);
+
+app.get(
+  '/api/settings/notification-templates/:templateKey',
+  requireAuth([ROLES.OFFICE, ROLES.SUPERVISOR]),
+  asyncHandler(async (req, res) => {
+    res.json({ template: await getNotificationTemplateConfig(req.params.templateKey) });
+  })
+);
+
+app.put(
+  '/api/settings/notification-templates/:templateKey',
+  requireAuth([ROLES.OFFICE, ROLES.SUPERVISOR]),
+  asyncHandler(async (req, res) => {
+    res.json({
+      template: await updateNotificationTemplateConfig(
+        req.params.templateKey,
+        {
+          subjectTemplate: String(req.body.subjectTemplate || ''),
+          bodyTemplate: String(req.body.bodyTemplate || ''),
+        },
+        req.user.id
+      ),
+    });
+  })
+);
+
+app.get(
+  '/api/email-logs',
+  requireAuth([ROLES.OFFICE, ROLES.SUPERVISOR]),
+  asyncHandler(async (req, res) => {
+    res.json({ logs: await listRecentEmailLogs(req.query.limit) });
+  })
+);
+
+app.post(
+  '/api/customers',
+  requireAuth([ROLES.OFFICE, ROLES.SUPERVISOR]),
+  asyncHandler(async (req, res) => {
+    const customer = await createCustomerProfile(parseCustomerInput(req.body));
+    res.status(201).json({ customer, customers: await listCustomerDirectory() });
+  })
+);
+
+app.patch(
+  '/api/customers/:customerId',
+  requireAuth([ROLES.OFFICE, ROLES.SUPERVISOR]),
+  asyncHandler(async (req, res) => {
+    const customer = await updateCustomerProfile(
+      req.params.customerId,
+      parseCustomerInput(req.body)
+    );
+    res.json({ customer, customers: await listCustomerDirectory() });
+  })
+);
+
+app.get('/api/orders', requireAuth(), asyncHandler(async (req, res) => {
+  res.json({
+    orders: await listOrderBoard({
+      query: req.query.query,
+      status: req.query.status,
+      priority: req.query.priority,
+    }),
+  });
+}));
+
+app.get('/api/orders/:orderId', requireAuth(), asyncHandler(async (req, res) => {
+  const order = await getOrderDetail(req.params.orderId);
+  if (!order) {
+    return res.status(404).json({ error: '订单不存在。' });
+  }
+
+  return res.json({ order });
+}));
+
+app.get('/api/orders/:orderId/export', requireAuth(), asyncHandler(async (req, res) => {
+  const order = await getOrderDetail(req.params.orderId);
+  if (!order) {
+    return res.status(404).json({ error: '订单不存在。' });
+  }
+
+  const documentType = assertOrderExportAllowed(order, req.query.document);
+
+  sendOrderPdf(res, order, documentType);
+  return undefined;
+}));
+
+app.post(
+  '/api/orders',
+  requireAuth([ROLES.OFFICE, ROLES.SUPERVISOR]),
+  drawingUpload.single('drawing'),
+  asyncHandler(async (req, res) => {
+    const input = parseOrderInput(req.body, req.file, { partial: false });
+    const order = await createSalesOrder(input, req.user.id);
+    res.status(201).json({ order });
+  })
+);
+
+app.put(
+  '/api/orders/:orderId',
+  requireAuth([ROLES.OFFICE, ROLES.SUPERVISOR]),
+  drawingUpload.single('drawing'),
+  asyncHandler(async (req, res) => {
+    const input = parseOrderInput(req.body, req.file, { partial: true });
+    const order = await updateSalesOrder(req.params.orderId, input, req.user.id);
+    res.json({ order });
+  })
+);
+
+app.post(
+  '/api/orders/:orderId/cancel',
+  requireAuth([ROLES.OFFICE, ROLES.SUPERVISOR]),
+  asyncHandler(async (req, res) => {
+    const reason = String(req.body.reason || '').trim();
+    res.json({ order: await cancelSalesOrder(req.params.orderId, reason, req.user.id) });
+  })
+);
+
+app.post(
+  '/api/orders/:orderId/entered',
+  requireAuth([ROLES.OFFICE, ROLES.SUPERVISOR]),
+  asyncHandler(async (req, res) => {
+    res.json({ order: await markSalesOrderEntered(req.params.orderId, req.user.id) });
+  })
+);
+
+app.post(
+  '/api/orders/:orderId/steps/:stepKey',
+  requireAuth([ROLES.WORKER, ROLES.SUPERVISOR]),
+  asyncHandler(async (req, res) => {
+    const { stepKey, orderId } = req.params;
+    const action = String(req.body.action || '').trim();
+
+    const order = await handleProductionAction({
+      action,
+      actorUser: req.user,
+      note: String(req.body.note || '').trim(),
+      orderId,
+      pieceNumbers:
+        action === 'rework'
+          ? parsePieceNumbers(req.body.pieceNumbers ?? req.body.pieces)
+          : undefined,
+      stepKey,
+    });
+
+    return res.json({ order });
+  })
+);
+
+app.post(
+  '/api/orders/:orderId/pickup/approve',
+  requireAuth([ROLES.SUPERVISOR]),
+  async (req, res, next) => {
+    try {
+      res.json(await approveOrderPickupAndNotify(req.params.orderId, req.user.id));
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+app.post(
+  '/api/orders/:orderId/pickup/send-email',
+  requireAuth([ROLES.OFFICE, ROLES.SUPERVISOR]),
+  async (req, res, next) => {
+    try {
+      return res.json(await sendPickupReminder(req.params.orderId, req.user.id));
+    } catch (error) {
+      return next(error);
+    }
+  }
+);
+
+app.post(
+  '/api/orders/:orderId/pickup/signature',
+  requireAuth([ROLES.OFFICE, ROLES.SUPERVISOR]),
+  asyncHandler(async (req, res) => {
+    const signerName = String(req.body.signerName || '').trim();
+    const signatureDataUrl = String(req.body.signatureDataUrl || '');
+
+    if (!signerName) {
+      return res.status(400).json({ error: '请填写取货人姓名。' });
+    }
+
+    const signaturePath = getSignaturePathFromDataUrl(signatureDataUrl, req.params.orderId);
+    const order = await recordOrderPickupSignature(
+      req.params.orderId,
+      {
+        signerName,
+        signaturePath,
+      },
+      req.user.id
+    );
+
+    return res.json({ order });
+  })
+);
+
+app.get('/api/notifications', requireAuth(), asyncHandler(async (req, res) => {
+  res.json({ notifications: await listUserNotifications(req.user.id) });
+}));
+
+app.post('/api/notifications/read', requireAuth(), asyncHandler(async (req, res) => {
+  res.json({ notifications: await markUserNotificationsRead(req.user.id) });
+}));
+
+app.get('/api/dashboard/summary', requireAuth(), asyncHandler(async (req, res) => {
+  res.json({ summary: await getWorkspaceSummary(req.user) });
+}));
+
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api/')) {
+    return next();
+  }
+
+  return res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
+});
+
+app.use((error, _req, res, _next) => {
+  const statusCode = error.statusCode || error.status || 400;
+  console.error(error);
+  res.status(statusCode).json({
+    error: error.message || '请求处理失败。',
+  });
+});
+
+app.listen(PORT, () => {
+  console.log(`Glass Factory app listening on http://localhost:${PORT}`);
+});
