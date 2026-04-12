@@ -11,18 +11,15 @@ from fastapi.testclient import TestClient
 
 from apps.public_api.main import app
 from apps.public_api.routers import orders as orders_router
-from infra.db.session import get_db_session
 from infra.db.models.finance import ReceivableModel
 from infra.db.models.logistics import ShipmentModel
 from infra.db.models.settings import EmailLogModel
+from infra.db.session import get_db_session
 from infra.security.auth import get_current_user
 from infra.security.idempotency import get_redis as _unused_get_redis  # noqa: F401
 from infra.security.rate_limit import limiter
 from infra.storage.object_storage import ObjectStorage
-from tests.support.order_inventory_flow import (
-    build_order_inventory_harness,
-    make_auth_user,
-)
+from tests.support.order_inventory_flow import build_order_inventory_harness, make_auth_user
 
 
 @pytest.fixture(autouse=True)
@@ -584,7 +581,9 @@ def test_orders_api_full_lifecycle_reaches_picked_up(monkeypatch, tmp_path: Path
             assert harness.session.work_orders[0].status == "completed"
             assert harness.session.work_orders[0].process_step_key == "finishing"
 
-            current_user["value"] = make_auth_user(role="manager", scopes=["orders:read", "orders:write"])
+            current_user["value"] = make_auth_user(
+                role="manager", scopes=["orders:read", "orders:write"]
+            )
             approve_response = client.post(
                 f"/v1/orders/{order_id}/pickup/approve",
                 headers={"Idempotency-Key": "e2e-full-lifecycle-pickup-approve"},
@@ -645,9 +644,14 @@ def test_orders_api_full_lifecycle_reaches_picked_up(monkeypatch, tmp_path: Path
             duplicate_signature_payload = duplicate_signature_response.json()["data"]
             assert duplicate_signature_payload["status"] == "picked_up"
             assert duplicate_signature_payload["pickup_signer_name"] == "Alice Receiver"
-            assert duplicate_signature_payload["pickup_signature_key"] == picked_up_payload["pickup_signature_key"]
+            assert (
+                duplicate_signature_payload["pickup_signature_key"]
+                == picked_up_payload["pickup_signature_key"]
+            )
 
-            signature_path = ObjectStorage(base_dir=str(tmp_path / "object-storage")).resolve_local_path(
+            signature_path = ObjectStorage(
+                base_dir=str(tmp_path / "object-storage")
+            ).resolve_local_path(
                 bucket="signatures",
                 key=picked_up_payload["pickup_signature_key"],
             )
@@ -713,7 +717,9 @@ def test_logistics_endpoints_surface_pickup_created_shipment(monkeypatch, tmp_pa
         app.dependency_overrides.clear()
 
 
-def test_finance_endpoints_surface_receivable_for_completed_order(monkeypatch, tmp_path: Path) -> None:
+def test_finance_endpoints_surface_receivable_for_completed_order(
+    monkeypatch, tmp_path: Path
+) -> None:
     harness = build_order_inventory_harness(available_qty=10)
     original_service = orders_router.service
     current_user = {

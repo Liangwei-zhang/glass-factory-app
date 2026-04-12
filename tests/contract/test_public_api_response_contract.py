@@ -34,7 +34,11 @@ from infra.db.models.production import QualityCheckModel
 from infra.db.session import get_db_session
 from infra.security.auth import get_current_user
 from infra.security.rate_limit import limiter
-from tests.support.order_inventory_flow import build_order_inventory_harness, make_auth_user, serialize_test_order
+from tests.support.order_inventory_flow import (
+    build_order_inventory_harness,
+    make_auth_user,
+    serialize_test_order,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -115,7 +119,9 @@ def _patch_session_event_queries(monkeypatch, session, *, event_rows=None) -> No
     monkeypatch.setattr(session, "execute", execute_with_event_rows)
 
 
-def _drive_order_to_ready_for_pickup(client: TestClient, current_user: dict[str, object], customer_id: str) -> str:
+def _drive_order_to_ready_for_pickup(
+    client: TestClient, current_user: dict[str, object], customer_id: str
+) -> str:
     create_response = client.post(
         "/v1/orders",
         headers={"Idempotency-Key": f"contract-direct-create-{uuid4()}"},
@@ -199,11 +205,15 @@ def _create_contract_order(client: TestClient, customer_id: str) -> dict:
 
 
 def _patch_workspace_route(monkeypatch, harness) -> None:
-    async def fake_ensure_product_inventory(_session, glass_type: str, thickness: str, quantity: int):
+    async def fake_ensure_product_inventory(
+        _session, glass_type: str, thickness: str, quantity: int
+    ):
         _ = (glass_type, thickness, quantity)
         return SimpleNamespace(id="product-1", product_name="Tempered Glass Panel")
 
-    async def fake_serialize_workspace_order(_session, order_id: str, *, include_detail: bool = True):
+    async def fake_serialize_workspace_order(
+        _session, order_id: str, *, include_detail: bool = True
+    ):
         _ = include_detail
         return serialize_test_order(harness.orders_repository.orders_by_id[order_id])
 
@@ -226,11 +236,15 @@ def _patch_workspace_route(monkeypatch, harness) -> None:
 
 
 def _patch_customer_app(monkeypatch, harness) -> None:
-    async def fake_ensure_product_inventory(_session, glass_type: str, thickness: str, quantity: int):
+    async def fake_ensure_product_inventory(
+        _session, glass_type: str, thickness: str, quantity: int
+    ):
         _ = (glass_type, thickness, quantity)
         return SimpleNamespace(id="product-1", product_name="Tempered Glass Panel")
 
-    async def fake_serialize_order(_session, order, include_detail: bool = True, route_prefix: str = "/v1/app"):
+    async def fake_serialize_order(
+        _session, order, include_detail: bool = True, route_prefix: str = "/v1/app"
+    ):
         _ = (include_detail, route_prefix)
         return serialize_test_order(order)
 
@@ -501,7 +515,9 @@ def test_workspace_orders_read_response_contracts(monkeypatch) -> None:
             assert detail_payload["order"]["orderNo"] == create_payload["order_no"]
             assert detail_payload["order"]["status"] == "received"
             assert detail_payload["order"]["quantity"] == 3
-            assert detail_payload["order"]["customer"]["companyName"] == harness.customer.company_name
+            assert (
+                detail_payload["order"]["customer"]["companyName"] == harness.customer.company_name
+            )
             assert len(detail_payload["order"]["steps"]) == 4
             assert detail_payload["order"]["timeline"] == []
             assert detail_payload["order"]["versionHistory"][0]["versionNumber"] == 1
@@ -612,7 +628,9 @@ def test_workspace_orders_raw_drawing_and_export_response_contracts(monkeypatch,
             )
         return drawing_path, "workspace-drawing.pdf"
 
-    async def fake_export_workspace_order_document(_session, order_id: str, *, document: str = "order"):
+    async def fake_export_workspace_order_document(
+        _session, order_id: str, *, document: str = "order"
+    ):
         assert _session is session
         assert order_id == "order-1"
         assert document == "pickup"
@@ -770,7 +788,9 @@ def test_orders_pickup_email_and_drawing_upload_response_contracts(monkeypatch) 
             )
             drawing_payload = _assert_success_envelope(drawing_response, status_code=200)
             assert drawing_payload["id"] == order_id
-            assert drawing_payload["drawing_object_key"] == f"orders/{order_id}/drawings/drawing.pdf"
+            assert (
+                drawing_payload["drawing_object_key"] == f"orders/{order_id}/drawings/drawing.pdf"
+            )
             assert drawing_payload["drawing_original_name"] == "drawing.pdf"
     finally:
         app.dependency_overrides.clear()
@@ -843,7 +863,9 @@ def test_workspace_pickup_send_email_response_contract(monkeypatch) -> None:
                 code="VALIDATION_ERROR",
                 message="Idempotency-Key header is required for write operations.",
             )
-            assert missing_key_payload["details"]["namespace"] == "workspace:orders:pickup-send-email"
+            assert (
+                missing_key_payload["details"]["namespace"] == "workspace:orders:pickup-send-email"
+            )
 
             success_response = client.post(
                 "/v1/workspace/orders/order-1/pickup/send-email",
@@ -937,7 +959,9 @@ def test_orders_update_cancel_and_pickup_signature_response_contracts(monkeypatc
             assert cancel_payload["id"] == order_id
             assert cancel_payload["status"] == "cancelled"
 
-            signature_order_id = _drive_order_to_ready_for_pickup(client, current_user, harness.customer.id)
+            signature_order_id = _drive_order_to_ready_for_pickup(
+                client, current_user, harness.customer.id
+            )
             current_user["value"] = make_auth_user(scopes=["orders:read", "orders:write"])
 
             missing_key_signature_response = client.post(
@@ -956,7 +980,9 @@ def test_orders_update_cancel_and_pickup_signature_response_contracts(monkeypatc
                 code="VALIDATION_ERROR",
                 message="Idempotency-Key header is required for write operations.",
             )
-            assert missing_key_signature_payload["details"]["namespace"] == "orders:pickup-signature"
+            assert (
+                missing_key_signature_payload["details"]["namespace"] == "orders:pickup-signature"
+            )
 
             signature_response = client.post(
                 f"/v1/orders/{signature_order_id}/pickup/signature",
@@ -979,7 +1005,9 @@ def test_orders_update_cancel_and_pickup_signature_response_contracts(monkeypatc
         app.dependency_overrides.clear()
 
 
-def test_workspace_orders_update_cancel_and_pickup_signature_response_contracts(monkeypatch) -> None:
+def test_workspace_orders_update_cancel_and_pickup_signature_response_contracts(
+    monkeypatch,
+) -> None:
     harness = build_order_inventory_harness(available_qty=10)
     current_user = {"value": make_auth_user(stage="cutting")}
     stored_signatures: list[tuple[str, str, bytes]] = []
@@ -998,7 +1026,9 @@ def test_workspace_orders_update_cancel_and_pickup_signature_response_contracts(
         assert _session is harness.session
         return harness.orders_repository.orders_by_id[order_id]
 
-    async def fake_serialize_workspace_order(_session, order_id: str, *, include_detail: bool = True):
+    async def fake_serialize_workspace_order(
+        _session, order_id: str, *, include_detail: bool = True
+    ):
         _ = include_detail
         order = harness.orders_repository.orders_by_id[order_id]
         payload = serialize_test_order(order)
@@ -1088,7 +1118,9 @@ def test_workspace_orders_update_cancel_and_pickup_signature_response_contracts(
             assert cancel_payload["order"]["id"] == order_id
             assert cancel_payload["order"]["status"] == "cancelled"
 
-            signature_order_id = _drive_order_to_ready_for_pickup(client, current_user, harness.customer.id)
+            signature_order_id = _drive_order_to_ready_for_pickup(
+                client, current_user, harness.customer.id
+            )
 
             current_user["value"] = make_auth_user(stage="cutting")
             forbidden_signature_response = client.post(
@@ -1128,7 +1160,10 @@ def test_workspace_orders_update_cancel_and_pickup_signature_response_contracts(
                 code="VALIDATION_ERROR",
                 message="Idempotency-Key header is required for write operations.",
             )
-            assert missing_key_signature_payload["details"]["namespace"] == "workspace:orders:pickup-signature"
+            assert (
+                missing_key_signature_payload["details"]["namespace"]
+                == "workspace:orders:pickup-signature"
+            )
 
             signature_response = client.post(
                 f"/v1/workspace/orders/{signature_order_id}/pickup/signature",
@@ -1268,7 +1303,9 @@ def test_orders_confirm_entered_step_and_pickup_approve_response_contracts(monke
                 assert step_payload["step_key"] == step_key
                 assert step_payload["action"] == "complete"
 
-            current_user["value"] = make_auth_user(role="manager", scopes=["orders:read", "orders:write"])
+            current_user["value"] = make_auth_user(
+                role="manager", scopes=["orders:read", "orders:write"]
+            )
             missing_key_pickup_approve_response = client.post(
                 f"/v1/orders/{order_id}/pickup/approve"
             )
@@ -1278,13 +1315,18 @@ def test_orders_confirm_entered_step_and_pickup_approve_response_contracts(monke
                 code="VALIDATION_ERROR",
                 message="Idempotency-Key header is required for write operations.",
             )
-            assert missing_key_pickup_approve_payload["details"]["namespace"] == "orders:pickup-approve"
+            assert (
+                missing_key_pickup_approve_payload["details"]["namespace"]
+                == "orders:pickup-approve"
+            )
 
             pickup_approve_response = client.post(
                 f"/v1/orders/{order_id}/pickup/approve",
                 headers={"Idempotency-Key": f"contract-order-pickup-approve-{uuid4()}"},
             )
-            pickup_approve_payload = _assert_success_envelope(pickup_approve_response, status_code=200)
+            pickup_approve_payload = _assert_success_envelope(
+                pickup_approve_response, status_code=200
+            )
             assert pickup_approve_payload["id"] == order_id
             assert pickup_approve_payload["status"] == "ready_for_pickup"
             assert pickup_approve_payload["pickup_approved_by"] == "user-1"
@@ -1311,7 +1353,9 @@ def test_workspace_orders_entered_step_and_pickup_approve_response_contracts(mon
         assert _session is harness.session
         return harness.orders_repository.orders_by_id[order_id]
 
-    async def fake_serialize_workspace_order(_session, order_id: str, *, include_detail: bool = True):
+    async def fake_serialize_workspace_order(
+        _session, order_id: str, *, include_detail: bool = True
+    ):
         _ = include_detail
         order = harness.orders_repository.orders_by_id[order_id]
         payload = serialize_test_order(order)
@@ -1415,7 +1459,9 @@ def test_workspace_orders_entered_step_and_pickup_approve_response_contracts(mon
                 code="VALIDATION_ERROR",
                 message="Idempotency-Key header is required for write operations.",
             )
-            assert missing_key_step_payload["details"]["namespace"] == "workspace:orders:step-action"
+            assert (
+                missing_key_step_payload["details"]["namespace"] == "workspace:orders:step-action"
+            )
 
             first_step_response = client.post(
                 f"/v1/workspace/orders/{order_id}/steps/cutting",
@@ -1439,7 +1485,9 @@ def test_workspace_orders_entered_step_and_pickup_approve_response_contracts(mon
             current_user["value"] = make_auth_user()
             forbidden_pickup_approve_response = client.post(
                 f"/v1/workspace/orders/{order_id}/pickup/approve",
-                headers={"Idempotency-Key": f"contract-workspace-pickup-approve-forbidden-{uuid4()}"},
+                headers={
+                    "Idempotency-Key": f"contract-workspace-pickup-approve-forbidden-{uuid4()}"
+                },
             )
             forbidden_pickup_approve_payload = _assert_error_envelope(
                 forbidden_pickup_approve_response,
@@ -1468,7 +1516,9 @@ def test_workspace_orders_entered_step_and_pickup_approve_response_contracts(mon
                 f"/v1/workspace/orders/{order_id}/pickup/approve",
                 headers={"Idempotency-Key": f"contract-workspace-pickup-approve-{uuid4()}"},
             )
-            pickup_approve_payload = _assert_success_envelope(pickup_approve_response, status_code=200)
+            pickup_approve_payload = _assert_success_envelope(
+                pickup_approve_response, status_code=200
+            )
             assert pickup_approve_payload["order"]["id"] == order_id
             assert pickup_approve_payload["order"]["status"] == "ready_for_pickup"
             assert pickup_approve_payload["order"]["pickupApprovedBy"] == "user-1"
@@ -1575,7 +1625,10 @@ def test_auth_response_contracts_for_login_refresh_send_code_and_logout(monkeypa
             assert refresh_payload["access_token"]
             assert refresh_payload["refresh_token"] == refresh_token
             assert refresh_payload["token_type"] == "bearer"
-            assert refresh_payload["expires_in"] == auth_router.settings.security.access_token_minutes * 60
+            assert (
+                refresh_payload["expires_in"]
+                == auth_router.settings.security.access_token_minutes * 60
+            )
 
             send_code_response = client.post(
                 "/v1/auth/send-code",
@@ -1740,7 +1793,9 @@ def test_workspace_me_and_bootstrap_response_contracts(monkeypatch) -> None:
             },
         }
 
-    monkeypatch.setattr(workspace_router.workspace_session, "build_workspace_me", fake_build_workspace_me)
+    monkeypatch.setattr(
+        workspace_router.workspace_session, "build_workspace_me", fake_build_workspace_me
+    )
     monkeypatch.setattr(
         workspace_router.workspace_session,
         "build_workspace_bootstrap",
@@ -1888,7 +1943,9 @@ def test_customer_app_bootstrap_response_contract(monkeypatch) -> None:
         fake_ensure_default_glass_types,
     )
     monkeypatch.setattr(customer_app_router, "_serialize_orders", fake_serialize_orders)
-    monkeypatch.setattr(customer_app_router, "_serialize_notifications", fake_serialize_notifications)
+    monkeypatch.setattr(
+        customer_app_router, "_serialize_notifications", fake_serialize_notifications
+    )
     app.dependency_overrides[get_db_session] = override_session
     app.dependency_overrides[get_current_user] = override_current_user
 
@@ -1902,7 +1959,9 @@ def test_customer_app_bootstrap_response_contract(monkeypatch) -> None:
             assert payload["data"]["summary"]["totalOrders"] == 2
             assert payload["data"]["summary"]["activeOrders"] == 1
             assert payload["data"]["summary"]["completedOrders"] == 1
-            assert Decimal(str(payload["data"]["summary"]["availableCredit"])) == Decimal("100000.00")
+            assert Decimal(str(payload["data"]["summary"]["availableCredit"])) == Decimal(
+                "100000.00"
+            )
             assert payload["data"]["notifications"][0]["id"] == "notif-1"
     finally:
         app.dependency_overrides.clear()
@@ -1932,7 +1991,9 @@ def test_customer_app_orders_notifications_and_credit_response_contract(monkeypa
         return [{"id": "notif-1", "title": "Ready for pickup", "isRead": False}]
 
     monkeypatch.setattr(customer_app_router, "_serialize_orders", fake_serialize_orders)
-    monkeypatch.setattr(customer_app_router, "_serialize_notifications", fake_serialize_notifications)
+    monkeypatch.setattr(
+        customer_app_router, "_serialize_notifications", fake_serialize_notifications
+    )
     app.dependency_overrides[get_db_session] = override_session
     app.dependency_overrides[get_current_user] = override_current_user
 
@@ -1946,7 +2007,9 @@ def test_customer_app_orders_notifications_and_credit_response_contract(monkeypa
 
             notifications_response = client.get("/v1/app/notifications")
 
-            notifications_payload = _assert_success_envelope(notifications_response, status_code=200)
+            notifications_payload = _assert_success_envelope(
+                notifications_response, status_code=200
+            )
             assert notifications_payload["notifications"][0]["id"] == "notif-1"
             assert notifications_payload["notifications"][0]["title"] == "Ready for pickup"
 
@@ -1983,7 +2046,9 @@ def test_customer_app_order_detail_response_contract(monkeypatch) -> None:
         assert auth_user.customer_id == harness.customer.id
         return harness.user, harness.customer
 
-    async def fake_serialize_order(_session, order_model, include_detail: bool = True, route_prefix: str = "/v1/app"):
+    async def fake_serialize_order(
+        _session, order_model, include_detail: bool = True, route_prefix: str = "/v1/app"
+    ):
         assert _session is session
         assert order_model is order
         assert include_detail is True
@@ -2034,8 +2099,14 @@ def test_customer_app_notifications_read_response_contract(monkeypatch) -> None:
         return [{"id": "notif-1", "title": "Ready for pickup", "isRead": True}]
 
     monkeypatch.setattr("infra.security.idempotency.get_redis", fake_get_redis)
-    monkeypatch.setattr(customer_app_router.notifications_service, "mark_notifications_read", fake_mark_notifications_read)
-    monkeypatch.setattr(customer_app_router, "_serialize_notifications", fake_serialize_notifications)
+    monkeypatch.setattr(
+        customer_app_router.notifications_service,
+        "mark_notifications_read",
+        fake_mark_notifications_read,
+    )
+    monkeypatch.setattr(
+        customer_app_router, "_serialize_notifications", fake_serialize_notifications
+    )
     app.dependency_overrides[get_db_session] = override_session
     app.dependency_overrides[get_current_user] = override_current_user
 
@@ -2080,12 +2151,16 @@ def test_orders_create_supports_customer_portal_payload(monkeypatch) -> None:
     async def fake_get_redis():
         return harness.redis
 
-    async def fake_ensure_product_inventory(_session, glass_type: str, thickness: str, quantity: int):
+    async def fake_ensure_product_inventory(
+        _session, glass_type: str, thickness: str, quantity: int
+    ):
         _ = (glass_type, thickness, quantity)
         return SimpleNamespace(id="product-1", product_name="Tempered Glass Panel")
 
     monkeypatch.setattr(orders_router, "service", harness.orders_service)
-    monkeypatch.setattr(orders_router.workspace_ui, "ensure_product_inventory", fake_ensure_product_inventory)
+    monkeypatch.setattr(
+        orders_router.workspace_ui, "ensure_product_inventory", fake_ensure_product_inventory
+    )
     monkeypatch.setattr("infra.security.idempotency.get_redis", fake_get_redis)
     app.dependency_overrides[get_db_session] = override_session
     app.dependency_overrides[get_current_user] = override_current_user
@@ -2352,7 +2427,9 @@ def test_logistics_read_response_contracts(monkeypatch) -> None:
     async def override_current_user():
         return make_auth_user(scopes=["orders:read"])
 
-    async def fake_list_shipments(_session, *, limit: int, status: str | None, order_id: str | None):
+    async def fake_list_shipments(
+        _session, *, limit: int, status: str | None, order_id: str | None
+    ):
         assert _session is session
         assert limit == 10
         assert status == "shipped"
@@ -2433,7 +2510,9 @@ def test_finance_read_response_contracts(monkeypatch) -> None:
     async def override_current_user():
         return make_auth_user(scopes=["orders:read", "finance:read"])
 
-    async def fake_list_receivables(_session, *, limit: int, status: str | None, customer_id: str | None):
+    async def fake_list_receivables(
+        _session, *, limit: int, status: str | None, customer_id: str | None
+    ):
         assert _session is session
         assert limit == 10
         assert status == "partial"
@@ -2446,7 +2525,9 @@ def test_finance_read_response_contracts(monkeypatch) -> None:
         assert customer_id == "cust-1"
         return [statement]
 
-    async def fake_list_invoices(_session, *, limit: int, status: str | None, customer_id: str | None):
+    async def fake_list_invoices(
+        _session, *, limit: int, status: str | None, customer_id: str | None
+    ):
         assert _session is session
         assert limit == 10
         assert status == "partial"
@@ -2729,7 +2810,9 @@ def test_notifications_response_contract_for_list_and_mark_read(monkeypatch) -> 
     async def fake_get_redis():
         return harness.redis
 
-    async def fake_list_notifications(_session, user_id: str, limit: int = 100, unread_only: bool = False):
+    async def fake_list_notifications(
+        _session, user_id: str, limit: int = 100, unread_only: bool = False
+    ):
         assert user_id == "user-1"
         _ = (limit, unread_only)
         return [notification]
@@ -2741,7 +2824,9 @@ def test_notifications_response_contract_for_list_and_mark_read(monkeypatch) -> 
 
     monkeypatch.setattr("infra.security.idempotency.get_redis", fake_get_redis)
     monkeypatch.setattr(notifications_router.service, "list_notifications", fake_list_notifications)
-    monkeypatch.setattr(notifications_router.service, "mark_notifications_read", fake_mark_notifications_read)
+    monkeypatch.setattr(
+        notifications_router.service, "mark_notifications_read", fake_mark_notifications_read
+    )
     app.dependency_overrides[get_db_session] = override_session
     app.dependency_overrides[get_current_user] = override_current_user
 
@@ -2805,7 +2890,9 @@ def test_workspace_customers_response_contract(monkeypatch) -> None:
             }
         ]
 
-    monkeypatch.setattr(workspace_router.workspace_ui, "serialize_customers", fake_serialize_customers)
+    monkeypatch.setattr(
+        workspace_router.workspace_ui, "serialize_customers", fake_serialize_customers
+    )
     app.dependency_overrides[get_db_session] = override_session
     app.dependency_overrides[get_current_user] = override_current_user
 
@@ -2934,7 +3021,9 @@ def test_workspace_customers_write_response_contract(monkeypatch) -> None:
         ]
         return updated_customer
 
-    def fake_serialize_customer(customer, *, total_orders: int = 0, active_orders: int = 0, last_order_at=None):
+    def fake_serialize_customer(
+        customer, *, total_orders: int = 0, active_orders: int = 0, last_order_at=None
+    ):
         _ = (total_orders, active_orders, last_order_at)
         return {
             "id": customer.id,
@@ -2962,8 +3051,12 @@ def test_workspace_customers_write_response_contract(monkeypatch) -> None:
         fake_create_workspace_customer,
     )
     monkeypatch.setattr(workspace_router.customers_service, "update_customer", fake_update_customer)
-    monkeypatch.setattr(workspace_router.workspace_ui, "serialize_customer", fake_serialize_customer)
-    monkeypatch.setattr(workspace_router.workspace_ui, "serialize_customers", fake_serialize_customers)
+    monkeypatch.setattr(
+        workspace_router.workspace_ui, "serialize_customer", fake_serialize_customer
+    )
+    monkeypatch.setattr(
+        workspace_router.workspace_ui, "serialize_customers", fake_serialize_customers
+    )
     app.dependency_overrides[get_db_session] = override_session
     app.dependency_overrides[get_current_user] = override_current_user
 
@@ -3000,7 +3093,9 @@ def test_workspace_customers_write_response_contract(monkeypatch) -> None:
                 code="VALIDATION_ERROR",
                 message="Idempotency-Key header is required for write operations.",
             )
-            assert missing_key_create_payload["details"]["namespace"] == "workspace:customers:create"
+            assert (
+                missing_key_create_payload["details"]["namespace"] == "workspace:customers:create"
+            )
 
             create_response = client.post(
                 "/v1/workspace/customers",
@@ -3033,7 +3128,9 @@ def test_workspace_customers_write_response_contract(monkeypatch) -> None:
                 code="VALIDATION_ERROR",
                 message="Idempotency-Key header is required for write operations.",
             )
-            assert missing_key_update_payload["details"]["namespace"] == "workspace:customers:update"
+            assert (
+                missing_key_update_payload["details"]["namespace"] == "workspace:customers:update"
+            )
 
             update_response = client.patch(
                 "/v1/workspace/customers/cust-2",
@@ -3075,8 +3172,14 @@ def test_workspace_notifications_response_contract(monkeypatch) -> None:
         return MarkNotificationsReadResult(updated_count=1)
 
     monkeypatch.setattr("infra.security.idempotency.get_redis", fake_get_redis)
-    monkeypatch.setattr(workspace_router.workspace_ui, "serialize_notifications", fake_serialize_notifications)
-    monkeypatch.setattr(workspace_router.notifications_service, "mark_notifications_read", fake_mark_notifications_read)
+    monkeypatch.setattr(
+        workspace_router.workspace_ui, "serialize_notifications", fake_serialize_notifications
+    )
+    monkeypatch.setattr(
+        workspace_router.notifications_service,
+        "mark_notifications_read",
+        fake_mark_notifications_read,
+    )
     app.dependency_overrides[get_db_session] = override_session
     app.dependency_overrides[get_current_user] = override_current_user
 
@@ -3093,7 +3196,9 @@ def test_workspace_notifications_response_contract(monkeypatch) -> None:
                 code="VALIDATION_ERROR",
                 message="Idempotency-Key header is required for write operations.",
             )
-            assert missing_key_payload["details"]["namespace"] == "workspace:notifications:mark-read"
+            assert (
+                missing_key_payload["details"]["namespace"] == "workspace:notifications:mark-read"
+            )
 
             mark_read_response = client.post(
                 "/v1/workspace/notifications/read",
@@ -3141,24 +3246,38 @@ def test_workspace_shipments_and_receivables_read_response_contract(monkeypatch)
         yield session
 
     async def override_current_user():
-        return make_auth_user(role="manager", scopes=["orders:read", "orders:write", "finance:read"])
+        return make_auth_user(
+            role="manager", scopes=["orders:read", "orders:write", "finance:read"]
+        )
 
-    async def fake_list_workspace_shipments(_session, *, limit: int, status: str | None, order_id: str | None):
+    async def fake_list_workspace_shipments(
+        _session, *, limit: int, status: str | None, order_id: str | None
+    ):
         assert _session is session
         assert limit == 10
         assert status == "shipped"
         assert order_id == "order-1"
         return [shipment]
 
-    async def fake_list_workspace_receivables(_session, *, limit: int, status: str | None, customer_id: str | None):
+    async def fake_list_workspace_receivables(
+        _session, *, limit: int, status: str | None, customer_id: str | None
+    ):
         assert _session is session
         assert limit == 10
         assert status == "partial"
         assert customer_id == "cust-1"
         return [receivable]
 
-    monkeypatch.setattr(workspace_router.workspace_logistics, "list_workspace_shipments", fake_list_workspace_shipments)
-    monkeypatch.setattr(workspace_router.workspace_finance, "list_workspace_receivables", fake_list_workspace_receivables)
+    monkeypatch.setattr(
+        workspace_router.workspace_logistics,
+        "list_workspace_shipments",
+        fake_list_workspace_shipments,
+    )
+    monkeypatch.setattr(
+        workspace_router.workspace_finance,
+        "list_workspace_receivables",
+        fake_list_workspace_receivables,
+    )
     app.dependency_overrides[get_db_session] = override_session
     app.dependency_overrides[get_current_user] = override_current_user
 
@@ -3195,9 +3314,7 @@ def test_workspace_settings_response_contract(monkeypatch) -> None:
         sort_order=0,
         updated_at=datetime.now(timezone.utc),
     )
-    glass_type_state = {
-        "value": {"id": "glass-1", "name": "Ultra Clear", "isActive": True}
-    }
+    glass_type_state = {"value": {"id": "glass-1", "name": "Ultra Clear", "isActive": True}}
     template_payload = {
         "templateKey": "ready_for_pickup",
         "name": "Ready for Pickup 邮件",
@@ -3309,9 +3426,15 @@ def test_workspace_settings_response_contract(monkeypatch) -> None:
         return {"id": row.id, "name": row.name, "isActive": bool(row.is_active)}
 
     monkeypatch.setattr("infra.security.idempotency.get_redis", fake_get_redis)
-    monkeypatch.setattr(workspace_router.workspace_settings, "list_glass_types", fake_list_glass_types)
-    monkeypatch.setattr(workspace_router.workspace_settings, "create_glass_type", fake_create_glass_type)
-    monkeypatch.setattr(workspace_router.workspace_settings, "update_glass_type", fake_update_glass_type)
+    monkeypatch.setattr(
+        workspace_router.workspace_settings, "list_glass_types", fake_list_glass_types
+    )
+    monkeypatch.setattr(
+        workspace_router.workspace_settings, "create_glass_type", fake_create_glass_type
+    )
+    monkeypatch.setattr(
+        workspace_router.workspace_settings, "update_glass_type", fake_update_glass_type
+    )
     monkeypatch.setattr(
         workspace_router.workspace_settings,
         "get_notification_template",
@@ -3322,8 +3445,12 @@ def test_workspace_settings_response_contract(monkeypatch) -> None:
         "update_notification_template",
         fake_update_notification_template,
     )
-    monkeypatch.setattr(workspace_router.workspace_settings, "list_email_logs", fake_list_email_logs)
-    monkeypatch.setattr(workspace_router.workspace_settings, "serialize_glass_type", fake_serialize_glass_type)
+    monkeypatch.setattr(
+        workspace_router.workspace_settings, "list_email_logs", fake_list_email_logs
+    )
+    monkeypatch.setattr(
+        workspace_router.workspace_settings, "serialize_glass_type", fake_serialize_glass_type
+    )
     app.dependency_overrides[get_db_session] = override_session
     app.dependency_overrides[get_current_user] = override_current_user
 
@@ -3387,7 +3514,9 @@ def test_workspace_settings_response_contract(monkeypatch) -> None:
                 headers={"Idempotency-Key": f"contract-glass-type-update-{uuid4()}"},
                 json={"name": "Low-E", "isActive": False},
             )
-            update_glass_type_payload = _assert_success_envelope(update_glass_type_response, status_code=200)
+            update_glass_type_payload = _assert_success_envelope(
+                update_glass_type_response, status_code=200
+            )
             assert update_glass_type_payload["glassType"]["name"] == "Low-E"
             assert update_glass_type_payload["glassType"]["isActive"] is False
             assert update_glass_type_payload["glassTypes"][0]["name"] == "Low-E"
@@ -3418,7 +3547,9 @@ def test_workspace_settings_response_contract(monkeypatch) -> None:
                     "bodyTemplate": "请安排到厂取货。",
                 },
             )
-            update_template_payload = _assert_success_envelope(update_template_response, status_code=200)
+            update_template_payload = _assert_success_envelope(
+                update_template_response, status_code=200
+            )
             assert update_template_payload["template"]["subjectTemplate"] == "已可取货：{{orderNo}}"
             assert update_template_payload["template"]["bodyTemplate"] == "请安排到厂取货。"
 
@@ -3432,7 +3563,10 @@ def test_workspace_settings_response_contract(monkeypatch) -> None:
                 code="VALIDATION_ERROR",
                 message="Idempotency-Key header is required for write operations.",
             )
-            assert missing_key_payload["details"]["namespace"] == "workspace:settings:glass-types:create"
+            assert (
+                missing_key_payload["details"]["namespace"]
+                == "workspace:settings:glass-types:create"
+            )
 
             create_response = client.post(
                 "/v1/workspace/settings/glass-types",
@@ -3491,7 +3625,9 @@ def test_logistics_write_response_contract(monkeypatch) -> None:
                     ],
                 },
             )
-            pending_order_id = _assert_success_envelope(pending_order_response, status_code=201)["id"]
+            pending_order_id = _assert_success_envelope(pending_order_response, status_code=201)[
+                "id"
+            ]
 
             current_user["value"] = make_auth_user(scopes=["orders:read", "logistics:write"])
             invalid_status_response = client.post(
@@ -3615,7 +3751,9 @@ def test_finance_payment_response_contract_and_partial_settlement(monkeypatch) -
                     ],
                 },
             )
-            pending_order_id = _assert_success_envelope(pending_order_response, status_code=201)["id"]
+            pending_order_id = _assert_success_envelope(pending_order_response, status_code=201)[
+                "id"
+            ]
 
             current_user["value"] = make_auth_user(scopes=["orders:read", "finance:write"])
             invalid_status_response = client.post(
@@ -3872,7 +4010,9 @@ def test_workspace_logistics_and_finance_write_response_contracts(monkeypatch) -
                 code="VALIDATION_ERROR",
                 message="Idempotency-Key header is required for write operations.",
             )
-            assert missing_key_shipment_payload["details"]["namespace"] == "workspace:shipments:create"
+            assert (
+                missing_key_shipment_payload["details"]["namespace"] == "workspace:shipments:create"
+            )
 
             shipment_create_response = client.post(
                 f"/v1/workspace/orders/{order_id}/shipment",
@@ -3886,7 +4026,9 @@ def test_workspace_logistics_and_finance_write_response_contracts(monkeypatch) -
                     "shippedAt": "2026-04-12T10:00:00Z",
                 },
             )
-            shipment_create_payload = _assert_success_envelope(shipment_create_response, status_code=200)
+            shipment_create_payload = _assert_success_envelope(
+                shipment_create_response, status_code=200
+            )
             shipment_id = shipment_create_payload["shipment"]["id"]
             assert shipment_create_payload["shipment"]["order_id"] == order_id
             assert shipment_create_payload["shipment"]["status"] == "shipped"
@@ -3903,7 +4045,9 @@ def test_workspace_logistics_and_finance_write_response_contracts(monkeypatch) -
                 code="VALIDATION_ERROR",
                 message="Idempotency-Key header is required for write operations.",
             )
-            assert missing_key_deliver_payload["details"]["namespace"] == "workspace:shipments:deliver"
+            assert (
+                missing_key_deliver_payload["details"]["namespace"] == "workspace:shipments:deliver"
+            )
 
             shipment_deliver_response = client.post(
                 f"/v1/workspace/shipments/{shipment_id}/deliver",
@@ -3914,7 +4058,9 @@ def test_workspace_logistics_and_finance_write_response_contracts(monkeypatch) -
                     "deliveredAt": "2026-04-12T14:30:00Z",
                 },
             )
-            shipment_deliver_payload = _assert_success_envelope(shipment_deliver_response, status_code=200)
+            shipment_deliver_payload = _assert_success_envelope(
+                shipment_deliver_response, status_code=200
+            )
             assert shipment_deliver_payload["shipment"]["id"] == shipment_id
             assert shipment_deliver_payload["shipment"]["status"] == "delivered"
             assert shipment_deliver_payload["shipment"]["receiver_name"] == "Carol Receiver"
@@ -3928,7 +4074,9 @@ def test_workspace_logistics_and_finance_write_response_contracts(monkeypatch) -
                     "invoiceNo": "INV-WORKSPACE-1",
                 },
             )
-            receivable_create_payload = _assert_success_envelope(receivable_create_response, status_code=200)
+            receivable_create_payload = _assert_success_envelope(
+                receivable_create_response, status_code=200
+            )
             receivable_id = receivable_create_payload["receivable"]["id"]
             assert receivable_create_payload["receivable"]["order_id"] == order_id
             assert receivable_create_payload["receivable"]["status"] == "unpaid"
@@ -4002,7 +4150,9 @@ def test_workspace_receivable_write_error_response_contracts(monkeypatch) -> Non
 
             missing_payment_response = client.post(
                 "/v1/workspace/receivables/missing-receivable/payments",
-                headers={"Idempotency-Key": f"contract-workspace-receivable-missing-payment-{uuid4()}"},
+                headers={
+                    "Idempotency-Key": f"contract-workspace-receivable-missing-payment-{uuid4()}"
+                },
                 json={"amount": "10.00"},
             )
 
@@ -4015,7 +4165,9 @@ def test_workspace_receivable_write_error_response_contracts(monkeypatch) -> Non
 
             missing_refund_response = client.post(
                 "/v1/workspace/receivables/missing-receivable/refunds",
-                headers={"Idempotency-Key": f"contract-workspace-receivable-missing-refund-{uuid4()}"},
+                headers={
+                    "Idempotency-Key": f"contract-workspace-receivable-missing-refund-{uuid4()}"
+                },
                 json={"amount": "10.00"},
             )
 

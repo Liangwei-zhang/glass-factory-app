@@ -5,18 +5,19 @@ from types import SimpleNamespace
 import pytest
 
 from domains.workspace import orders_support as workspace_orders
-from tests.support.order_inventory_flow import (
-    build_order_inventory_harness,
-    serialize_test_order,
-)
+from tests.support.order_inventory_flow import build_order_inventory_harness, serialize_test_order
 
 
 def _patch_workspace_orders(monkeypatch: pytest.MonkeyPatch, harness) -> None:
-    async def fake_ensure_product_inventory(_session, glass_type: str, thickness: str, quantity: int):
+    async def fake_ensure_product_inventory(
+        _session, glass_type: str, thickness: str, quantity: int
+    ):
         _ = (glass_type, thickness, quantity)
         return SimpleNamespace(id="product-1", product_name="Tempered Glass Panel")
 
-    async def fake_serialize_workspace_order(_session, order_id: str, *, include_detail: bool = True):
+    async def fake_serialize_workspace_order(
+        _session, order_id: str, *, include_detail: bool = True
+    ):
         _ = include_detail
         return serialize_test_order(harness.orders_repository.orders_by_id[order_id])
 
@@ -25,13 +26,19 @@ def _patch_workspace_orders(monkeypatch: pytest.MonkeyPatch, harness) -> None:
         return harness.orders_repository.orders_by_id[order_id]
 
     monkeypatch.setattr(workspace_orders, "orders_service", harness.orders_service)
-    monkeypatch.setattr(workspace_orders.ui_support, "ensure_product_inventory", fake_ensure_product_inventory)
-    monkeypatch.setattr(workspace_orders, "serialize_workspace_order", fake_serialize_workspace_order)
+    monkeypatch.setattr(
+        workspace_orders.ui_support, "ensure_product_inventory", fake_ensure_product_inventory
+    )
+    monkeypatch.setattr(
+        workspace_orders, "serialize_workspace_order", fake_serialize_workspace_order
+    )
     monkeypatch.setattr(workspace_orders, "get_order_model", fake_get_order_model)
 
 
 @pytest.mark.asyncio
-async def test_workspace_create_then_entered_confirms_inventory(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_workspace_create_then_entered_confirms_inventory(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     harness = build_order_inventory_harness(available_qty=10)
     _patch_workspace_orders(monkeypatch, harness)
 
@@ -70,7 +77,9 @@ async def test_workspace_create_then_entered_confirms_inventory(monkeypatch: pyt
 
 
 @pytest.mark.asyncio
-async def test_workspace_update_quantity_rebuilds_pending_reservation(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_workspace_update_quantity_rebuilds_pending_reservation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     harness = build_order_inventory_harness(available_qty=10)
     _patch_workspace_orders(monkeypatch, harness)
 
@@ -105,7 +114,9 @@ async def test_workspace_update_quantity_rebuilds_pending_reservation(monkeypatc
 
     replacement_reservation_id = harness.orders_repository.orders_by_id[order_id].reservation_ids[0]
     original_reservation = harness.inventory_repository.reservation_rows[original_reservation_id]
-    replacement_reservation = harness.inventory_repository.reservation_rows[replacement_reservation_id]
+    replacement_reservation = harness.inventory_repository.reservation_rows[
+        replacement_reservation_id
+    ]
 
     assert replacement_reservation_id != original_reservation_id
     assert updated["order"]["totalQuantity"] == 5

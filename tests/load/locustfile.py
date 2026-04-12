@@ -27,7 +27,9 @@ class PublicApiUser(HttpUser):
     def on_start(self) -> None:
         self.access_token: str | None = None
         self.workspace_role: str | None = None
-        self.workspace_customer_id: str | None = os.getenv("LOCUST_WORKSPACE_CUSTOMER_ID", "").strip() or None
+        self.workspace_customer_id: str | None = (
+            os.getenv("LOCUST_WORKSPACE_CUSTOMER_ID", "").strip() or None
+        )
         self.enable_workspace_full_lifecycle = os.getenv(
             "LOCUST_WORKSPACE_FULL_LIFECYCLE",
             "",
@@ -51,9 +53,7 @@ class PublicApiUser(HttpUser):
         self.access_token = payload.get("token") or payload.get("access_token")
         workspace_user = payload.get("user") or {}
         self.workspace_role = (
-            workspace_user.get("canonicalRole")
-            or workspace_user.get("role")
-            or ""
+            workspace_user.get("canonicalRole") or workspace_user.get("role") or ""
         ).strip().lower() or None
         if not self.access_token or self.workspace_customer_id:
             return
@@ -67,7 +67,7 @@ class PublicApiUser(HttpUser):
             return
 
         bootstrap_payload = self._unwrap_response(bootstrap_response)
-        customers = ((bootstrap_payload.get("data") or {}).get("customers") or [])
+        customers = (bootstrap_payload.get("data") or {}).get("customers") or []
         if customers:
             self.workspace_customer_id = customers[0].get("id")
 

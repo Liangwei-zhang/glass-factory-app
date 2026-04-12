@@ -19,6 +19,7 @@ from infra.db.models.settings import GlassTypeModel
 from infra.db.models.users import UserModel
 from infra.db.session import get_db_session
 from infra.security.auth import AuthUser
+from infra.security.idempotency import enforce_idempotency_key
 from infra.security.identity import (
     can_create_orders,
     resolve_canonical_role,
@@ -26,7 +27,6 @@ from infra.security.identity import (
     resolve_shell_name,
     resolve_user_scopes,
 )
-from infra.security.idempotency import enforce_idempotency_key
 from infra.security.rbac import require_roles
 
 router = APIRouter(prefix="/app", tags=["customer-app"])
@@ -95,7 +95,9 @@ async def _serialize_notifications(session: AsyncSession, user_id: str) -> list[
     return await workspace_ui.serialize_notifications(session, user_id)
 
 
-def _serialize_customer_user(user_model: UserModel, auth_user: AuthUser, customer_id: str) -> dict[str, Any]:
+def _serialize_customer_user(
+    user_model: UserModel, auth_user: AuthUser, customer_id: str
+) -> dict[str, Any]:
     canonical_role = resolve_canonical_role(user_model.role)
     resolved_scopes = resolve_user_scopes(
         user_model.role,
@@ -134,7 +136,14 @@ async def customer_bootstrap(
     order_payloads = await _serialize_orders(session, customer.id)
     notifications = await _serialize_notifications(session, user_model.id)
 
-    active_statuses = {"received", "entered", "in_production", "completed", "shipping", "ready_for_pickup"}
+    active_statuses = {
+        "received",
+        "entered",
+        "in_production",
+        "completed",
+        "shipping",
+        "ready_for_pickup",
+    }
     credit_payload = _serialize_credit(customer)
 
     return {
@@ -148,7 +157,9 @@ async def customer_bootstrap(
         "data": {
             "summary": {
                 "totalOrders": len(order_payloads),
-                "activeOrders": sum(1 for order in order_payloads if order["status"] in active_statuses),
+                "activeOrders": sum(
+                    1 for order in order_payloads if order["status"] in active_statuses
+                ),
                 "readyForPickupOrders": sum(
                     1 for order in order_payloads if order["status"] == "ready_for_pickup"
                 ),
@@ -208,7 +219,11 @@ async def customer_order_detail(
     if order is None:
         raise HTTPException(status_code=404, detail="订单不存在。")
 
-    return {"order": await workspace_ui.serialize_order(session, order, include_detail=True, route_prefix="/v1/app")}
+    return {
+        "order": await workspace_ui.serialize_order(
+            session, order, include_detail=True, route_prefix="/v1/app"
+        )
+    }
 
 
 @router.get("/notifications")
@@ -278,13 +293,19 @@ async def customer_create_order(
             )
 
     result = await session.execute(
-        select(OrderModel).options(selectinload(OrderModel.items)).where(OrderModel.id == order_view.id)
+        select(OrderModel)
+        .options(selectinload(OrderModel.items))
+        .where(OrderModel.id == order_view.id)
     )
     order = result.scalar_one_or_none()
     if order is None:
         raise HTTPException(status_code=404, detail="订单不存在。")
 
-    return {"order": await workspace_ui.serialize_order(session, order, include_detail=True, route_prefix="/v1/app")}
+    return {
+        "order": await workspace_ui.serialize_order(
+            session, order, include_detail=True, route_prefix="/v1/app"
+        )
+    }
 
 
 @router.post("/notifications/read")

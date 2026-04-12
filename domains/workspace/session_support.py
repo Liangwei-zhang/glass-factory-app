@@ -81,21 +81,31 @@ def build_workspace_summary(
 ) -> dict[str, Any]:
     summary = {
         "totalOrders": len(orders),
-        "activeOrders": sum(1 for order in orders if order.get("status") in BOOTSTRAP_ACTIVE_ORDER_STATUSES),
+        "activeOrders": sum(
+            1 for order in orders if order.get("status") in BOOTSTRAP_ACTIVE_ORDER_STATUSES
+        ),
         "inProductionOrders": sum(1 for order in orders if order.get("status") == "in_production"),
-        "readyForPickupOrders": sum(1 for order in orders if order.get("status") == "ready_for_pickup"),
+        "readyForPickupOrders": sum(
+            1 for order in orders if order.get("status") == "ready_for_pickup"
+        ),
         "staleOrders": sum(1 for order in orders if bool(order.get("isStale"))),
         "rushOrders": sum(1 for order in orders if order.get("priority") == "rush"),
         "reworkOrders": sum(1 for order in orders if bool(order.get("reworkOpen"))),
         "modifiedOrders": sum(1 for order in orders if bool(order.get("isModified"))),
-        "activeCustomers": sum(1 for customer in customers if bool(customer.get("hasActiveOrders"))),
+        "activeCustomers": sum(
+            1 for customer in customers if bool(customer.get("hasActiveOrders"))
+        ),
     }
 
     if resolve_canonical_role(role) == "operator" and stage:
         worker_orders = []
         for order in orders:
             step = next(
-                (candidate for candidate in order.get("steps", []) if candidate.get("key") == stage),
+                (
+                    candidate
+                    for candidate in order.get("steps", [])
+                    if candidate.get("key") == stage
+                ),
                 None,
             )
             if step and step.get("status") != "completed":

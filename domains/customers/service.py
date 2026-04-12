@@ -7,9 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from domains.customers.errors import CustomerCreditExceeded
 from domains.customers.repository import CustomersRepository
 from domains.customers.schema import (
+    DEFAULT_CUSTOMER_CREDIT_LIMIT,
     CreateCustomerRequest,
     CreditCheckResult,
-    DEFAULT_CUSTOMER_CREDIT_LIMIT,
     CustomerCreditBalance,
     CustomerProfile,
     UpdateCustomerRequest,
@@ -113,7 +113,9 @@ class CustomersService:
             )
         return CustomerProfile.model_validate(row)
 
-    async def get_customer_profile(self, session: AsyncSession, customer_id: str) -> CustomerProfile:
+    async def get_customer_profile(
+        self, session: AsyncSession, customer_id: str
+    ) -> CustomerProfile:
         row = await self.repository.get_customer(session, customer_id)
         if row is None:
             raise AppError(
@@ -124,7 +126,9 @@ class CustomersService:
             )
         return CustomerProfile.model_validate(row)
 
-    async def get_credit_balance(self, session: AsyncSession, customer_id: str) -> CustomerCreditBalance:
+    async def get_credit_balance(
+        self, session: AsyncSession, customer_id: str
+    ) -> CustomerCreditBalance:
         row = await self.repository.get_customer(session, customer_id)
         if row is None:
             raise AppError(

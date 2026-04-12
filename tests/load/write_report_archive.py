@@ -4,7 +4,6 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 
-
 WEIGHT_ENV_NAMES = (
     ("LOCUST_WEIGHT_HEALTH_LIVE", "GET /v1/health/live"),
     ("LOCUST_WEIGHT_HEALTH_READY", "GET /v1/health/ready"),

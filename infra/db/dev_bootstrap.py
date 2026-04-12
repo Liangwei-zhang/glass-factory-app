@@ -10,7 +10,6 @@ from infra.db.models.users import UserModel
 from infra.db.session import build_session_factory
 from infra.security.passwords import hash_password
 
-
 DEMO_CUSTOMER = {
     "customer_code": "CUST-DEMO-APP",
     "company_name": "Demo Customer Portal",
@@ -95,11 +94,15 @@ async def ensure_dev_demo_users() -> int:
     async with session_factory() as session:
         customer = None
         customer_result = await session.execute(
-            select(CustomerModel).where(CustomerModel.customer_code == DEMO_CUSTOMER["customer_code"])
+            select(CustomerModel).where(
+                CustomerModel.customer_code == DEMO_CUSTOMER["customer_code"]
+            )
         )
         customer = customer_result.scalar_one_or_none()
         if customer is None:
-            customer = CustomerModel(**DEMO_CUSTOMER, credit_used=Decimal("0.00"), price_level="standard", is_active=True)
+            customer = CustomerModel(
+                **DEMO_CUSTOMER, credit_used=Decimal("0.00"), price_level="standard", is_active=True
+            )
             session.add(customer)
             await session.flush()
 
@@ -111,7 +114,9 @@ async def ensure_dev_demo_users() -> int:
                 )
             )
             existing = existing_result.scalar_one_or_none()
-            desired_customer_id = customer.id if user["role"] in {"customer", "customer_viewer"} else None
+            desired_customer_id = (
+                customer.id if user["role"] in {"customer", "customer_viewer"} else None
+            )
             desired_password_hash = hash_password(user["password"])
             if existing is not None:
                 updated = False

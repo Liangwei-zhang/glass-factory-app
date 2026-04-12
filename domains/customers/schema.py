@@ -5,7 +5,6 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict
 
-
 DEFAULT_CUSTOMER_CREDIT_LIMIT = Decimal("1000000.00")
 
 

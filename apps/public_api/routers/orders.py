@@ -1,4 +1,15 @@
-from fastapi import APIRouter, Body, Depends, File, Header, Path, Query, Request, Response, UploadFile
+from fastapi import (
+    APIRouter,
+    Body,
+    Depends,
+    File,
+    Header,
+    Path,
+    Query,
+    Request,
+    Response,
+    UploadFile,
+)
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -112,8 +123,12 @@ async def create_order(
     else:
         payload = payload.model_copy(update={"idempotency_key": effective_idempotency_key})
 
-    if resolve_canonical_role(user.role) == "customer" and payload.customer_id != (user.customer_id or payload.customer_id):
-        payload = payload.model_copy(update={"customer_id": user.customer_id or payload.customer_id})
+    if resolve_canonical_role(user.role) == "customer" and payload.customer_id != (
+        user.customer_id or payload.customer_id
+    ):
+        payload = payload.model_copy(
+            update={"customer_id": user.customer_id or payload.customer_id}
+        )
 
     return await service.create_order(session, payload)
 

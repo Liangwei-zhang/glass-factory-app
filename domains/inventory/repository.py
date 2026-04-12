@@ -26,9 +26,7 @@ class InventoryRepository:
         product_id: str,
     ) -> InventoryModel | None:
         stmt = (
-            select(InventoryModel)
-            .where(InventoryModel.product_id == product_id)
-            .with_for_update()
+            select(InventoryModel).where(InventoryModel.product_id == product_id).with_for_update()
         )
         result = await session.execute(stmt)
         return result.scalar_one_or_none()

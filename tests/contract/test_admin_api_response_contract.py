@@ -134,7 +134,9 @@ def test_admin_health_ready_and_runtime_health_response_contracts(monkeypatch) -
 
             runtime_health_response = client.get("/v1/admin/runtime/health")
 
-            runtime_health_payload = _assert_success_envelope(runtime_health_response, status_code=200)
+            runtime_health_payload = _assert_success_envelope(
+                runtime_health_response, status_code=200
+            )
             assert runtime_health_payload["status"] == "ok"
             assert runtime_health_payload["checks"]["kafka"]["status"] == "degraded"
     finally:
@@ -497,9 +499,7 @@ def test_admin_runtime_alerts_response_contract() -> None:
 
 
 def test_admin_analytics_response_contracts() -> None:
-    current_session = {
-        "value": _FakeUsersSession(scalar_results=[2, 10, 3, 2, 5, 4])
-    }
+    current_session = {"value": _FakeUsersSession(scalar_results=[2, 10, 3, 2, 5, 4])}
 
     async def override_session() -> AsyncGenerator:
         yield current_session["value"]

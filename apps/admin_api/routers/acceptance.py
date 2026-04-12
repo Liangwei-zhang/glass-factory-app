@@ -24,7 +24,9 @@ async def get_acceptance_status(
     _ = user
 
     ready_for_pickup_count = await session.scalar(
-        select(func.count(OrderModel.id)).where(OrderModel.status.in_(["completed", "ready_for_pickup"]))
+        select(func.count(OrderModel.id)).where(
+            OrderModel.status.in_(["completed", "ready_for_pickup"])
+        )
     )
     picked_up_count = await session.scalar(
         select(func.count(OrderModel.id)).where(OrderModel.status == "picked_up")

@@ -4,7 +4,12 @@ from collections.abc import AsyncGenerator
 from functools import lru_cache
 from uuid import uuid4
 
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlalchemy.pool import NullPool
 
 from infra.core.config import get_settings

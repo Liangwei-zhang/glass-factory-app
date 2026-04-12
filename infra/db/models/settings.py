@@ -21,7 +21,9 @@ class GlassTypeModel(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
-    updated_by: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
+    updated_by: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=True
+    )
 
 
 class NotificationTemplateModel(Base):
@@ -32,7 +34,9 @@ class NotificationTemplateModel(Base):
     subject_template: Mapped[str] = mapped_column(Text)
     body_template: Mapped[str] = mapped_column(Text)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
-    updated_by: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
+    updated_by: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=True
+    )
 
 
 class EmailLogModel(Base):
@@ -48,6 +52,8 @@ class EmailLogModel(Base):
     transport: Mapped[str] = mapped_column(String(20), default="none")
     error_message: Mapped[str] = mapped_column(Text, default="")
     provider_message_id: Mapped[str] = mapped_column(String(255), default="")
-    actor_user_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True)
+    actor_user_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

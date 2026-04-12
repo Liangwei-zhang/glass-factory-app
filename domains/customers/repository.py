@@ -21,9 +21,7 @@ class CustomersRepository:
         limit: int = 100,
     ) -> list[CustomerModel]:
         result = await session.execute(
-            select(CustomerModel)
-            .order_by(CustomerModel.updated_at.desc())
-            .limit(limit)
+            select(CustomerModel).order_by(CustomerModel.updated_at.desc()).limit(limit)
         )
         return list(result.scalars().all())
 

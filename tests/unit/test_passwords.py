@@ -13,8 +13,7 @@ class _FakeBcrypt:
 
 def test_hash_password_uses_sha256_hex_digest() -> None:
     assert passwords.hash_password("secret") == (
-        "2bb80d537b1da3e38bd30361aa855686bde0eacd"
-        "7162fef6a25fe97bf527a25b"
+        "2bb80d537b1da3e38bd30361aa855686bde0eacd" "7162fef6a25fe97bf527a25b"
     )
 
 

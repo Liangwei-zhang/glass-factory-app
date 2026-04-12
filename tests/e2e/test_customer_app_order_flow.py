@@ -18,11 +18,15 @@ from tests.support.order_inventory_flow import (
 
 
 def _patch_customer_app(monkeypatch, harness) -> None:
-    async def fake_ensure_product_inventory(_session, glass_type: str, thickness: str, quantity: int):
+    async def fake_ensure_product_inventory(
+        _session, glass_type: str, thickness: str, quantity: int
+    ):
         _ = (glass_type, thickness, quantity)
         return SimpleNamespace(id="product-1", product_name="Tempered Glass Panel")
 
-    async def fake_serialize_order(_session, order, include_detail: bool = True, route_prefix: str = "/v1/app"):
+    async def fake_serialize_order(
+        _session, order, include_detail: bool = True, route_prefix: str = "/v1/app"
+    ):
         _ = (include_detail, route_prefix)
         return serialize_test_order(order)
 
@@ -214,7 +218,10 @@ def test_customer_app_create_requires_idempotency_key(monkeypatch) -> None:
 
             assert response.status_code == 400
             payload = response.json()
-            assert payload["error"]["message"] == "Idempotency-Key header is required for write operations."
+            assert (
+                payload["error"]["message"]
+                == "Idempotency-Key header is required for write operations."
+            )
             assert len(harness.orders_repository.orders_by_id) == 0
             assert harness.inventory_row.available_qty == 10
             assert harness.inventory_row.reserved_qty == 0

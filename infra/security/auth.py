@@ -13,7 +13,6 @@ from infra.cache.redis_client import get_redis
 from infra.core.config import get_settings
 from infra.core.errors import AppError, ErrorCode
 
-
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/v1/auth/login")
 
 
@@ -50,7 +49,9 @@ def create_access_token(
         payload["cid"] = customer_id
     if session_id:
         payload["sid"] = session_id
-    return jwt.encode(payload, settings.security.jwt_secret, algorithm=settings.security.jwt_algorithm)
+    return jwt.encode(
+        payload, settings.security.jwt_secret, algorithm=settings.security.jwt_algorithm
+    )
 
 
 def decode_access_token(token: str) -> AuthUser:

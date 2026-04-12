@@ -20,8 +20,8 @@ from domains.workspace import ui_support as workspace_ui
 from infra.core.errors import AppError
 from infra.db.session import get_db_session
 from infra.security.auth import AuthUser, get_current_user
-from infra.security.identity import resolve_canonical_role
 from infra.security.idempotency import enforce_idempotency_key
+from infra.security.identity import resolve_canonical_role
 from infra.security.rbac import require_roles
 
 router = APIRouter(prefix="/workspace", tags=["workspace"])

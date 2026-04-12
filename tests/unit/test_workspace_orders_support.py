@@ -55,7 +55,9 @@ async def test_list_workspace_orders_filters_batch_serialized_payloads(monkeypat
     rows = [SimpleNamespace(id="order-1"), SimpleNamespace(id="order-2")]
     session = _FakeSession(rows)
 
-    async def fake_serialize_orders(_session, orders, *, include_detail: bool = False, route_prefix: str = "/api"):
+    async def fake_serialize_orders(
+        _session, orders, *, include_detail: bool = False, route_prefix: str = "/api"
+    ):
         assert orders == rows
         assert include_detail is False
         assert route_prefix == "/v1/workspace"

@@ -3,10 +3,7 @@ from __future__ import annotations
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from domains.notifications.repository import NotificationsRepository
-from domains.notifications.schema import (
-    MarkNotificationsReadResult,
-    NotificationView,
-)
+from domains.notifications.schema import MarkNotificationsReadResult, NotificationView
 
 
 class NotificationsService:

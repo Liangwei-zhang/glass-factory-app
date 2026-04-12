@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 from urllib.parse import urlparse
 
-
 WEIGHT_ENV_NAMES = (
     "LOCUST_WEIGHT_HEALTH_LIVE",
     "LOCUST_WEIGHT_HEALTH_READY",
@@ -67,9 +66,13 @@ def validate() -> tuple[bool, list[str]]:
     }
     if require_workspace_auth:
         if not os.getenv("LOCUST_WORKSPACE_EMAIL", "").strip():
-            errors.append("LOCUST_WORKSPACE_EMAIL is required for authenticated workspace baselines")
+            errors.append(
+                "LOCUST_WORKSPACE_EMAIL is required for authenticated workspace baselines"
+            )
         if not os.getenv("LOCUST_WORKSPACE_PASSWORD", "").strip():
-            errors.append("LOCUST_WORKSPACE_PASSWORD is required for authenticated workspace baselines")
+            errors.append(
+                "LOCUST_WORKSPACE_PASSWORD is required for authenticated workspace baselines"
+            )
 
     return len(errors) == 0, errors
 

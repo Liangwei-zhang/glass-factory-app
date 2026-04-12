@@ -4,8 +4,12 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from domains.finance.schema import CreateReceivableRequest, ReceivableView, RecordPaymentRequest
-from domains.finance.schema import RecordRefundRequest
+from domains.finance.schema import (
+    CreateReceivableRequest,
+    ReceivableView,
+    RecordPaymentRequest,
+    RecordRefundRequest,
+)
 from domains.finance.service import FinanceService
 
 service = FinanceService()

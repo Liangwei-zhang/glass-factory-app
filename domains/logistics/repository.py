@@ -41,7 +41,10 @@ class LogisticsRepository:
     async def get_tracking(self, session: AsyncSession, tracking_no: str) -> ShipmentModel | None:
         result = await session.execute(
             select(ShipmentModel).where(
-                or_(ShipmentModel.tracking_no == tracking_no, ShipmentModel.shipment_no == tracking_no)
+                or_(
+                    ShipmentModel.tracking_no == tracking_no,
+                    ShipmentModel.shipment_no == tracking_no,
+                )
             )
         )
         return result.scalar_one_or_none()

@@ -26,4 +26,6 @@ class ReceivableModel(Base):
     status: Mapped[str] = mapped_column(String(20), default="unpaid")
     due_date: Mapped[date] = mapped_column(Date)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now
+    )

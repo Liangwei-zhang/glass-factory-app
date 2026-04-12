@@ -7,7 +7,9 @@ from infra.db.models.finance import ReceivableModel
 
 
 class FinanceRepository:
-    async def get_receivable(self, session: AsyncSession, receivable_id: str) -> ReceivableModel | None:
+    async def get_receivable(
+        self, session: AsyncSession, receivable_id: str
+    ) -> ReceivableModel | None:
         return await session.get(ReceivableModel, receivable_id)
 
     async def get_receivable_by_order(
@@ -35,7 +37,9 @@ class FinanceRepository:
             stmt = stmt.where(ReceivableModel.status == status)
         if customer_id:
             stmt = stmt.where(ReceivableModel.customer_id == customer_id)
-        result = await session.execute(stmt.order_by(ReceivableModel.created_at.desc()).limit(limit))
+        result = await session.execute(
+            stmt.order_by(ReceivableModel.created_at.desc()).limit(limit)
+        )
         return list(result.scalars().all())
 
     async def list_statements(
@@ -47,7 +51,9 @@ class FinanceRepository:
         stmt = select(ReceivableModel)
         if customer_id:
             stmt = stmt.where(ReceivableModel.customer_id == customer_id)
-        result = await session.execute(stmt.order_by(ReceivableModel.created_at.desc()).limit(limit))
+        result = await session.execute(
+            stmt.order_by(ReceivableModel.created_at.desc()).limit(limit)
+        )
         return list(result.scalars().all())
 
     async def list_invoices(
@@ -62,5 +68,7 @@ class FinanceRepository:
             stmt = stmt.where(ReceivableModel.status == status)
         if customer_id:
             stmt = stmt.where(ReceivableModel.customer_id == customer_id)
-        result = await session.execute(stmt.order_by(ReceivableModel.created_at.desc()).limit(limit))
+        result = await session.execute(
+            stmt.order_by(ReceivableModel.created_at.desc()).limit(limit)
+        )
         return list(result.scalars().all())

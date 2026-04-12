@@ -6,7 +6,11 @@ from loguru import logger
 from sqlalchemy import select
 
 from domains.inventory.service import InventoryService
-from infra.core.hooks import execute_after_rollback_hooks, pop_after_commit_hooks, pop_after_rollback_hooks
+from infra.core.hooks import (
+    execute_after_rollback_hooks,
+    pop_after_commit_hooks,
+    pop_after_rollback_hooks,
+)
 from infra.db.models.events import EventOutboxModel
 from infra.db.models.inventory import InventoryModel
 from infra.db.session import build_session_factory

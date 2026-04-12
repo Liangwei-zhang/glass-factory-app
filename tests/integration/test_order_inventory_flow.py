@@ -5,7 +5,10 @@ import pytest
 from domains.orders.schema import UpdateOrderItemRequest, UpdateOrderRequest
 from infra.core.errors import AppError
 from infra.db.models.events import EventOutboxModel
-from tests.support.order_inventory_flow import build_order_inventory_harness, make_create_order_request
+from tests.support.order_inventory_flow import (
+    build_order_inventory_harness,
+    make_create_order_request,
+)
 
 
 @pytest.mark.asyncio
@@ -156,7 +159,9 @@ async def test_cancel_order_rejects_after_production_has_started() -> None:
 
     order = await harness.orders_service.create_order(
         harness.session,
-        make_create_order_request(quantity=3, idempotency_key="integration-cancel-after-production-start"),
+        make_create_order_request(
+            quantity=3, idempotency_key="integration-cancel-after-production-start"
+        ),
     )
     await harness.orders_service.mark_entered(
         harness.session,
@@ -195,7 +200,9 @@ async def test_approve_pickup_is_idempotent_once_order_is_ready() -> None:
 
     order = await harness.orders_service.create_order(
         harness.session,
-        make_create_order_request(quantity=3, idempotency_key="integration-approve-pickup-idempotent"),
+        make_create_order_request(
+            quantity=3, idempotency_key="integration-approve-pickup-idempotent"
+        ),
     )
     await harness.orders_service.mark_entered(
         harness.session,
@@ -233,11 +240,14 @@ async def test_approve_pickup_is_idempotent_once_order_is_ready() -> None:
     assert first_approval.status == "ready_for_pickup"
     assert second_approval.status == "ready_for_pickup"
     assert harness.orders_repository.orders_by_id[order.id].version == version_after_first_approval
-    assert sum(
-        1
-        for row in harness.session.added
-        if isinstance(row, EventOutboxModel) and row.topic == "orders.order.ready_for_pickup"
-    ) == approval_topic_count
+    assert (
+        sum(
+            1
+            for row in harness.session.added
+            if isinstance(row, EventOutboxModel) and row.topic == "orders.order.ready_for_pickup"
+        )
+        == approval_topic_count
+    )
 
 
 @pytest.mark.asyncio
@@ -266,7 +276,9 @@ async def test_update_order_quantity_rebuilds_pending_reservation() -> None:
 
     replacement_reservation_id = updated_order.reservation_ids[0]
     original_reservation = harness.inventory_repository.reservation_rows[original_reservation_id]
-    replacement_reservation = harness.inventory_repository.reservation_rows[replacement_reservation_id]
+    replacement_reservation = harness.inventory_repository.reservation_rows[
+        replacement_reservation_id
+    ]
 
     assert replacement_reservation_id != original_reservation_id
     assert updated_order.total_quantity == 5
@@ -287,7 +299,9 @@ async def test_update_order_quantity_rebuilds_pending_reservation() -> None:
 
 
 @pytest.mark.asyncio
-async def test_duplicate_create_order_by_payload_idempotency_returns_existing_order_without_extra_reserve() -> None:
+async def test_duplicate_create_order_by_payload_idempotency_returns_existing_order_without_extra_reserve() -> (
+    None
+):
     harness = build_order_inventory_harness(available_qty=10)
     payload = make_create_order_request(quantity=3, idempotency_key="integration-duplicate-create")
 

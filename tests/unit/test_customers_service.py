@@ -93,7 +93,9 @@ def test_update_customer_rejects_blank_company_name() -> None:
     service = CustomersService(repository=repository)
 
     try:
-        asyncio.run(service.update_customer(None, "cust-1", UpdateCustomerRequest(company_name="   ")))
+        asyncio.run(
+            service.update_customer(None, "cust-1", UpdateCustomerRequest(company_name="   "))
+        )
     except AppError as exc:
         assert exc.status_code == 400
         assert exc.message == "公司名称不能为空。"

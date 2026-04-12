@@ -10,7 +10,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from domains.customers.schema import DEFAULT_CUSTOMER_CREDIT_LIMIT
-from domains.orders.schema import CreateOrderItem, CreateOrderRequest, UpdateOrderItemRequest, UpdateOrderRequest
+from domains.orders.schema import (
+    CreateOrderItem,
+    CreateOrderRequest,
+    UpdateOrderItemRequest,
+    UpdateOrderRequest,
+)
 from domains.orders.service import OrdersService
 from domains.workspace import ui_support
 from infra.core.errors import AppError, ErrorCode
@@ -274,9 +279,11 @@ async def update_workspace_order(
         item_update.quantity = quantity
 
     update_payload = UpdateOrderRequest(
-        expected_delivery_date=ui_support.parse_date_input(estimated_completion_date)
-        if estimated_completion_date is not None
-        else None,
+        expected_delivery_date=(
+            ui_support.parse_date_input(estimated_completion_date)
+            if estimated_completion_date is not None
+            else None
+        ),
         priority=priority,
         remark=special_instructions,
         items=[item_update],

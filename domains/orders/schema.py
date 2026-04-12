@@ -22,7 +22,9 @@ class OrderStatus(StrEnum):
 
 
 ORDER_STATUS_TRANSITIONS: dict[OrderStatus, frozenset[OrderStatus]] = {
-    OrderStatus.PENDING: frozenset({OrderStatus.CONFIRMED, OrderStatus.ENTERED, OrderStatus.CANCELLED}),
+    OrderStatus.PENDING: frozenset(
+        {OrderStatus.CONFIRMED, OrderStatus.ENTERED, OrderStatus.CANCELLED}
+    ),
     OrderStatus.CONFIRMED: frozenset({OrderStatus.ENTERED, OrderStatus.CANCELLED}),
     OrderStatus.ENTERED: frozenset({OrderStatus.IN_PRODUCTION, OrderStatus.CANCELLED}),
     OrderStatus.IN_PRODUCTION: frozenset({OrderStatus.COMPLETED}),

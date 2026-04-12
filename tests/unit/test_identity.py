@@ -19,7 +19,9 @@ def test_identity_helpers_cover_customer_viewer_and_stage_labels() -> None:
     assert can_create_orders("customer_viewer") is False
 
 
-def test_canonical_role_mapping_preserves_customer_roles_and_collapses_legacy_workspace_roles() -> None:
+def test_canonical_role_mapping_preserves_customer_roles_and_collapses_legacy_workspace_roles() -> (
+    None
+):
     assert resolve_canonical_role("customer") == "customer"
     assert resolve_canonical_role("customer_viewer") == "customer_viewer"
     assert resolve_canonical_role("admin") == "admin"

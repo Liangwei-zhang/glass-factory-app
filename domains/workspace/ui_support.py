@@ -326,10 +326,7 @@ async def _load_order_serialization_dependencies(
         customer_result = await session.execute(
             select(CustomerModel).where(CustomerModel.id.in_(customer_ids))
         )
-        customer_map = {
-            row.id: row
-            for row in customer_result.scalars().all()
-        }
+        customer_map = {row.id: row for row in customer_result.scalars().all()}
 
     order_ids = [order.id for order in orders]
     work_order_result = await session.execute(
@@ -471,11 +468,7 @@ async def serialize_order(
 
     ui_status = to_ui_status(order.status)
     current_step_index = next(
-        (
-            index
-            for index, step in enumerate(PRODUCTION_STEPS)
-            if step["key"] == current_step_key
-        ),
+        (index for index, step in enumerate(PRODUCTION_STEPS) if step["key"] == current_step_key),
         0,
     )
 
@@ -504,10 +497,12 @@ async def serialize_order(
         if ui_status == "cancelled" and step_status == "pending":
             step_status = "pending"
 
-        rework_piece_numbers = sorted({piece for piece in step_rework_map.get(step_key, []) if piece > 0})
+        rework_piece_numbers = sorted(
+            {piece for piece in step_rework_map.get(step_key, []) if piece > 0}
+        )
         rework_piece_summary = format_piece_summary(rework_piece_numbers)
-        rework_unread = (
-            step_key == "cutting" and any(bool(row.rework_unread) for row in work_orders)
+        rework_unread = step_key == "cutting" and any(
+            bool(row.rework_unread) for row in work_orders
         )
 
         steps.append(
@@ -522,12 +517,10 @@ async def serialize_order(
                 "reworkCount": len(rework_piece_numbers),
                 "reworkNote": "",
                 "reworkUnread": rework_unread,
-                "isAvailable": index == 0 or all(
-                    candidate["status"] == "completed" for candidate in steps[:index]
-                ),
-                "isBlocked": index > 0 and not all(
-                    candidate["status"] == "completed" for candidate in steps[:index]
-                ),
+                "isAvailable": index == 0
+                or all(candidate["status"] == "completed" for candidate in steps[:index]),
+                "isBlocked": index > 0
+                and not all(candidate["status"] == "completed" for candidate in steps[:index]),
                 "reworkPieceNumbers": rework_piece_numbers,
                 "reworkPieceSummary": rework_piece_summary,
                 "reworkRequestCount": len(rework_piece_numbers),
@@ -546,12 +539,7 @@ async def serialize_order(
             break
 
     open_rework_piece_numbers = sorted(
-        {
-            piece
-            for numbers in step_rework_map.values()
-            for piece in numbers
-            if piece > 0
-        }
+        {piece for numbers in step_rework_map.values() for piece in numbers if piece > 0}
     )
     open_rework_piece_summary = format_piece_summary(open_rework_piece_numbers)
 
@@ -577,9 +565,11 @@ async def serialize_order(
         "quantity": order.total_quantity,
         "estimatedCompletionDate": order.expected_delivery_date,
         "specialInstructions": order.remark,
-        "drawingUrl": build_order_asset_url(route_prefix, order.id, "drawing")
-        if order.drawing_object_key
-        else "",
+        "drawingUrl": (
+            build_order_asset_url(route_prefix, order.id, "drawing")
+            if order.drawing_object_key
+            else ""
+        ),
         "drawingName": order.drawing_original_name,
         "createdAt": order.created_at,
         "updatedAt": order.updated_at,
@@ -595,9 +585,8 @@ async def serialize_order(
         "pickupSignatureUrl": "",
         "version": order.version,
         "isModified": order.version > 1,
-        "reworkOpen": bool(open_rework_piece_numbers) or any(
-            bool(row.rework_unread) for row in work_orders
-        ),
+        "reworkOpen": bool(open_rework_piece_numbers)
+        or any(bool(row.rework_unread) for row in work_orders),
         "staleDays": stale_days,
         "isStale": is_stale,
         "canCancel": can_cancel,

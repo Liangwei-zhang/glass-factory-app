@@ -86,9 +86,7 @@ async def list_users(
     result = await session.execute(stmt.order_by(UserModel.created_at.desc()).limit(limit))
     rows = result.all()
 
-    return {
-        "items": [_serialize_user_row(row, customer_name) for row, customer_name in rows]
-    }
+    return {"items": [_serialize_user_row(row, customer_name) for row, customer_name in rows]}
 
 
 @router.put("/{user_id}")
@@ -176,17 +174,9 @@ async def bulk_user_action(
 
     action = payload.action.strip().lower()
     if action == "activate":
-        stmt = (
-            update(UserModel)
-            .where(UserModel.id.in_(payload.user_ids))
-            .values(is_active=True)
-        )
+        stmt = update(UserModel).where(UserModel.id.in_(payload.user_ids)).values(is_active=True)
     elif action == "deactivate":
-        stmt = (
-            update(UserModel)
-            .where(UserModel.id.in_(payload.user_ids))
-            .values(is_active=False)
-        )
+        stmt = update(UserModel).where(UserModel.id.in_(payload.user_ids)).values(is_active=False)
     elif action == "set_role":
         if not payload.role:
             raise AppError(
@@ -204,11 +194,7 @@ async def bulk_user_action(
         values = {"role": next_role, "customer_id": None}
         if resolve_canonical_role(next_role) != "operator":
             values["stage"] = None
-        stmt = (
-            update(UserModel)
-            .where(UserModel.id.in_(payload.user_ids))
-            .values(**values)
-        )
+        stmt = update(UserModel).where(UserModel.id.in_(payload.user_ids)).values(**values)
     else:
         raise AppError(
             code="INVALID_BULK_ACTION",

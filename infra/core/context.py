@@ -16,7 +16,9 @@ class RequestContext:
 _request_context: ContextVar[RequestContext | None] = ContextVar("request_context", default=None)
 
 
-def create_request_context(trace_id: str | None = None, user_ip: str | None = None) -> RequestContext:
+def create_request_context(
+    trace_id: str | None = None, user_ip: str | None = None
+) -> RequestContext:
     return RequestContext(request_id=str(uuid4()), trace_id=trace_id, user_ip=user_ip)
 
 

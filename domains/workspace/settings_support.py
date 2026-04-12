@@ -149,7 +149,9 @@ async def create_glass_type(
             status_code=409,
         )
 
-    max_sort_order = await session.scalar(select(func.coalesce(func.max(GlassTypeModel.sort_order), -1)))
+    max_sort_order = await session.scalar(
+        select(func.coalesce(func.max(GlassTypeModel.sort_order), -1))
+    )
     glass_type = GlassTypeModel(
         name=normalized_name,
         is_active=True,

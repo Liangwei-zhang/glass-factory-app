@@ -24,17 +24,17 @@ from domains.orders.schema import (
     UpdateOrderRequest,
     can_transition_order_status,
 )
+from infra.core.config import get_settings
 from infra.core.errors import AppError, ErrorCode
 from infra.core.id_generator import OrderIdGenerator
+from infra.db.models.customers import CustomerModel
 from infra.db.models.events import EventOutboxModel
 from infra.db.models.logistics import ShipmentModel
-from infra.db.models.customers import CustomerModel
 from infra.db.models.orders import OrderModel
 from infra.db.models.production import QualityCheckModel, WorkOrderModel
 from infra.db.models.settings import EmailLogModel, NotificationTemplateModel
 from infra.events.outbox import OutboxPublisher
 from infra.events.topics import Topics
-from infra.core.config import get_settings
 from infra.security.identity import resolve_canonical_role
 from infra.storage.object_storage import ObjectStorage
 
@@ -749,9 +749,7 @@ class OrdersService:
             error_message = "SMTP 未配置，邮件预览已保存。"
         else:
             from_addr = (
-                settings.smtp.from_address
-                or settings.smtp.user
-                or "glass-factory@example.local"
+                settings.smtp.from_address or settings.smtp.user or "glass-factory@example.local"
             )
             message = EmailMessage()
             message["Subject"] = subject
@@ -902,7 +900,10 @@ class OrdersService:
                     },
                 )
 
-        if normalized_action in {"start", "complete"} and order.status not in PRODUCTION_ACTION_ORDER_STATUSES:
+        if (
+            normalized_action in {"start", "complete"}
+            and order.status not in PRODUCTION_ACTION_ORDER_STATUSES
+        ):
             raise AppError(
                 code=ErrorCode.ORDER_INVALID_TRANSITION,
                 message="Order must be entered before production actions.",

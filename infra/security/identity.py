@@ -146,9 +146,7 @@ def resolve_user_scopes(
     normalized_stage = str(stage or "").strip().lower()
     canonical_role = resolve_canonical_role(role)
     resolved_scopes = set(ROLE_SCOPE_DEFAULTS.get(canonical_role, frozenset()))
-    resolved_scopes.update(
-        str(scope).strip() for scope in (scopes or []) if str(scope).strip()
-    )
+    resolved_scopes.update(str(scope).strip() for scope in (scopes or []) if str(scope).strip())
 
     # Compatibility bridge while the workspace still carries pre-sj roles.
     legacy_role = normalize_role(role)

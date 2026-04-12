@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -15,11 +14,7 @@ def _read_non_empty_lines(path: Path) -> set[str]:
 
 
 def _repo_files(root: Path) -> set[str]:
-    return {
-        path.relative_to(ROOT).as_posix()
-        for path in root.rglob("*")
-        if path.is_file()
-    }
+    return {path.relative_to(ROOT).as_posix() for path in root.rglob("*") if path.is_file()}
 
 
 def test_legacy_backend_allowlist_matches_repo() -> None:
@@ -47,12 +42,8 @@ def test_development_guide_points_to_guardrail_docs() -> None:
 
 
 def test_guardrail_docs_capture_event_and_cache_requirements() -> None:
-    architecture = (ROOT / "docs" / "ARCHITECTURE_GUARDRAILS.md").read_text(
-        encoding="utf-8"
-    )
-    cache_matrix = (ROOT / "docs" / "CACHE_STRATEGY_MATRIX.md").read_text(
-        encoding="utf-8"
-    )
+    architecture = (ROOT / "docs" / "ARCHITECTURE_GUARDRAILS.md").read_text(encoding="utf-8")
+    cache_matrix = (ROOT / "docs" / "CACHE_STRATEGY_MATRIX.md").read_text(encoding="utf-8")
 
     assert "topics.py" in architecture
     assert "Outbox" in architecture

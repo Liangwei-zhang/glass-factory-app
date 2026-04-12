@@ -34,7 +34,9 @@ async def list_audit_logs(
     rows = result.scalars().all()
 
     dead_letter_count = await session.scalar(
-        select(func.count(EventOutboxModel.id)).where(EventOutboxModel.status.in_(["dead_letter", "failed"]))
+        select(func.count(EventOutboxModel.id)).where(
+            EventOutboxModel.status.in_(["dead_letter", "failed"])
+        )
     )
     pending_count = await session.scalar(
         select(func.count(EventOutboxModel.id)).where(EventOutboxModel.status == "pending")

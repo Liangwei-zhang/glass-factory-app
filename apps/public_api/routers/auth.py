@@ -8,13 +8,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from domains.auth.schema import LoginRequest, LoginResponse
 from domains.auth.service import AuthService
-from infra.core.config import get_settings
 from infra.cache.redis_client import get_redis
+from infra.core.config import get_settings
 from infra.core.errors import AppError, ErrorCode
 from infra.db.session import get_db_session
 from infra.security.auth import AuthUser, create_access_token, get_current_user
-from infra.security.identity import resolve_canonical_role
 from infra.security.idempotency import enforce_idempotency_key
+from infra.security.identity import resolve_canonical_role
 from infra.security.rate_limit import limiter
 
 router = APIRouter(prefix="/auth", tags=["auth"])

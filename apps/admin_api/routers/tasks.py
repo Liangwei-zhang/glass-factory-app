@@ -30,7 +30,9 @@ async def list_tasks(
     detail_limit = min(limit, 50)
 
     dead_letter_count = await session.scalar(
-        select(func.count(EventOutboxModel.id)).where(EventOutboxModel.status.in_(["dead_letter", "failed"]))
+        select(func.count(EventOutboxModel.id)).where(
+            EventOutboxModel.status.in_(["dead_letter", "failed"])
+        )
     )
     overdue_receivable_count = await session.scalar(
         select(func.count(ReceivableModel.id)).where(
@@ -45,7 +47,9 @@ async def list_tasks(
         )
     )
     pickup_approval_count = await session.scalar(
-        select(func.count(OrderModel.id)).where(OrderModel.status.in_(["completed", "ready_for_pickup"]))
+        select(func.count(OrderModel.id)).where(
+            OrderModel.status.in_(["completed", "ready_for_pickup"])
+        )
     )
 
     dead_letters_result = await session.execute(

@@ -8,9 +8,9 @@ from fastapi.testclient import TestClient
 
 from apps.public_api.main import app
 from apps.public_api.routers import workspace as workspace_router
-from infra.db.session import get_db_session
 from infra.db.models.logistics import ShipmentModel
 from infra.db.models.settings import EmailLogModel
+from infra.db.session import get_db_session
 from infra.security.auth import get_current_user
 from infra.security.idempotency import get_redis as _unused_get_redis  # noqa: F401
 from infra.storage.object_storage import ObjectStorage
@@ -22,11 +22,15 @@ from tests.support.order_inventory_flow import (
 
 
 def _patch_workspace_route(monkeypatch, harness) -> None:
-    async def fake_ensure_product_inventory(_session, glass_type: str, thickness: str, quantity: int):
+    async def fake_ensure_product_inventory(
+        _session, glass_type: str, thickness: str, quantity: int
+    ):
         _ = (glass_type, thickness, quantity)
         return SimpleNamespace(id="product-1", product_name="Tempered Glass Panel")
 
-    async def fake_serialize_workspace_order(_session, order_id: str, *, include_detail: bool = True):
+    async def fake_serialize_workspace_order(
+        _session, order_id: str, *, include_detail: bool = True
+    ):
         _ = include_detail
         return serialize_test_order(harness.orders_repository.orders_by_id[order_id])
 
@@ -48,7 +52,9 @@ def _patch_workspace_route(monkeypatch, harness) -> None:
     monkeypatch.setattr(workspace_router.workspace_orders, "get_order_model", fake_get_order_model)
 
 
-def _drive_workspace_order_to_ready_for_pickup(client: TestClient, current_user: dict[str, object], harness) -> str:
+def _drive_workspace_order_to_ready_for_pickup(
+    client: TestClient, current_user: dict[str, object], harness
+) -> str:
     create_response = client.post(
         "/v1/workspace/orders",
         headers={"Idempotency-Key": "workspace-e2e-ship-finance-create"},
@@ -205,7 +211,9 @@ def test_workspace_orders_api_update_quantity_rebuilds_reservation(monkeypatch) 
         app.dependency_overrides.clear()
 
 
-def test_workspace_orders_api_duplicate_create_is_rejected_without_extra_reserve(monkeypatch) -> None:
+def test_workspace_orders_api_duplicate_create_is_rejected_without_extra_reserve(
+    monkeypatch,
+) -> None:
     harness = build_order_inventory_harness(available_qty=10)
     _patch_workspace_route(monkeypatch, harness)
 
@@ -286,7 +294,10 @@ def test_workspace_orders_api_create_requires_idempotency_key(monkeypatch) -> No
 
             assert response.status_code == 400
             payload = response.json()
-            assert payload["error"]["message"] == "Idempotency-Key header is required for write operations."
+            assert (
+                payload["error"]["message"]
+                == "Idempotency-Key header is required for write operations."
+            )
             assert len(harness.orders_repository.orders_by_id) == 0
             assert harness.inventory_row.available_qty == 10
             assert harness.inventory_row.reserved_qty == 0
@@ -405,7 +416,9 @@ def test_workspace_orders_api_full_lifecycle_reaches_picked_up(
             assert picked_up_order.pickup_signer_name == "Alice Receiver"
             assert picked_up_order.pickup_signature_key
 
-            signature_path = ObjectStorage(base_dir=str(tmp_path / "object-storage")).resolve_local_path(
+            signature_path = ObjectStorage(
+                base_dir=str(tmp_path / "object-storage")
+            ).resolve_local_path(
                 bucket="signatures",
                 key=picked_up_order.pickup_signature_key,
             )

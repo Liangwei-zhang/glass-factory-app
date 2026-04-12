@@ -141,8 +141,14 @@ class MemoryInventoryRepository:
     def store_reservation(self, row: InventoryReservationModel) -> None:
         self.reservation_rows[row.id] = row
 
-    async def list_inventory_for_update(self, _session, product_ids: list[str]) -> list[InventoryModel]:
-        return [self.inventory_rows[product_id] for product_id in product_ids if product_id in self.inventory_rows]
+    async def list_inventory_for_update(
+        self, _session, product_ids: list[str]
+    ) -> list[InventoryModel]:
+        return [
+            self.inventory_rows[product_id]
+            for product_id in product_ids
+            if product_id in self.inventory_rows
+        ]
 
     async def list_reservations(
         self,
@@ -152,7 +158,11 @@ class MemoryInventoryRepository:
         for_update: bool = False,
     ) -> list[InventoryReservationModel]:
         _ = for_update
-        return [self.reservation_rows[reservation_id] for reservation_id in reservation_ids if reservation_id in self.reservation_rows]
+        return [
+            self.reservation_rows[reservation_id]
+            for reservation_id in reservation_ids
+            if reservation_id in self.reservation_rows
+        ]
 
     async def list_expired_pending_reservations(
         self,
@@ -483,7 +493,9 @@ def build_order_inventory_harness(*, available_qty: int = 10) -> OrderInventoryH
     )
 
 
-def make_create_order_request(*, quantity: int = 3, idempotency_key: str | None = None) -> CreateOrderRequest:
+def make_create_order_request(
+    *, quantity: int = 3, idempotency_key: str | None = None
+) -> CreateOrderRequest:
     return CreateOrderRequest(
         customer_id="cust-1",
         delivery_address="Factory pickup",

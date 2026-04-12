@@ -339,7 +339,9 @@ class RedisInventoryReservationStore:
 
         reservation_ids = list(delete_reservation_ids)
         if reservation_ids:
-            await redis.delete(*(reservation_key(reservation_id) for reservation_id in reservation_ids))
+            await redis.delete(
+                *(reservation_key(reservation_id) for reservation_id in reservation_ids)
+            )
 
     async def _ensure_stock_snapshots(
         self,
@@ -443,7 +445,9 @@ class RedisInventoryReservationStore:
             self._queue_reservation_snapshot_write(pipeline, snapshot)
         await pipeline.execute()
 
-    def _queue_reservation_snapshot_write(self, pipeline, snapshot: InventoryReservationSnapshot) -> None:
+    def _queue_reservation_snapshot_write(
+        self, pipeline, snapshot: InventoryReservationSnapshot
+    ) -> None:
         key = reservation_key(snapshot.reservation_id)
         pipeline.hset(
             key,

@@ -20,7 +20,6 @@ from infra.db.models.orders import OrderModel
 from infra.events.outbox import OutboxPublisher
 from infra.events.topics import Topics
 
-
 BILLABLE_ORDER_STATUSES = {"completed", "ready_for_pickup", "picked_up", "shipping", "delivered"}
 
 
@@ -80,7 +79,9 @@ class FinanceService:
                     status_code=409,
                     details={"receivable_id": row.id},
                 )
-            row.invoice_no = (payload.invoice_no or row.invoice_no or f"INV-{order.order_no}").strip() or None
+            row.invoice_no = (
+                payload.invoice_no or row.invoice_no or f"INV-{order.order_no}"
+            ).strip() or None
             row.amount = amount
             row.due_date = payload.due_date
             if row.paid_amount == row.amount:

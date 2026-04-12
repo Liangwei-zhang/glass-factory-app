@@ -71,7 +71,9 @@ async def _seed_customer_product_inventory(
     return customer_id, product_id
 
 
-def _build_create_order_request(*, customer_id: str, product_id: str, idempotency_key: str) -> CreateOrderRequest:
+def _build_create_order_request(
+    *, customer_id: str, product_id: str, idempotency_key: str
+) -> CreateOrderRequest:
     return CreateOrderRequest(
         customer_id=customer_id,
         delivery_address="Factory pickup",

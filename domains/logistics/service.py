@@ -14,7 +14,6 @@ from infra.db.models.orders import OrderModel
 from infra.events.outbox import OutboxPublisher
 from infra.events.topics import Topics
 
-
 SHIPPABLE_ORDER_STATUSES = {"completed", "ready_for_pickup", "picked_up", "shipping", "delivered"}
 
 

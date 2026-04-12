@@ -4,8 +4,8 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from domains.inventory.service import InventoryService
 from domains.inventory.schema import InventoryReservationItem, InventoryReservationRequest
+from domains.inventory.service import InventoryService
 from infra.core.hooks import pop_after_rollback_hooks
 from infra.db.models.events import EventOutboxModel
 from infra.db.models.inventory import InventoryModel, InventoryReservationModel
@@ -34,7 +34,9 @@ class StubInventoryRepository:
         self.reservation_rows = reservation_rows or []
         self.expired_rows = expired_rows or []
 
-    async def list_inventory_for_update(self, _session, product_ids: list[str]) -> list[InventoryModel]:
+    async def list_inventory_for_update(
+        self, _session, product_ids: list[str]
+    ) -> list[InventoryModel]:
         return [row for row in self.inventory_rows if row.product_id in product_ids]
 
     async def list_reservations(
@@ -189,9 +191,7 @@ async def test_reserve_stock_aggregates_duplicate_product_quantities() -> None:
     assert inventory_row.reserved_qty == 5
     assert inventory_row.total_qty == 10
 
-    reservation_rows = [
-        row for row in session.added if isinstance(row, InventoryReservationModel)
-    ]
+    reservation_rows = [row for row in session.added if isinstance(row, InventoryReservationModel)]
     assert len(reservation_rows) == 1
     assert reservation_rows[0].reserved_qty == 5
 

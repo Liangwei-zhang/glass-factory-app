@@ -26,7 +26,9 @@ class _FakeScalarResult:
 
 
 class _FakeSession:
-    def __init__(self, inventory_rows: list[InventoryModel], existing_alert_ids: list[str] | None = None) -> None:
+    def __init__(
+        self, inventory_rows: list[InventoryModel], existing_alert_ids: list[str] | None = None
+    ) -> None:
         self.inventory_rows = inventory_rows
         self.existing_alert_ids = existing_alert_ids or []
         self.added: list[object] = []
@@ -62,7 +64,9 @@ class _FakeInventoryService:
         return self.expired_release_count
 
 
-def _build_inventory_row(*, available_qty: int, reserved_qty: int, total_qty: int, safety_stock: int) -> InventoryModel:
+def _build_inventory_row(
+    *, available_qty: int, reserved_qty: int, total_qty: int, safety_stock: int
+) -> InventoryModel:
     return InventoryModel(
         id="inv-1",
         product_id="product-1",
@@ -82,7 +86,9 @@ async def _session_context(session: _FakeSession):
 
 
 @pytest.mark.asyncio
-async def test_run_once_counts_expired_release_sync_and_low_stock_alert(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_run_once_counts_expired_release_sync_and_low_stock_alert(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     inventory_row = _build_inventory_row(
         available_qty=2,
         reserved_qty=0,

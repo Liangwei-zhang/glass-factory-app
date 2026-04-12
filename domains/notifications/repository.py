@@ -17,7 +17,9 @@ class NotificationsRepository:
         stmt = select(NotificationModel).where(NotificationModel.user_id == user_id)
         if unread_only:
             stmt = stmt.where(NotificationModel.is_read.is_(False))
-        result = await session.execute(stmt.order_by(NotificationModel.created_at.desc()).limit(limit))
+        result = await session.execute(
+            stmt.order_by(NotificationModel.created_at.desc()).limit(limit)
+        )
         return list(result.scalars().all())
 
     async def mark_notifications_read(

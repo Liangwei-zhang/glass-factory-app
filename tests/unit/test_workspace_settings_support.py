@@ -38,5 +38,7 @@ def test_settings_support_serializers_map_workspace_payloads() -> None:
     )
 
     assert settings_support.serialize_glass_type(glass_type)["name"] == "Clear"
-    assert settings_support.serialize_notification_template(template, "Ops")["updatedByName"] == "Ops"
+    assert (
+        settings_support.serialize_notification_template(template, "Ops")["updatedByName"] == "Ops"
+    )
     assert settings_support.serialize_email_log(log, "GF-001")["orderNo"] == "GF-001"

@@ -379,7 +379,9 @@ async def test_reserve_refreshes_existing_stock_snapshot_when_version_changed(
     )
 
     result = await store.reserve(
-        stock_snapshots=[_stock_snapshot(available_qty=1000, reserved_qty=0, total_qty=1000, version=2)],
+        stock_snapshots=[
+            _stock_snapshot(available_qty=1000, reserved_qty=0, total_qty=1000, version=2)
+        ],
         reservation_snapshots=[
             _reservation_snapshot(
                 reservation_id="res-refreshed",
@@ -400,7 +402,9 @@ async def test_reserve_refreshes_existing_stock_snapshot_when_version_changed(
 
 
 @pytest.mark.asyncio
-async def test_confirm_transitions_pending_reservation_and_updates_ttl(fake_redis: FakeRedis) -> None:
+async def test_confirm_transitions_pending_reservation_and_updates_ttl(
+    fake_redis: FakeRedis,
+) -> None:
     store = RedisInventoryReservationStore()
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
 
@@ -481,7 +485,9 @@ async def test_confirm_raises_when_existing_reservation_status_is_invalid(
 
 
 @pytest.mark.asyncio
-async def test_release_restores_available_qty_for_confirmed_reservation(fake_redis: FakeRedis) -> None:
+async def test_release_restores_available_qty_for_confirmed_reservation(
+    fake_redis: FakeRedis,
+) -> None:
     store = RedisInventoryReservationStore()
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
 
@@ -521,7 +527,9 @@ async def test_release_restores_available_qty_for_confirmed_reservation(fake_red
 
 
 @pytest.mark.asyncio
-async def test_restore_state_overwrites_snapshots_and_deletes_reservations(fake_redis: FakeRedis) -> None:
+async def test_restore_state_overwrites_snapshots_and_deletes_reservations(
+    fake_redis: FakeRedis,
+) -> None:
     store = RedisInventoryReservationStore()
     delete_key = reservation_key("res-delete")
     await fake_redis.hset(delete_key, mapping={"status": "pending"})

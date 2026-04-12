@@ -149,7 +149,9 @@ class InventoryService:
             self._build_restore_hook(
                 stock_snapshots=stock_snapshots,
                 reservation_snapshots=[],
-                delete_reservation_ids=[snapshot.reservation_id for snapshot in reservation_snapshots],
+                delete_reservation_ids=[
+                    snapshot.reservation_id for snapshot in reservation_snapshots
+                ],
             ),
         )
 
@@ -286,7 +288,9 @@ class InventoryService:
                 details={"reservation_ids": missing_ids},
             )
 
-        invalid_rows = [row.id for row in rows if row.status not in {"pending", "confirmed", "released"}]
+        invalid_rows = [
+            row.id for row in rows if row.status not in {"pending", "confirmed", "released"}
+        ]
         if invalid_rows:
             raise AppError(
                 code=ErrorCode.VALIDATION_ERROR,
