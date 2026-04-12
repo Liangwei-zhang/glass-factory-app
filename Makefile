@@ -3,7 +3,7 @@ PIP ?= $(PYTHON) -m pip
 UVICORN ?= uvicorn
 LOCUST ?= $(PYTHON) -m locust
 
-.PHONY: install format lint test test-unit test-integration test-contract test-e2e test-load-import run-public-api run-admin-api run-scheduler migrate qa-ci load-baseline load-report-init ops-stack-up ops-backup-baseline ops-restore-baseline ops-compose-load-baseline
+.PHONY: install format lint test test-guardrails test-unit test-integration test-contract test-e2e test-load-import run-public-api run-admin-api run-scheduler migrate qa-ci load-baseline load-baseline-stable load-report-init ops-stack-up ops-backup-baseline ops-restore-baseline ops-compose-load-baseline
 
 install:
 	$(PIP) install -r requirements.txt
@@ -20,6 +20,9 @@ lint:
 test:
 	pytest
 
+test-guardrails:
+	pytest tests/guardrails
+
 test-unit:
 	pytest tests/unit
 
@@ -34,7 +37,7 @@ test-e2e:
 
 test-load-import:
 	$(PYTHON) tests/load/validate_env.py
-	$(PYTHON) -m py_compile tests/load/locustfile.py tests/load/validate_env.py
+	$(PYTHON) -m py_compile tests/load/locustfile.py tests/load/validate_env.py tests/load/write_report_archive.py tests/load/pythonpath/sitecustomize.py tests/load/pythonpath/zope/__init__.py
 
 run-public-api:
 	$(UVICORN) apps.public_api.main:app --host 0.0.0.0 --port 8000 --reload
@@ -48,10 +51,13 @@ run-scheduler:
 migrate:
 	alembic upgrade head
 
-qa-ci: lint test-unit test-integration test-contract test-e2e test-load-import
+qa-ci: test-guardrails lint test-unit test-integration test-contract test-e2e test-load-import
 
 load-baseline:
 	$(LOCUST) -f tests/load/locustfile.py --headless -u 50 -r 10 -t 2m --host $${LOAD_BASE_URL:-http://localhost:8000}
+
+load-baseline-stable:
+	sh ops/bin/compose-load-baseline.sh
 
 load-report-init:
 	mkdir -p reports/load

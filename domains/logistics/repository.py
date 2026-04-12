@@ -7,6 +7,22 @@ from infra.db.models.logistics import ShipmentModel
 
 
 class LogisticsRepository:
+    async def get_shipment(self, session: AsyncSession, shipment_id: str) -> ShipmentModel | None:
+        return await session.get(ShipmentModel, shipment_id)
+
+    async def get_latest_shipment_by_order(
+        self,
+        session: AsyncSession,
+        order_id: str,
+    ) -> ShipmentModel | None:
+        result = await session.execute(
+            select(ShipmentModel)
+            .where(ShipmentModel.order_id == order_id)
+            .order_by(ShipmentModel.created_at.desc())
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
     async def list_shipments(
         self,
         session: AsyncSession,

@@ -37,20 +37,26 @@ def test_admin_sj_contract_routes_registered() -> None:
     route_map = _route_methods_map(app)
 
     required_routes = [
+        ("GET", "/v1/admin/health/live"),
+        ("GET", "/v1/admin/health/ready"),
         ("GET", "/v1/admin/analytics/overview"),
         ("GET", "/v1/admin/analytics/production"),
         ("GET", "/v1/admin/analytics/sales"),
         ("GET", "/v1/admin/users"),
         ("PUT", "/v1/admin/users/{user_id}"),
         ("POST", "/v1/admin/users/bulk"),
+        ("GET", "/v1/admin/operators"),
         ("POST", "/v1/admin/production/schedule"),
         ("GET", "/v1/admin/production/lines"),
         ("PUT", "/v1/admin/production/lines/{line_id}"),
         ("GET", "/v1/admin/runtime/health"),
+        ("GET", "/v1/admin/runtime/probe"),
         ("GET", "/v1/admin/runtime/metrics"),
         ("GET", "/v1/admin/runtime/alerts"),
         ("GET", "/v1/admin/audit"),
+        ("GET", "/v1/admin/audit/logs"),
         ("GET", "/v1/admin/tasks"),
+        ("GET", "/v1/admin/acceptance"),
     ]
 
     _assert_routes_exist(route_map, required_routes)

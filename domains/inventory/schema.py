@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -21,6 +23,7 @@ class InventoryReservationItem(BaseModel):
 class InventoryReservationRequest(BaseModel):
     order_no: str
     items: list[InventoryReservationItem]
+    ttl_seconds: int = Field(default=900, ge=60, le=86400)
 
 
 class InsufficientInventoryItem(BaseModel):
@@ -32,3 +35,4 @@ class InsufficientInventoryItem(BaseModel):
 class InventoryReservationResult(BaseModel):
     reservation_ids: list[str] = Field(default_factory=list)
     insufficient_items: list[InsufficientInventoryItem] = Field(default_factory=list)
+    expires_at: datetime | None = None

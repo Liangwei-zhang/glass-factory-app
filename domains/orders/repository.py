@@ -79,8 +79,12 @@ class OrdersRepository:
 
         session.add(order)
         await session.flush()
-        await session.refresh(order)
-        return order
+
+        refreshed_order = await self.get_order(session, order.id)
+        if refreshed_order is None:
+            return order
+
+        return refreshed_order
 
     async def get_order(self, session: AsyncSession, order_id: str) -> OrderModel | None:
         stmt = (
@@ -148,5 +152,9 @@ class OrdersRepository:
         row.version += 1
 
         await session.flush()
-        await session.refresh(row)
-        return row
+
+        refreshed_order = await self.get_order(session, order_id)
+        if refreshed_order is None:
+            return row
+
+        return refreshed_order

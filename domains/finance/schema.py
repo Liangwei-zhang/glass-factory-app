@@ -3,7 +3,22 @@ from __future__ import annotations
 from datetime import date, datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class CreateReceivableRequest(BaseModel):
+    order_id: str
+    due_date: date
+    amount: Decimal | None = Field(default=None, gt=Decimal("0"))
+    invoice_no: str | None = Field(default=None, max_length=30)
+
+
+class RecordPaymentRequest(BaseModel):
+    amount: Decimal = Field(gt=Decimal("0"))
+
+
+class RecordRefundRequest(BaseModel):
+    amount: Decimal = Field(gt=Decimal("0"))
 
 
 class ReceivableView(BaseModel):

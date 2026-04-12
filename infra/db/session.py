@@ -8,7 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sqlalchemy.pool import NullPool
 
 from infra.core.config import get_settings
-from infra.core.hooks import execute_after_commit_hooks, pop_after_commit_hooks
+from infra.core.hooks import (
+    execute_after_commit_hooks,
+    execute_after_rollback_hooks,
+    pop_after_commit_hooks,
+    pop_after_rollback_hooks,
+)
 from infra.db.base import Base
 
 
@@ -48,9 +53,11 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
             yield session
             await session.commit()
             await execute_after_commit_hooks(session)
+            pop_after_rollback_hooks(session)
         except Exception:
             pop_after_commit_hooks(session)
             await session.rollback()
+            await execute_after_rollback_hooks(session)
             raise
 
 

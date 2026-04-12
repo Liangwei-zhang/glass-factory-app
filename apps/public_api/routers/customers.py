@@ -41,7 +41,8 @@ async def get_customer_profile(
     session: AsyncSession = Depends(get_db_session),
     user: AuthUser = Depends(get_current_user),
 ) -> CustomerProfile:
-    target_customer_id = customer_id or user.user_id
+    default_customer_id = user.customer_id if user.role.lower() in {"customer", "customer_viewer"} else user.user_id
+    target_customer_id = customer_id or default_customer_id
     return await service.get_customer_profile(session, customer_id=target_customer_id)
 
 
@@ -51,5 +52,6 @@ async def get_customer_credit(
     session: AsyncSession = Depends(get_db_session),
     user: AuthUser = Depends(get_current_user),
 ) -> CustomerCreditBalance:
-    target_customer_id = customer_id or user.user_id
+    default_customer_id = user.customer_id if user.role.lower() in {"customer", "customer_viewer"} else user.user_id
+    target_customer_id = customer_id or default_customer_id
     return await service.get_credit_balance(session, customer_id=target_customer_id)

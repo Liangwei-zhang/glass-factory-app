@@ -13,7 +13,7 @@ from infra.security.rbac import require_roles
 
 router = APIRouter(prefix="/production", tags=["production"])
 service = ProductionService()
-operator_guard = require_roles(["office", "worker", "supervisor", "admin", "manager"])
+operator_guard = require_roles(["operator", "manager", "admin"])
 
 
 @router.get("/work-orders", response_model=list[WorkOrderView])
@@ -26,7 +26,7 @@ async def list_work_orders(
 ) -> list[WorkOrderView]:
     normalized_stage = stage.strip().lower() if stage else None
     assignee_user_id = user.user_id if mine else None
-    include_unassigned = mine and user.role.lower() == "worker"
+    include_unassigned = mine and bool(user.stage)
     return await service.list_work_orders(
         session,
         limit=limit,
@@ -60,7 +60,7 @@ async def list_schedule(
 ) -> list[WorkOrderView]:
     normalized_stage = stage.strip().lower() if stage else None
     assignee_user_id = user.user_id if mine else None
-    include_unassigned = mine and user.role.lower() == "worker"
+    include_unassigned = mine and bool(user.stage)
     return await service.list_schedule(
         session,
         day=day,

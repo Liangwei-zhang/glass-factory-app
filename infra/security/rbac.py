@@ -6,6 +6,7 @@ from fastapi import Depends
 
 from infra.core.errors import AppError, ErrorCode
 from infra.security.auth import AuthUser, get_current_user
+from infra.security.identity import role_satisfies
 
 
 def require_scopes(required_scopes: list[str]) -> Callable:
@@ -27,7 +28,7 @@ def require_roles(roles: list[str]) -> Callable:
     allowed = {role.lower() for role in roles}
 
     async def _dependency(user: AuthUser = Depends(get_current_user)) -> AuthUser:
-        if user.role.lower() not in allowed:
+        if not any(role_satisfies(user.role, allowed_role) for allowed_role in allowed):
             raise AppError(
                 code=ErrorCode.FORBIDDEN,
                 message="Role is not allowed for this endpoint.",

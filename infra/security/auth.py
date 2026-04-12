@@ -22,6 +22,7 @@ class AuthUser(BaseModel):
     role: str = "operator"
     scopes: list[str] = Field(default_factory=list)
     stage: str | None = None
+    customer_id: str | None = Field(default=None, alias="cid")
     session_id: str | None = Field(default=None, alias="sid")
 
 
@@ -30,6 +31,7 @@ def create_access_token(
     role: str,
     scopes: list[str] | None = None,
     stage: str | None = None,
+    customer_id: str | None = None,
     session_id: str | None = None,
 ) -> str:
     settings = get_settings()
@@ -44,6 +46,8 @@ def create_access_token(
     }
     if stage:
         payload["stage"] = stage
+    if customer_id:
+        payload["cid"] = customer_id
     if session_id:
         payload["sid"] = session_id
     return jwt.encode(payload, settings.security.jwt_secret, algorithm=settings.security.jwt_algorithm)

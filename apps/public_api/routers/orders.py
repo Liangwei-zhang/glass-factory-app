@@ -1,12 +1,12 @@
-from __future__ import annotations
-
-from fastapi import APIRouter, Depends, File, Header, Path, Query, Request, Response, UploadFile
+from fastapi import APIRouter, Body, Depends, File, Header, Path, Query, Request, Response, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from domains.orders.schema import (
     CancelOrderRequest,
+    CreateOrderItem,
     CreateOrderRequest,
+    CustomerCreateOrderRequest,
     OrderTimelineEvent,
     OrderView,
     PickupSignatureRequest,
@@ -14,38 +14,106 @@ from domains.orders.schema import (
     UpdateOrderRequest,
 )
 from domains.orders.service import OrdersService
+from domains.workspace import ui_support as workspace_ui
 from infra.core.errors import AppError, ErrorCode
+from infra.db.models.customers import CustomerModel
 from infra.db.session import get_db_session
 from infra.security.auth import AuthUser, get_current_user
 from infra.security.idempotency import enforce_idempotency_key
+from infra.security.identity import resolve_canonical_role
 from infra.security.rate_limit import limiter
-from infra.security.rbac import require_roles
+from infra.security.rbac import require_roles, require_scopes
 from infra.storage.object_storage import ObjectStorage
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 service = OrdersService()
-operator_guard = require_roles(["office", "worker", "supervisor", "admin", "manager"])
-office_guard = require_roles(["office", "supervisor", "admin", "manager"])
-worker_guard = require_roles(["worker", "supervisor", "admin", "manager"])
-supervisor_guard = require_roles(["supervisor", "admin", "manager"])
+operator_guard = require_roles(["operator", "manager", "admin"])
+operator_write_guard = require_scopes(["orders:write"])
+stage_operator_guard = require_scopes(["production:write"])
+manager_guard = require_roles(["manager", "admin"])
+
+
+async def _normalize_customer_create_order_payload(
+    session: AsyncSession,
+    user: AuthUser,
+    payload: CustomerCreateOrderRequest,
+    effective_idempotency_key: str,
+) -> CreateOrderRequest:
+    customer_id = (user.customer_id or "").strip()
+    if not customer_id:
+        raise AppError(
+            code=ErrorCode.UNAUTHORIZED,
+            message="Customer identity is missing from access token.",
+            status_code=401,
+        )
+
+    customer = await session.get(CustomerModel, customer_id)
+    if customer is None:
+        raise AppError(
+            code=ErrorCode.UNAUTHORIZED,
+            message="Customer identity is invalid.",
+            status_code=401,
+            details={"customer_id": customer_id},
+        )
+
+    product = await workspace_ui.ensure_product_inventory(
+        session,
+        payload.glass_type,
+        payload.thickness,
+        payload.quantity,
+    )
+    return CreateOrderRequest(
+        customer_id=customer.id,
+        delivery_address=customer.address or "factory-pickup",
+        expected_delivery_date=workspace_ui.parse_date_input(payload.estimated_completion_date),
+        priority=payload.priority,
+        remark=payload.special_instructions,
+        idempotency_key=effective_idempotency_key,
+        items=[
+            CreateOrderItem(
+                product_id=product.id,
+                product_name=product.product_name,
+                glass_type=payload.glass_type.strip() or "Clear",
+                specification=payload.thickness.strip() or "6mm",
+                width_mm=1000,
+                height_mm=1000,
+                quantity=payload.quantity,
+                unit_price="1.00",
+                process_requirements=payload.special_instructions,
+            )
+        ],
+    )
 
 
 @router.post("", response_model=OrderView, status_code=201)
 @limiter.limit("10/minute")
 async def create_order(
     request: Request,
-    payload: CreateOrderRequest,
+    payload: CreateOrderRequest | CustomerCreateOrderRequest = Body(...),
     session: AsyncSession = Depends(get_db_session),
-    user: AuthUser = Depends(office_guard),
+    user: AuthUser = Depends(operator_write_guard),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> OrderView:
-    _ = (request, user)
-    effective_idempotency_key = payload.idempotency_key or idempotency_key
+    _ = request
+    request_idempotency_key = getattr(payload, "idempotency_key", None)
+    effective_idempotency_key = request_idempotency_key or idempotency_key
     effective_idempotency_key = await enforce_idempotency_key(
         "orders:create",
         effective_idempotency_key,
     )
-    payload = payload.model_copy(update={"idempotency_key": effective_idempotency_key})
+
+    if isinstance(payload, CustomerCreateOrderRequest):
+        payload = await _normalize_customer_create_order_payload(
+            session,
+            user,
+            payload,
+            effective_idempotency_key,
+        )
+    else:
+        payload = payload.model_copy(update={"idempotency_key": effective_idempotency_key})
+
+    if resolve_canonical_role(user.role) == "customer" and payload.customer_id != (user.customer_id or payload.customer_id):
+        payload = payload.model_copy(update={"customer_id": user.customer_id or payload.customer_id})
 
     return await service.create_order(session, payload)
 
@@ -75,9 +143,9 @@ async def get_order(
 async def update_order(
     request: Request,
     order_id: str,
-    payload: UpdateOrderRequest,
+    payload: UpdateOrderRequest = Body(...),
     session: AsyncSession = Depends(get_db_session),
-    user: AuthUser = Depends(office_guard),
+    user: AuthUser = Depends(operator_write_guard),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> OrderView:
     _ = request
@@ -95,7 +163,7 @@ async def cancel_order(
     order_id: str,
     payload: CancelOrderRequest,
     session: AsyncSession = Depends(get_db_session),
-    user: AuthUser = Depends(office_guard),
+    user: AuthUser = Depends(operator_write_guard),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> OrderView:
     _ = user
@@ -108,7 +176,7 @@ async def cancel_order_alias(
     order_id: str,
     payload: CancelOrderRequest,
     session: AsyncSession = Depends(get_db_session),
-    user: AuthUser = Depends(office_guard),
+    user: AuthUser = Depends(operator_write_guard),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> OrderView:
     _ = user
@@ -120,7 +188,7 @@ async def cancel_order_alias(
 async def confirm_order(
     order_id: str,
     session: AsyncSession = Depends(get_db_session),
-    user: AuthUser = Depends(office_guard),
+    user: AuthUser = Depends(operator_write_guard),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> OrderView:
     _ = user
@@ -132,7 +200,7 @@ async def confirm_order(
 async def mark_order_entered(
     order_id: str,
     session: AsyncSession = Depends(get_db_session),
-    user: AuthUser = Depends(office_guard),
+    user: AuthUser = Depends(operator_write_guard),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> OrderView:
     await enforce_idempotency_key("orders:entered", idempotency_key)
@@ -143,7 +211,7 @@ async def mark_order_entered(
 async def approve_pickup(
     order_id: str,
     session: AsyncSession = Depends(get_db_session),
-    user: AuthUser = Depends(supervisor_guard),
+    user: AuthUser = Depends(manager_guard),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> OrderView:
     await enforce_idempotency_key("orders:pickup-approve", idempotency_key)
@@ -155,7 +223,7 @@ async def submit_pickup_signature(
     order_id: str,
     payload: PickupSignatureRequest,
     session: AsyncSession = Depends(get_db_session),
-    user: AuthUser = Depends(office_guard),
+    user: AuthUser = Depends(operator_write_guard),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> OrderView:
     await enforce_idempotency_key("orders:pickup-signature", idempotency_key)
@@ -172,7 +240,7 @@ async def submit_pickup_signature(
 async def send_pickup_email(
     order_id: str,
     session: AsyncSession = Depends(get_db_session),
-    user: AuthUser = Depends(office_guard),
+    user: AuthUser = Depends(operator_write_guard),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> dict:
     await enforce_idempotency_key("orders:pickup-send-email", idempotency_key)
@@ -185,9 +253,9 @@ async def apply_step_action(
     request: Request,
     order_id: str,
     step_key: str = Path(...),
-    payload: StepActionRequest | None = None,
+    payload: StepActionRequest | None = Body(default=None),
     session: AsyncSession = Depends(get_db_session),
-    user: AuthUser = Depends(worker_guard),
+    user: AuthUser = Depends(stage_operator_guard),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> dict:
     _ = request
@@ -211,7 +279,7 @@ async def upload_order_drawing(
     order_id: str,
     drawing: UploadFile = File(...),
     session: AsyncSession = Depends(get_db_session),
-    user: AuthUser = Depends(office_guard),
+    user: AuthUser = Depends(operator_write_guard),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> OrderView:
     _ = user

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from sqlalchemy import JSON, Boolean, DateTime, String
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from infra.db.base import Base
@@ -25,6 +25,9 @@ class UserModel(Base):
     )
     wechat_id: Mapped[str | None] = mapped_column(
         String(64), unique=True, index=True, nullable=True
+    )
+    customer_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("customers.id"), nullable=True, index=True
     )
     password_hash: Mapped[str] = mapped_column(String(200))
     display_name: Mapped[str] = mapped_column(String(100))

@@ -27,5 +27,6 @@ class Topics:
 
     FINANCE_INVOICE_CREATED = "finance.invoice.created"
     FINANCE_PAYMENT_RECEIVED = "finance.payment.received"
+    FINANCE_PAYMENT_REFUNDED = "finance.payment.refunded"
 
     OPS_AUDIT_LOGGED = "ops.audit.logged"

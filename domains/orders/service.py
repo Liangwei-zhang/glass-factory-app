@@ -18,20 +18,24 @@ from domains.orders.errors import order_not_found
 from domains.orders.repository import OrdersRepository
 from domains.orders.schema import (
     CreateOrderRequest,
+    OrderStatus,
     OrderTimelineEvent,
     OrderView,
     UpdateOrderRequest,
+    can_transition_order_status,
 )
 from infra.core.errors import AppError, ErrorCode
 from infra.core.id_generator import OrderIdGenerator
 from infra.db.models.events import EventOutboxModel
 from infra.db.models.logistics import ShipmentModel
 from infra.db.models.customers import CustomerModel
+from infra.db.models.orders import OrderModel
 from infra.db.models.production import QualityCheckModel, WorkOrderModel
 from infra.db.models.settings import EmailLogModel, NotificationTemplateModel
 from infra.events.outbox import OutboxPublisher
 from infra.events.topics import Topics
 from infra.core.config import get_settings
+from infra.security.identity import resolve_canonical_role
 from infra.storage.object_storage import ObjectStorage
 
 
@@ -196,6 +200,54 @@ def _next_process_step(step_key: str) -> str | None:
     return PROCESS_STEP_SEQUENCE[index + 1]
 
 
+EDITABLE_QUANTITY_ORDER_STATUSES = frozenset({"pending", "confirmed", "entered"})
+CONFIRMED_INVENTORY_ORDER_STATUSES = frozenset(
+    {"confirmed", "entered", "in_production", "completed", "ready_for_pickup", "picked_up"}
+)
+PRODUCTION_ACTION_ORDER_STATUSES = frozenset({"entered", "in_production"})
+
+
+def _order_requires_confirmed_inventory(status: str) -> bool:
+    return status in CONFIRMED_INVENTORY_ORDER_STATUSES
+
+
+def _raise_invalid_order_transition(
+    *,
+    order_id: str,
+    current_status: str,
+    target_status: str,
+    message: str,
+) -> None:
+    raise AppError(
+        code=ErrorCode.ORDER_INVALID_TRANSITION,
+        message=message,
+        status_code=409,
+        details={
+            "order_id": order_id,
+            "status": current_status,
+            "current_status": current_status,
+            "target_status": target_status,
+        },
+    )
+
+
+def _ensure_order_transition(
+    *,
+    order_id: str,
+    current_status: str,
+    target_status: str,
+    message: str,
+) -> None:
+    if can_transition_order_status(current_status, target_status):
+        return
+    _raise_invalid_order_transition(
+        order_id=order_id,
+        current_status=current_status,
+        target_status=target_status,
+        message=message,
+    )
+
+
 class OrdersService:
     def __init__(
         self,
@@ -290,6 +342,57 @@ class OrdersService:
 
         return OrderView.model_validate(order)
 
+    async def _confirm_inventory_reservations(
+        self,
+        session: AsyncSession,
+        order: OrderModel,
+    ) -> None:
+        if not order.reservation_ids:
+            return
+
+        await self.inventory_service.confirm_stock(
+            session,
+            order.reservation_ids,
+            order_id=order.id,
+        )
+
+    async def _rebuild_inventory_reservations(
+        self,
+        session: AsyncSession,
+        order: OrderModel,
+    ) -> None:
+        if order.reservation_ids:
+            await self.inventory_service.release_stock(
+                session,
+                order.reservation_ids,
+                order_id=order.id,
+                release_reason="order_updated",
+            )
+
+        reservation = await self.inventory_service.reserve_stock(
+            session,
+            InventoryReservationRequest(
+                order_no=order.order_no,
+                items=[
+                    InventoryReservationItem(product_id=item.product_id, quantity=item.quantity)
+                    for item in order.items
+                ],
+            ),
+        )
+        if reservation.insufficient_items:
+            raise AppError(
+                code=ErrorCode.INVENTORY_SHORTAGE,
+                message="Insufficient inventory for one or more items.",
+                status_code=409,
+                details={
+                    "items": [item.model_dump() for item in reservation.insufficient_items],
+                },
+            )
+
+        order.reservation_ids = reservation.reservation_ids
+        if _order_requires_confirmed_inventory(order.status):
+            await self._confirm_inventory_reservations(session, order)
+
     async def update_order(
         self,
         session: AsyncSession,
@@ -318,6 +421,7 @@ class OrdersService:
         if payload.remark is not None:
             row.remark = payload.remark
 
+        quantity_changed = False
         if payload.items:
             items_by_id = {item.id: item for item in row.items}
             for updated_item in payload.items:
@@ -335,6 +439,7 @@ class OrdersService:
                 if updated_item.specification is not None:
                     target.specification = updated_item.specification
                 if updated_item.quantity is not None:
+                    quantity_changed = quantity_changed or updated_item.quantity != target.quantity
                     target.quantity = updated_item.quantity
                 if updated_item.unit_price is not None:
                     target.unit_price = updated_item.unit_price
@@ -342,6 +447,14 @@ class OrdersService:
                     target.process_requirements = updated_item.process_requirements
 
                 target.subtotal = target.unit_price * target.quantity
+
+        if quantity_changed and row.status not in EDITABLE_QUANTITY_ORDER_STATUSES:
+            raise AppError(
+                code=ErrorCode.ORDER_INVALID_TRANSITION,
+                message="Order quantity cannot change after production has started.",
+                status_code=409,
+                details={"order_id": order_id, "status": row.status},
+            )
 
         work_order_result = await session.execute(
             select(WorkOrderModel).where(WorkOrderModel.order_id == row.id)
@@ -360,6 +473,9 @@ class OrdersService:
             work_order.quantity = item.quantity
             if work_order.completed_qty > work_order.quantity:
                 work_order.completed_qty = work_order.quantity
+
+        if quantity_changed:
+            await self._rebuild_inventory_reservations(session, row)
 
         total_amount = Decimal("0")
         total_quantity = 0
@@ -399,21 +515,24 @@ class OrdersService:
         if row is None:
             raise order_not_found(order_id)
 
-        if row.status in {"cancelled", "picked_up"}:
-            raise AppError(
-                code=ErrorCode.ORDER_INVALID_TRANSITION,
-                message="Order cannot enter production from current status.",
-                status_code=409,
-                details={"order_id": order_id, "status": row.status},
-            )
-
         if row.status == "entered":
             return OrderView.model_validate(row)
 
+        _ensure_order_transition(
+            order_id=order_id,
+            current_status=row.status,
+            target_status=OrderStatus.ENTERED,
+            message="Order cannot enter production from current status.",
+        )
+
+        await self._confirm_inventory_reservations(session, row)
+
+        now = datetime.now(timezone.utc)
         updated = await self.repository.update_order_status(
             session,
             order_id=order_id,
             status="entered",
+            confirmed_at=now,
         )
         if updated is None:
             raise order_not_found(order_id)
@@ -445,13 +564,15 @@ class OrdersService:
         if row.status == "picked_up":
             return OrderView.model_validate(row)
 
-        if row.status not in {"completed", "ready_for_pickup"}:
-            raise AppError(
-                code=ErrorCode.ORDER_INVALID_TRANSITION,
-                message="Only completed orders can be approved for pickup.",
-                status_code=409,
-                details={"order_id": order_id, "status": row.status},
-            )
+        if row.status == "ready_for_pickup":
+            return OrderView.model_validate(row)
+
+        _ensure_order_transition(
+            order_id=order_id,
+            current_status=row.status,
+            target_status=OrderStatus.READY_FOR_PICKUP,
+            message="Only completed orders can be approved for pickup.",
+        )
 
         now = datetime.now(timezone.utc)
         updated = await self.repository.update_order_status(
@@ -491,16 +612,15 @@ class OrdersService:
         if row is None:
             raise order_not_found(order_id)
 
-        if row.status not in {"ready_for_pickup", "picked_up"}:
-            raise AppError(
-                code=ErrorCode.ORDER_INVALID_TRANSITION,
-                message="Order is not ready for pickup signature.",
-                status_code=409,
-                details={"order_id": order_id, "status": row.status},
-            )
-
         if row.status == "picked_up":
             return OrderView.model_validate(row)
+
+        _ensure_order_transition(
+            order_id=order_id,
+            current_status=row.status,
+            target_status=OrderStatus.PICKED_UP,
+            message="Order is not ready for pickup signature.",
+        )
 
         signature_bytes, extension = _decode_data_url(signature_data_url)
         now = datetime.now(timezone.utc)
@@ -764,23 +884,31 @@ class OrdersService:
                 details={"action": action},
             )
 
-        if (actor_role or "").strip().lower() == "worker":
+        if resolve_canonical_role(actor_role) == "operator":
             if not actor_stage:
                 raise AppError(
                     code=ErrorCode.FORBIDDEN,
-                    message="Worker stage is not configured.",
+                    message="Operator stage is not configured.",
                     status_code=403,
                 )
             if actor_stage.strip().lower() != normalized_step_key:
                 raise AppError(
                     code=ErrorCode.FORBIDDEN,
-                    message="Workers can only operate orders in their own stage.",
+                    message="Operators can only operate orders in their own stage.",
                     status_code=403,
                     details={
-                        "worker_stage": actor_stage,
+                        "operator_stage": actor_stage,
                         "requested_step": normalized_step_key,
                     },
                 )
+
+        if normalized_action in {"start", "complete"} and order.status not in PRODUCTION_ACTION_ORDER_STATUSES:
+            raise AppError(
+                code=ErrorCode.ORDER_INVALID_TRANSITION,
+                message="Order must be entered before production actions.",
+                status_code=409,
+                details={"order_id": order_id, "status": order.status, "action": normalized_action},
+            )
 
         result = await session.execute(
             select(WorkOrderModel)
@@ -1047,16 +1175,17 @@ class OrdersService:
         if row is None:
             raise order_not_found(order_id)
 
-        if row.status == "cancelled":
-            raise AppError(
-                code=ErrorCode.ORDER_INVALID_TRANSITION,
-                message="Cancelled orders cannot be confirmed.",
-                status_code=409,
-                details={"order_id": order_id, "status": row.status},
-            )
-
         if row.status == "confirmed":
             return OrderView.model_validate(row)
+
+        _ensure_order_transition(
+            order_id=order_id,
+            current_status=row.status,
+            target_status=OrderStatus.CONFIRMED,
+            message="Order cannot be confirmed from current status.",
+        )
+
+        await self._confirm_inventory_reservations(session, row)
 
         now = datetime.now(timezone.utc)
         updated = await self.repository.update_order_status(
@@ -1088,13 +1217,19 @@ class OrdersService:
         if row is None:
             raise order_not_found(order_id)
 
-        if row.status in {"completed", "cancelled"}:
-            raise AppError(
-                code=ErrorCode.ORDER_INVALID_TRANSITION,
-                message="Order cannot be cancelled from current status.",
-                status_code=409,
-                details={"order_id": order_id, "status": row.status},
-            )
+        _ensure_order_transition(
+            order_id=order_id,
+            current_status=row.status,
+            target_status=OrderStatus.CANCELLED,
+            message="Order cannot be cancelled from current status.",
+        )
+
+        await self.inventory_service.release_stock(
+            session,
+            row.reservation_ids,
+            order_id=row.id,
+            release_reason="order_cancelled",
+        )
 
         now = datetime.now(timezone.utc)
         normalized_reason = reason.strip()

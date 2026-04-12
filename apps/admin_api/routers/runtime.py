@@ -13,7 +13,7 @@ from infra.security.auth import AuthUser
 from infra.security.rbac import require_roles
 
 router = APIRouter(prefix="/runtime", tags=["runtime"])
-admin_guard = require_roles(["admin", "supervisor", "manager"])
+admin_guard = require_roles(["admin", "manager"])
 
 
 @router.get("/health")

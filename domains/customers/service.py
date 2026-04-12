@@ -9,10 +9,28 @@ from domains.customers.repository import CustomersRepository
 from domains.customers.schema import (
     CreateCustomerRequest,
     CreditCheckResult,
+    DEFAULT_CUSTOMER_CREDIT_LIMIT,
     CustomerCreditBalance,
     CustomerProfile,
+    UpdateCustomerRequest,
 )
 from infra.core.errors import AppError, ErrorCode
+
+
+def _normalize_company_name(company_name: str | None) -> str:
+    normalized = str(company_name or "").strip()
+    if not normalized:
+        raise AppError(
+            code=ErrorCode.VALIDATION_ERROR,
+            message="公司名称不能为空。",
+            status_code=400,
+        )
+    return normalized
+
+
+def _normalize_optional_text(value: str | None) -> str | None:
+    normalized = str(value or "").strip()
+    return normalized or None
 
 
 class CustomersService:
@@ -32,7 +50,67 @@ class CustomersService:
         session: AsyncSession,
         payload: CreateCustomerRequest,
     ) -> CustomerProfile:
-        row = await self.repository.create_customer(session, payload)
+        normalized_payload = payload.model_copy(
+            update={
+                "company_name": _normalize_company_name(payload.company_name),
+                "contact_name": _normalize_optional_text(payload.contact_name),
+                "phone": _normalize_optional_text(payload.phone),
+                "email": _normalize_optional_text(payload.email),
+                "address": _normalize_optional_text(payload.address),
+            }
+        )
+        row = await self.repository.create_customer(session, normalized_payload)
+        return CustomerProfile.model_validate(row)
+
+    async def create_workspace_customer(
+        self,
+        session: AsyncSession,
+        *,
+        company_name: str,
+        contact_name: str | None = None,
+        phone: str | None = None,
+        email: str | None = None,
+        address: str | None = None,
+    ) -> CustomerProfile:
+        return await self.create_customer(
+            session,
+            CreateCustomerRequest(
+                company_name=company_name,
+                contact_name=contact_name,
+                phone=phone,
+                email=email,
+                address=address,
+                credit_limit=DEFAULT_CUSTOMER_CREDIT_LIMIT,
+            ),
+        )
+
+    async def update_customer(
+        self,
+        session: AsyncSession,
+        customer_id: str,
+        payload: UpdateCustomerRequest,
+    ) -> CustomerProfile:
+        update_data: dict[str, str | None] = {}
+        if "company_name" in payload.model_fields_set:
+            update_data["company_name"] = _normalize_company_name(payload.company_name)
+        if "contact_name" in payload.model_fields_set:
+            update_data["contact_name"] = _normalize_optional_text(payload.contact_name)
+        if "phone" in payload.model_fields_set:
+            update_data["phone"] = _normalize_optional_text(payload.phone)
+        if "email" in payload.model_fields_set:
+            update_data["email"] = _normalize_optional_text(payload.email)
+        if "address" in payload.model_fields_set:
+            update_data["address"] = _normalize_optional_text(payload.address)
+
+        normalized_payload = payload.model_copy(update=update_data)
+        row = await self.repository.update_customer(session, customer_id, normalized_payload)
+        if row is None:
+            raise AppError(
+                code=ErrorCode.VALIDATION_ERROR,
+                message="客户不存在。",
+                status_code=404,
+                details={"customer_id": customer_id},
+            )
         return CustomerProfile.model_validate(row)
 
     async def get_customer_profile(self, session: AsyncSession, customer_id: str) -> CustomerProfile:

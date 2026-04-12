@@ -1,0 +1,17 @@
+backend/auth.js
+backend/config.js
+backend/constants.js
+backend/db.js
+backend/domains/customers.js
+backend/domains/notifications.js
+backend/domains/orders.js
+backend/domains/production.js
+backend/domains/settings.js
+backend/domains/workspace.js
+backend/email.js
+backend/pdf.js
+backend/persistence/index.js
+backend/persistence/postgres-client.js
+backend/persistence/postgres.js
+backend/persistence/sqlite.js
+backend/server.js

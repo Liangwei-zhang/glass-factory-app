@@ -13,6 +13,7 @@ from infra.cache.redis_client import get_redis
 from infra.core.errors import AppError, ErrorCode
 from infra.db.session import get_db_session
 from infra.security.auth import AuthUser, create_access_token, get_current_user
+from infra.security.identity import resolve_canonical_role
 from infra.security.idempotency import enforce_idempotency_key
 from infra.security.rate_limit import limiter
 
@@ -80,6 +81,7 @@ async def login(
         "role": login_result.user.role,
         "scopes": login_result.user.scopes,
         "stage": login_result.user.stage,
+        "customer_id": login_result.user.customer_id,
     }
 
     redis = await get_redis()
@@ -94,6 +96,7 @@ async def login(
         role=login_result.user.role,
         scopes=login_result.user.scopes,
         stage=login_result.user.stage,
+        customer_id=login_result.user.customer_id,
         session_id=session_id,
     )
 
@@ -149,9 +152,10 @@ async def refresh_token(
         ) from exc
 
     user_id = str(refresh_session.get("user_id") or "").strip()
-    role = str(refresh_session.get("role") or "").strip()
+    role = resolve_canonical_role(str(refresh_session.get("role") or "").strip())
     scopes = list(refresh_session.get("scopes") or [])
     stage = refresh_session.get("stage")
+    customer_id = refresh_session.get("customer_id")
 
     if not user_id or not role:
         raise AppError(
@@ -166,6 +170,7 @@ async def refresh_token(
         role=role,
         scopes=scopes,
         stage=stage,
+        customer_id=customer_id,
         session_id=session_id,
     )
 

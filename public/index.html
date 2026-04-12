@@ -4,21 +4,38 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#102a43" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta
-      name="description"
-      content="钢化玻璃工厂订单管理系统，覆盖接单、生产、取货签字与通知。"
-    />
+    <meta name="description" content="钢化玻璃工厂三端入口：客户端、业务操作端、管理端。" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/styles.css" />
-    <title>Glass Factory Flow</title>
+    <title>Glass Factory Entrypoints</title>
   </head>
   <body>
     <div class="ambient ambient-a"></div>
     <div class="ambient ambient-b"></div>
     <div class="grid-sheen"></div>
-    <div id="app"></div>
-    <script type="module" src="/app.js"></script>
+    <main class="auth-shell">
+      <section class="auth-panel">
+        <p class="eyebrow">Glass Factory</p>
+        <h1>选择系统入口</h1>
+        <p class="lead-copy">按 sj.md 的三端结构进入对应工作区。</p>
+        <div class="credential-grid">
+          <a class="credential-card" href="/app">
+            <strong>/app</strong>
+            <span>客户端</span>
+          </a>
+          <a class="credential-card" href="/platform">
+            <strong>/platform</strong>
+            <span>业务操作端</span>
+          </a>
+          <a class="credential-card" href="/admin">
+            <strong>/admin</strong>
+            <span>管理端</span>
+          </a>
+        </div>
+      </section>
+    </main>
   </body>
 </html>

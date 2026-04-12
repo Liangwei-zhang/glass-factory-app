@@ -2,9 +2,46 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
+
+
+class OrderStatus(StrEnum):
+    PENDING = "pending"
+    CONFIRMED = "confirmed"
+    ENTERED = "entered"
+    IN_PRODUCTION = "in_production"
+    COMPLETED = "completed"
+    SHIPPING = "shipping"
+    DELIVERED = "delivered"
+    READY_FOR_PICKUP = "ready_for_pickup"
+    PICKED_UP = "picked_up"
+    CANCELLED = "cancelled"
+
+
+ORDER_STATUS_TRANSITIONS: dict[OrderStatus, frozenset[OrderStatus]] = {
+    OrderStatus.PENDING: frozenset({OrderStatus.CONFIRMED, OrderStatus.ENTERED, OrderStatus.CANCELLED}),
+    OrderStatus.CONFIRMED: frozenset({OrderStatus.ENTERED, OrderStatus.CANCELLED}),
+    OrderStatus.ENTERED: frozenset({OrderStatus.IN_PRODUCTION, OrderStatus.CANCELLED}),
+    OrderStatus.IN_PRODUCTION: frozenset({OrderStatus.COMPLETED}),
+    OrderStatus.COMPLETED: frozenset({OrderStatus.READY_FOR_PICKUP, OrderStatus.SHIPPING}),
+    OrderStatus.SHIPPING: frozenset({OrderStatus.DELIVERED}),
+    OrderStatus.DELIVERED: frozenset(),
+    OrderStatus.READY_FOR_PICKUP: frozenset({OrderStatus.PICKED_UP, OrderStatus.SHIPPING}),
+    OrderStatus.PICKED_UP: frozenset(),
+    OrderStatus.CANCELLED: frozenset(),
+}
+
+
+def can_transition_order_status(current: str | OrderStatus, target: str | OrderStatus) -> bool:
+    try:
+        current_status = OrderStatus(current)
+        target_status = OrderStatus(target)
+    except ValueError:
+        return False
+    return target_status in ORDER_STATUS_TRANSITIONS.get(current_status, frozenset())
 
 
 class CreateOrderItem(BaseModel):
@@ -27,6 +64,17 @@ class CreateOrderRequest(BaseModel):
     priority: str = "normal"
     remark: str = ""
     idempotency_key: str | None = None
+
+
+class CustomerCreateOrderRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    glass_type: str = Field(alias="glassType")
+    thickness: str
+    quantity: int = Field(gt=0)
+    priority: str = "normal"
+    estimated_completion_date: str | None = Field(default=None, alias="estimatedCompletionDate")
+    special_instructions: str = Field(default="", alias="specialInstructions")
 
 
 class UpdateOrderItemRequest(BaseModel):

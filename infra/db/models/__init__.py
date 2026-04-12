@@ -1,7 +1,7 @@
 from infra.db.models.customers import CustomerModel
 from infra.db.models.events import EventOutboxModel
 from infra.db.models.finance import ReceivableModel
-from infra.db.models.inventory import InventoryModel, ProductModel
+from infra.db.models.inventory import InventoryModel, InventoryReservationModel, ProductModel
 from infra.db.models.logistics import ShipmentModel
 from infra.db.models.notifications import NotificationModel
 from infra.db.models.orders import OrderItemModel, OrderModel
@@ -15,6 +15,7 @@ __all__ = [
     "EventOutboxModel",
     "GlassTypeModel",
     "InventoryModel",
+    "InventoryReservationModel",
     "NotificationTemplateModel",
     "NotificationModel",
     "OrderItemModel",

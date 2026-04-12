@@ -1,12 +1,79 @@
 const STORAGE_KEY = 'glass-factory-token';
+const REFRESH_TOKEN_STORAGE_KEY = 'glass-factory-refresh-token';
 const LOCALE_KEY = 'glass-factory-locale';
 const PICKUP_TEMPLATE_KEY = 'ready_for_pickup';
+const WORKSPACE_API_PREFIX = '/v1/workspace';
 
 const ROLE_LABELS = {
-  office: 'Front Desk',
-  worker: 'Shop Floor',
-  supervisor: 'Supervisor',
+  operator: 'Operations',
+  manager: 'Manager',
+  admin: 'Admin',
+  super_admin: 'Admin',
+  finance: 'Finance',
+  inspector: 'Inspector',
+  customer: 'Customer',
+  customer_viewer: 'Customer Viewer',
 };
+
+const DEFAULT_SCOPES_BY_CANONICAL_ROLE = Object.freeze({
+  super_admin: [
+    'orders:read',
+    'orders:write',
+    'orders:cancel',
+    'inventory:read',
+    'inventory:write',
+    'production:read',
+    'production:write',
+    'quality:write',
+    'logistics:write',
+    'finance:read',
+    'finance:write',
+    'admin:read',
+    'admin:write',
+    'system:manage',
+  ],
+  admin: [
+    'orders:read',
+    'orders:write',
+    'orders:cancel',
+    'inventory:read',
+    'inventory:write',
+    'production:read',
+    'production:write',
+    'quality:write',
+    'logistics:write',
+    'finance:read',
+    'finance:write',
+    'admin:read',
+    'admin:write',
+    'system:manage',
+  ],
+  manager: [
+    'orders:read',
+    'orders:write',
+    'orders:cancel',
+    'inventory:read',
+    'inventory:write',
+    'production:read',
+    'production:write',
+    'quality:write',
+    'logistics:write',
+    'finance:read',
+    'admin:read',
+  ],
+  finance: ['finance:read', 'finance:write', 'admin:read'],
+  operator: [
+    'orders:read',
+    'orders:write',
+    'orders:cancel',
+    'inventory:read',
+    'production:read',
+    'logistics:write',
+  ],
+  inspector: ['orders:read', 'production:read', 'quality:write'],
+  customer: ['orders:read', 'orders:write', 'finance:read'],
+  customer_viewer: ['orders:read', 'finance:read'],
+});
 
 const TAB_LABELS = {
   dashboard: '概览',
@@ -16,12 +83,6 @@ const TAB_LABELS = {
   pickup: 'Pickup',
   notifications: '通知',
   settings: '设置',
-};
-
-const TABS_BY_ROLE = {
-  office: ['dashboard', 'customers', 'orders', 'pickup', 'notifications', 'settings'],
-  worker: ['dashboard', 'production', 'notifications'],
-  supervisor: ['dashboard', 'orders', 'pickup', 'notifications', 'settings'],
 };
 
 const PRIORITY_RANK = {
@@ -36,6 +97,7 @@ const ACTIVE_ORDER_STATUSES = new Set([
   'entered',
   'in_production',
   'completed',
+  'shipping',
   'ready_for_pickup',
 ]);
 
@@ -48,11 +110,11 @@ const EN_TEXT_REPLACEMENTS = Object.freeze(
   [
     [
       '先把前台、车间、主管和 Pickup 签字这条主链路跑通。手机、平板、桌面浏览器都可直接使用。',
-      'Run the front desk, shop floor, supervisor, and pickup signature workflow end to end. Works on phone, tablet, and desktop browsers.',
+      'Run the operations desk, shop floor, manager approval, and pickup signature workflow end to end. Works on phone, tablet, and desktop browsers.',
     ],
     ['客户沉淀、订单创建、PDF 图纸上传、Rush 与修改高亮。', 'Customer records, order creation, PDF drawings, rush tags, and modification highlights.'],
     ['按工位推进，返工自动回推切玻璃，并保留时间线。', 'Advance work by station, route rework back to cutting automatically, and keep the full timeline.'],
-    ['主管批准后才能签字取货，签名图片自动归档。', 'Pickup signatures unlock only after supervisor approval, and signature images are archived automatically.'],
+    ['主管批准后才能签字取货，签名图片自动归档。', 'Pickup signatures unlock only after manager approval, and signature images are archived automatically.'],
     ['确认将该订单标记为“已录入系统”并推送给切玻璃工位？', 'Mark this order as entered and send it to the cutting station?'],
     ['当前还没有返工片号记录。', 'No piece-level rework records yet.'],
     ['还没有邮件发送记录。', 'No email delivery records yet.'],
@@ -119,7 +181,7 @@ const EN_TEXT_REPLACEMENTS = Object.freeze(
     ['已更新', 'Updated'],
     ['关闭提示', 'Dismiss message'],
     ['最近取货记录', 'Recent Pickup History'],
-    ['待主管批准', 'Awaiting Supervisor Approval'],
+    ['待主管批准', 'Awaiting Manager Approval'],
     ['时间线', 'Timeline'],
     ['版本记录', 'Version History'],
     ['返工片号记录', 'Rework Piece History'],
@@ -191,6 +253,7 @@ const TRANSLATION_SKIP_SELECTOR =
 
 const state = {
   token: localStorage.getItem(STORAGE_KEY),
+  refreshToken: localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY),
   user: null,
   options: {
     glassTypes: [],
@@ -229,6 +292,7 @@ const state = {
 
 let appRoot;
 let signaturePad = null;
+let refreshTokenRequest = null;
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -255,6 +319,202 @@ function translateString(value) {
 
 function localizeText(value) {
   return translateString(value);
+}
+
+function unwrapApiPayload(rawPayload) {
+  return rawPayload && typeof rawPayload === 'object' && rawPayload.data !== undefined
+    ? rawPayload.data
+    : rawPayload;
+}
+
+function buildApiError(response, rawPayload) {
+  const error = new Error(
+    rawPayload?.error?.message || rawPayload?.error || rawPayload?.detail || '请求失败。'
+  );
+
+  error.status = response.status;
+  error.payload = rawPayload;
+  return error;
+}
+
+function resolveCanonicalRole(role) {
+  const normalized = String(role || '').trim().toLowerCase();
+  return normalized || 'operator';
+}
+
+function resolveUserScopes(role, scopes = [], stage = null) {
+  const canonicalRole = resolveCanonicalRole(role);
+  const providedScopes = Array.isArray(scopes)
+    ? scopes
+        .map((scope) => String(scope || '').trim())
+        .filter(Boolean)
+    : [];
+  const resolvedScopes = new Set(
+    providedScopes.length ? providedScopes : DEFAULT_SCOPES_BY_CANONICAL_ROLE[canonicalRole] || []
+  );
+
+  if (canonicalRole === 'operator' && stage) {
+    resolvedScopes.add('production:read');
+    resolvedScopes.add('production:write');
+    resolvedScopes.add('orders:read');
+  }
+
+  return [...resolvedScopes].sort();
+}
+
+function resolveHomePath(role) {
+  const canonicalRole = resolveCanonicalRole(role);
+  if (['customer', 'customer_viewer'].includes(canonicalRole)) {
+    return '/app';
+  }
+  if (['admin', 'super_admin', 'manager', 'finance'].includes(canonicalRole)) {
+    return '/admin';
+  }
+  return '/platform';
+}
+
+function normalizeUser(user) {
+  const canonicalRole = String(
+    user?.canonicalRole || resolveCanonicalRole(user?.role)
+  )
+    .trim()
+    .toLowerCase();
+  const stage = user?.stage || null;
+  const homePath = user?.homePath || resolveHomePath(canonicalRole);
+  return {
+    ...user,
+    id: user?.id,
+    name: user?.name || user?.display_name || user?.displayName || user?.username || '',
+    email: user?.email || '',
+    role: canonicalRole,
+    canonicalRole,
+    scopes: resolveUserScopes(canonicalRole, user?.scopes, stage),
+    stage,
+    stageLabel: user?.stageLabel || user?.stage_label || stage || null,
+    customerId: user?.customerId || user?.customer_id || null,
+    homePath,
+    shell: user?.shell || (homePath === '/app' ? 'app' : homePath === '/admin' ? 'admin' : 'platform'),
+  };
+}
+
+function hasScope(scope) {
+  return Boolean(state.user?.scopes?.includes(scope));
+}
+
+function hasAnyScope(scopes) {
+  return scopes.some((scope) => hasScope(scope));
+}
+
+function isStageWorker() {
+  return Boolean(state.user?.stage);
+}
+
+function canManageOrders() {
+  return hasScope('orders:write');
+}
+
+function canCancelOrders() {
+  return hasScope('orders:cancel');
+}
+
+function canUsePickup() {
+  return hasScope('logistics:write');
+}
+
+function canApprovePickupAction() {
+  return ['manager', 'admin', 'super_admin'].includes(state.user?.canonicalRole || '');
+}
+
+function canOpenSettings() {
+  return hasAnyScope(['system:manage', 'admin:write']);
+}
+
+function canViewCustomers() {
+  return canManageOrders();
+}
+
+function canViewOrders() {
+  return canManageOrders() || canApprovePickupAction();
+}
+
+function getWorkspaceTitle() {
+  if (isStageWorker()) {
+    return 'Shop Floor';
+  }
+  return ROLE_LABELS[state.user?.canonicalRole] || 'Operations';
+}
+
+function getRoleFocusCopy() {
+  if (isStageWorker()) {
+    return `你当前在 ${escapeHtml(
+      state.user.stageLabel || state.user.stage || '生产工位'
+    )}，优先处理高亮返工与加急订单。`;
+  }
+  if (canApprovePickupAction()) {
+    return '经理视角今天重点关注已完成订单的 Pickup 批准，以及所有返工高亮。';
+  }
+  return '操作端今天重点处理新建订单、录入完成以及 Ready for Pickup 的签字交付。';
+}
+
+function persistSession(payload) {
+  const nextToken = payload?.token || payload?.access_token || null;
+  const nextRefreshToken = payload?.refreshToken || payload?.refresh_token || null;
+
+  if (nextToken) {
+    state.token = nextToken;
+    localStorage.setItem(STORAGE_KEY, nextToken);
+  }
+
+  if (nextRefreshToken) {
+    state.refreshToken = nextRefreshToken;
+    localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, nextRefreshToken);
+  }
+
+  if (payload?.user) {
+    state.user = normalizeUser(payload.user);
+  }
+}
+
+function shouldResetSession(error) {
+  return error?.status === 401;
+}
+
+async function requestAccessTokenRefresh() {
+  if (!state.refreshToken) {
+    throw new Error('Refresh token is unavailable.');
+  }
+
+  if (refreshTokenRequest) {
+    return refreshTokenRequest;
+  }
+
+  const fallbackKey = `idem-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const idempotencyKey = globalThis.crypto?.randomUUID?.() ?? fallbackKey;
+
+  refreshTokenRequest = fetch('/v1/auth/refresh', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Idempotency-Key': idempotencyKey,
+    },
+    body: JSON.stringify({ refreshToken: state.refreshToken }),
+  })
+    .then(async (response) => {
+      const rawPayload = await response.json().catch(() => ({}));
+      const payload = unwrapApiPayload(rawPayload);
+
+      if (!response.ok) {
+        throw buildApiError(response, rawPayload);
+      }
+
+      persistSession(payload);
+      return payload;
+    })
+    .finally(() => {
+      refreshTokenRequest = null;
+    });
+
+  return refreshTokenRequest;
 }
 
 function syncDocumentLocale() {
@@ -399,7 +659,24 @@ function clearFlash() {
 }
 
 function getTabs() {
-  return TABS_BY_ROLE[state.user?.role] ?? [];
+  const tabs = ['dashboard'];
+  if (canViewCustomers()) {
+    tabs.push('customers');
+  }
+  if (canViewOrders()) {
+    tabs.push('orders');
+  }
+  if (isStageWorker()) {
+    tabs.push('production');
+  }
+  if (canUsePickup()) {
+    tabs.push('pickup');
+  }
+  tabs.push('notifications');
+  if (canOpenSettings()) {
+    tabs.push('settings');
+  }
+  return tabs;
 }
 
 function ensureActiveTab() {
@@ -624,7 +901,7 @@ function renderLogin() {
         <form class="stack-form" data-form="login">
           <label>
             <span>邮箱</span>
-            <input name="email" type="email" placeholder="office@glass.local" required />
+            <input name="email" type="email" placeholder="请输入邮箱" required />
           </label>
           <label>
             <span>密码</span>
@@ -636,16 +913,16 @@ function renderLogin() {
         <div class="demo-accounts">
           <h3>演示账号</h3>
           <button class="credential-card" type="button" data-action="use-demo" data-email="office@glass.local" data-password="office123">
-            <strong>Front Desk</strong>
-            <span>office@glass.local / office123</span>
+            <strong>Operations Desk</strong>
+            <span>点击填入操作台演示账号</span>
           </button>
           <button class="credential-card" type="button" data-action="use-demo" data-email="cutting@glass.local" data-password="worker123">
-            <strong>Cutting Worker</strong>
-            <span>cutting@glass.local / worker123</span>
+            <strong>Cutting Operator</strong>
+            <span>点击填入切割工位演示账号</span>
           </button>
           <button class="credential-card" type="button" data-action="use-demo" data-email="supervisor@glass.local" data-password="supervisor123">
-            <strong>Supervisor</strong>
-            <span>supervisor@glass.local / supervisor123</span>
+            <strong>Production Manager</strong>
+            <span>点击填入经理演示账号</span>
           </button>
         </div>
       </div>
@@ -664,7 +941,7 @@ function renderSummaryCards() {
     ['返工', summary.reworkOrders ?? 0, 'orange'],
   ];
 
-  if (state.user?.role === 'worker') {
+  if (isStageWorker()) {
     cards.unshift(['工位队列', summary.workerQueue ?? 0, 'blue']);
     cards.unshift(['当前可开工', summary.workerReady ?? 0, 'indigo']);
   } else {
@@ -736,17 +1013,13 @@ function renderStepsStrip(steps) {
 }
 
 function renderOrderCard(order, context = 'orders') {
-  const canEdit =
-    ['office', 'supervisor'].includes(state.user.role) &&
-    !['picked_up', 'cancelled'].includes(order.status);
-  const canApprovePickup = state.user.role === 'supervisor' && order.status === 'completed';
-  const canMarkEntered = canEdit && order.status === 'received';
-  const canCancel = canEdit && order.canCancel;
-  const canSign = ['office', 'supervisor'].includes(state.user.role) && order.status === 'ready_for_pickup';
+  const canEdit = canManageOrders() && !['shipping', 'delivered', 'picked_up', 'cancelled'].includes(order.status);
+  const canApprovePickup = canApprovePickupAction() && order.status === 'completed';
+  const canMarkEntered = canManageOrders() && order.status === 'received';
+  const canCancel = canCancelOrders() && !['shipping', 'delivered', 'picked_up', 'cancelled'].includes(order.status) && order.canCancel;
+  const canSign = canUsePickup() && order.status === 'ready_for_pickup';
   const canExportPickup = ['ready_for_pickup', 'picked_up'].includes(order.status);
-  const canSendPickupEmail =
-    ['office', 'supervisor'].includes(state.user.role) &&
-    ['ready_for_pickup', 'picked_up'].includes(order.status);
+  const canSendPickupEmail = canUsePickup() && ['ready_for_pickup', 'picked_up'].includes(order.status);
 
   return `
     <article class="order-card ${order.isStale ? 'is-stale' : ''} ${
@@ -991,13 +1264,7 @@ function renderDashboardView() {
         <div class="guidance-card">
           <p>
             ${
-              state.user.role === 'office'
-                ? '前台今天重点处理新建订单、录入完成以及 Ready for Pickup 的签字交付。'
-                : state.user.role === 'worker'
-                  ? `你当前在 ${escapeHtml(
-                      state.user.stageLabel || state.user.stage
-                    )}，优先处理高亮返工与加急订单。`
-                  : '主管需要关注已完成订单的 Pickup 批准，以及所有返工高亮。'
+              getRoleFocusCopy()
             }
           </p>
           <ul class="guidance-list">
@@ -1199,7 +1466,7 @@ function renderPickupView() {
   const orders = getPickupOrders();
   const approvalQueue = orders.filter((order) => order.status === 'completed');
   const readyQueue = orders.filter((order) => order.status === 'ready_for_pickup');
-  const historyQueue = orders.filter((order) => order.status === 'picked_up').slice(0, 10);
+  const historyQueue = orders.filter((order) => ['picked_up', 'delivered'].includes(order.status)).slice(0, 10);
 
   return `
     <section class="panel">
@@ -1758,16 +2025,12 @@ function renderOrderDetailModal() {
     return '';
   }
 
-  const canEdit =
-    ['office', 'supervisor'].includes(state.user.role) &&
-    !['picked_up', 'cancelled'].includes(order.status);
-  const canCancel = canEdit && order.canCancel;
-  const canApprovePickup = state.user.role === 'supervisor' && order.status === 'completed';
-  const canSign = ['office', 'supervisor'].includes(state.user.role) && order.status === 'ready_for_pickup';
+  const canEdit = canManageOrders() && !['shipping', 'delivered', 'picked_up', 'cancelled'].includes(order.status);
+  const canCancel = canCancelOrders() && !['shipping', 'delivered', 'picked_up', 'cancelled'].includes(order.status) && order.canCancel;
+  const canApprovePickup = canApprovePickupAction() && order.status === 'completed';
+  const canSign = canUsePickup() && order.status === 'ready_for_pickup';
   const canExportPickup = ['ready_for_pickup', 'picked_up'].includes(order.status);
-  const canSendPickupEmail =
-    ['office', 'supervisor'].includes(state.user.role) &&
-    ['ready_for_pickup', 'picked_up'].includes(order.status);
+  const canSendPickupEmail = canUsePickup() && ['ready_for_pickup', 'picked_up'].includes(order.status);
 
   return `
     <div class="modal-card wide-modal">
@@ -2099,7 +2362,7 @@ function renderShell() {
       <header class="topbar">
         <div>
           <p class="eyebrow">Glass Factory Flow</p>
-          <h1>${escapeHtml(ROLE_LABELS[state.user.role])} Workspace</h1>
+          <h1>${escapeHtml(getWorkspaceTitle())} Workspace</h1>
           <p class="lead-mini">${escapeHtml(state.user.name)} · ${escapeHtml(
             state.user.stageLabel || '全局视角'
           )}</p>
@@ -2206,18 +2469,28 @@ async function api(path, options = {}) {
 
   const response = await fetch(path, config);
   const rawPayload = await response.json().catch(() => ({}));
-  const payload =
-    rawPayload && typeof rawPayload === 'object' && rawPayload.data !== undefined
-      ? rawPayload.data
-      : rawPayload;
+  const payload = unwrapApiPayload(rawPayload);
+
+  if (
+    response.status === 401 &&
+    !options.skipAuthRefresh &&
+    state.refreshToken &&
+    path !== `${WORKSPACE_API_PREFIX}/auth/login` &&
+    path !== '/v1/auth/refresh'
+  ) {
+    try {
+      await requestAccessTokenRefresh();
+      return api(path, { ...options, skipAuthRefresh: true });
+    } catch (error) {
+      if (shouldResetSession(error)) {
+        resetSession();
+      }
+      throw error;
+    }
+  }
 
   if (!response.ok) {
-    throw new Error(
-      rawPayload?.error?.message ||
-        rawPayload?.error ||
-        rawPayload?.detail ||
-        '请求失败。'
-    );
+    throw buildApiError(response, rawPayload);
   }
 
   return payload;
@@ -2225,8 +2498,10 @@ async function api(path, options = {}) {
 
 function resetSession() {
   state.token = null;
+  state.refreshToken = null;
   state.user = null;
   localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
   state.ui.modal = null;
   state.data.orderDetails = {};
   state.data.glassTypeCatalog = [];
@@ -2250,8 +2525,8 @@ function mergeBootstrapData(payloadData) {
 }
 
 async function refreshData({ silent = false } = {}) {
-  const payload = await api('/api/bootstrap');
-  state.user = payload.user;
+  const payload = await api(`${WORKSPACE_API_PREFIX}/bootstrap`);
+  state.user = normalizeUser(payload.user);
   state.options = payload.options;
   state.data = mergeBootstrapData(payload.data);
   ensureActiveTab();
@@ -2261,7 +2536,7 @@ async function refreshData({ silent = false } = {}) {
 }
 
 async function loadOrderDetail(orderId) {
-  const payload = await api(`/api/orders/${orderId}`);
+  const payload = await api(`${WORKSPACE_API_PREFIX}/orders/${orderId}`);
   state.data.orderDetails = {
     ...(state.data.orderDetails ?? {}),
     [orderId]: payload.order,
@@ -2271,9 +2546,9 @@ async function loadOrderDetail(orderId) {
 
 async function loadSettingsData() {
   const [glassTypesPayload, templatePayload, logsPayload] = await Promise.all([
-    api('/api/settings/glass-types'),
-    api(`/api/settings/notification-templates/${PICKUP_TEMPLATE_KEY}`),
-    api('/api/email-logs?limit=20'),
+    api(`${WORKSPACE_API_PREFIX}/settings/glass-types`),
+    api(`${WORKSPACE_API_PREFIX}/settings/notification-templates/${PICKUP_TEMPLATE_KEY}`),
+    api(`${WORKSPACE_API_PREFIX}/email-logs?limit=20`),
   ]);
 
   state.data.glassTypeCatalog = glassTypesPayload.glassTypes;
@@ -2314,7 +2589,7 @@ async function mutate(task, successMessage, { closeModal = false } = {}) {
 }
 
 async function downloadPdf(orderId, documentType) {
-  const response = await fetch(`/api/orders/${orderId}/export?document=${encodeURIComponent(documentType)}`, {
+  const response = await fetch(`${WORKSPACE_API_PREFIX}/orders/${orderId}/export?document=${encodeURIComponent(documentType)}`, {
     headers: state.token
       ? {
           Authorization: `Bearer ${state.token}`,
@@ -2439,7 +2714,7 @@ async function handleClick(event) {
       break;
     case 'switch-tab':
       state.ui.activeTab = tab;
-      if (tab === 'settings' && state.user && ['office', 'supervisor'].includes(state.user.role)) {
+      if (tab === 'settings' && state.user && canOpenSettings()) {
         try {
           await loadSettingsData();
         } catch (error) {
@@ -2518,7 +2793,7 @@ async function handleClick(event) {
       }
       mutate(
         () =>
-          api(`/api/settings/glass-types/${glassTypeId}`, {
+          api(`${WORKSPACE_API_PREFIX}/settings/glass-types/${glassTypeId}`, {
             method: 'PATCH',
             body: { name: nextName },
           }),
@@ -2536,7 +2811,7 @@ async function handleClick(event) {
       }
       mutate(
         () =>
-          api(`/api/settings/glass-types/${glassTypeId}`, {
+          api(`${WORKSPACE_API_PREFIX}/settings/glass-types/${glassTypeId}`, {
             method: 'PATCH',
             body: { isActive: shouldActivate },
           }),
@@ -2549,7 +2824,7 @@ async function handleClick(event) {
         return;
       }
       mutate(
-        () => api(`/api/orders/${orderId}/entered`, { method: 'POST' }),
+        () => api(`${WORKSPACE_API_PREFIX}/orders/${orderId}/entered`, { method: 'POST' }),
         '订单已推送到切玻璃工位。'
       );
       break;
@@ -2558,7 +2833,7 @@ async function handleClick(event) {
         return;
       }
       mutate(
-        () => api(`/api/orders/${orderId}/pickup/approve`, { method: 'POST' }),
+        () => api(`${WORKSPACE_API_PREFIX}/orders/${orderId}/pickup/approve`, { method: 'POST' }),
         (payload) => buildEmailResultMessage('Pickup 已批准。', payload?.emailLog)
       );
       break;
@@ -2574,7 +2849,7 @@ async function handleClick(event) {
       }
       mutate(
         () =>
-          api(`/api/orders/${orderId}/cancel`, {
+          api(`${WORKSPACE_API_PREFIX}/orders/${orderId}/cancel`, {
             method: 'POST',
             body: { reason },
           }),
@@ -2585,7 +2860,7 @@ async function handleClick(event) {
     case 'start-step':
       mutate(
         () =>
-          api(`/api/orders/${orderId}/steps/${stepKey}`, {
+          api(`${WORKSPACE_API_PREFIX}/orders/${orderId}/steps/${stepKey}`, {
             method: 'POST',
             body: { action: 'start' },
           }),
@@ -2595,7 +2870,7 @@ async function handleClick(event) {
     case 'complete-step':
       mutate(
         () =>
-          api(`/api/orders/${orderId}/steps/${stepKey}`, {
+          api(`${WORKSPACE_API_PREFIX}/orders/${orderId}/steps/${stepKey}`, {
             method: 'POST',
             body: { action: 'complete' },
           }),
@@ -2605,7 +2880,7 @@ async function handleClick(event) {
     case 'ack-rework':
       mutate(
         () =>
-          api(`/api/orders/${orderId}/steps/cutting`, {
+          api(`${WORKSPACE_API_PREFIX}/orders/${orderId}/steps/cutting`, {
             method: 'POST',
             body: { action: 'acknowledge_rework' },
           }),
@@ -2625,7 +2900,7 @@ async function handleClick(event) {
     }
     case 'mark-notifications-read':
       mutate(
-        () => api('/api/notifications/read', { method: 'POST' }),
+        () => api(`${WORKSPACE_API_PREFIX}/notifications/read`, { method: 'POST' }),
         '通知已全部标记为已读。'
       );
       break;
@@ -2648,7 +2923,7 @@ async function handleClick(event) {
       break;
     case 'send-pickup-email':
       mutate(
-        () => api(`/api/orders/${orderId}/pickup/send-email`, { method: 'POST' }),
+        () => api(`${WORKSPACE_API_PREFIX}/orders/${orderId}/pickup/send-email`, { method: 'POST' }),
         (payload) => buildEmailResultMessage('取货邮件已处理。', payload?.emailLog)
       );
       break;
@@ -2677,7 +2952,7 @@ async function handleSubmit(event) {
     switch (formType) {
       case 'login': {
         const formData = new FormData(form);
-        const payload = await api('/api/auth/login', {
+        const payload = await api(`${WORKSPACE_API_PREFIX}/auth/login`, {
           method: 'POST',
           body: {
             email: formData.get('email'),
@@ -2685,9 +2960,12 @@ async function handleSubmit(event) {
           },
         });
 
-        state.token = payload.token;
-        state.user = payload.user;
-        localStorage.setItem(STORAGE_KEY, payload.token);
+        const nextUser = normalizeUser(payload?.user);
+        persistSession(payload);
+        if (nextUser.homePath === '/app') {
+          window.location.assign('/app');
+          return;
+        }
         await refreshData({ silent: true });
         state.ui.flash = { type: 'success', message: localizeText('登录成功。') };
         render();
@@ -2699,7 +2977,7 @@ async function handleSubmit(event) {
         const customerId = form.dataset.customerId;
         await mutate(
           () =>
-            api(customerId ? `/api/customers/${customerId}` : '/api/customers', {
+            api(customerId ? `${WORKSPACE_API_PREFIX}/customers/${customerId}` : `${WORKSPACE_API_PREFIX}/customers`, {
               method: customerId ? 'PATCH' : 'POST',
               body,
             }),
@@ -2713,7 +2991,7 @@ async function handleSubmit(event) {
         const orderId = form.dataset.orderId;
         await mutate(
           () =>
-            api(orderId ? `/api/orders/${orderId}` : '/api/orders', {
+            api(orderId ? `${WORKSPACE_API_PREFIX}/orders/${orderId}` : `${WORKSPACE_API_PREFIX}/orders`, {
               method: orderId ? 'PUT' : 'POST',
               body: formData,
             }),
@@ -2730,7 +3008,7 @@ async function handleSubmit(event) {
         const orderId = form.dataset.orderId;
         await mutate(
           () =>
-            api(`/api/orders/${orderId}/pickup/signature`, {
+            api(`${WORKSPACE_API_PREFIX}/orders/${orderId}/pickup/signature`, {
               method: 'POST',
               body: {
                 signerName: formData.get('signerName'),
@@ -2757,7 +3035,7 @@ async function handleSubmit(event) {
 
         await mutate(
           () =>
-            api(`/api/orders/${orderId}/steps/${stepKey}`, {
+            api(`${WORKSPACE_API_PREFIX}/orders/${orderId}/steps/${stepKey}`, {
               method: 'POST',
               body: {
                 action: 'rework',
@@ -2774,7 +3052,7 @@ async function handleSubmit(event) {
         const formData = new FormData(form);
         const result = await mutate(
           () =>
-            api('/api/settings/glass-types', {
+            api(`${WORKSPACE_API_PREFIX}/settings/glass-types`, {
               method: 'POST',
               body: {
                 name: String(formData.get('name') || ''),
@@ -2791,7 +3069,7 @@ async function handleSubmit(event) {
         const formData = new FormData(form);
         await mutate(
           () =>
-            api(`/api/settings/notification-templates/${PICKUP_TEMPLATE_KEY}`, {
+            api(`${WORKSPACE_API_PREFIX}/settings/notification-templates/${PICKUP_TEMPLATE_KEY}`, {
               method: 'PUT',
               body: {
                 subjectTemplate: String(formData.get('subjectTemplate') || ''),
@@ -2863,15 +3141,45 @@ async function bootstrap() {
   try {
     await refreshData({ silent: true });
     render();
-  } catch {
-    resetSession();
+  } catch (error) {
+    if (error?.status === 403) {
+      window.location.assign('/app');
+      return;
+    }
+    if (shouldResetSession(error)) {
+      resetSession();
+    }
     render();
+  }
+}
+
+function activateWaitingServiceWorker(registration) {
+  if (registration.waiting) {
+    registration.waiting.postMessage({ type: 'SKIP_WAITING' });
   }
 }
 
 function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    navigator.serviceWorker
+      .register('/sw.js', { updateViaCache: 'none' })
+      .then((registration) => {
+        activateWaitingServiceWorker(registration);
+        registration.update().catch(() => {});
+        registration.addEventListener('updatefound', () => {
+          const installingWorker = registration.installing;
+          if (!installingWorker) {
+            return;
+          }
+
+          installingWorker.addEventListener('statechange', () => {
+            if (installingWorker.state === 'installed') {
+              activateWaitingServiceWorker(registration);
+            }
+          });
+        });
+      })
+      .catch(() => {});
   }
 }
 
@@ -2883,9 +3191,11 @@ function setupPolling() {
 
     refreshData({ silent: true })
       .then(() => render())
-      .catch(() => {
-        resetSession();
-        render();
+      .catch((error) => {
+        if (shouldResetSession(error)) {
+          resetSession();
+          render();
+        }
       });
   }, 45000);
 
@@ -2896,9 +3206,11 @@ function setupPolling() {
 
     refreshData({ silent: true })
       .then(() => render())
-      .catch(() => {
-        resetSession();
-        render();
+      .catch((error) => {
+        if (shouldResetSession(error)) {
+          resetSession();
+          render();
+        }
       });
   });
 }

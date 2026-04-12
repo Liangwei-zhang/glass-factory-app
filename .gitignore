@@ -15,6 +15,8 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.cache/pytest8/
+.cache/load-baseline/
 .venv/
 venv/
 

@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-import hashlib
-import hmac
-
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from domains.auth.repository import AuthRepository
@@ -10,25 +7,15 @@ from domains.auth.schema import LoginRequest, LoginResponse, LoginUser
 from infra.core.config import get_settings
 from infra.core.errors import AppError, ErrorCode
 from infra.security.auth import create_access_token
-
-STAGE_LABELS: dict[str, str] = {
-    "cutting": "切玻璃工人",
-    "edging": "开切口工人",
-    "tempering": "钢化工人",
-    "finishing": "完成钢化处工人",
-}
-
-
-def _hash_password(password: str) -> str:
-    return hashlib.sha256(password.encode("utf-8")).hexdigest()
-
-
-def _verify_password(raw_password: str, stored_password_hash: str) -> bool:
-    candidate_hash = _hash_password(raw_password)
-    return hmac.compare_digest(candidate_hash, stored_password_hash) or hmac.compare_digest(
-        raw_password,
-        stored_password_hash,
-    )
+from infra.security.identity import (
+    can_create_orders,
+    resolve_canonical_role,
+    resolve_home_path,
+    resolve_shell_name,
+    resolve_stage_label,
+    resolve_user_scopes,
+)
+from infra.security.passwords import verify_password
 
 
 class AuthService:
@@ -46,7 +33,7 @@ class AuthService:
 
         user = await self.repository.get_by_principal(session, principal)
 
-        if user is None or not _verify_password(payload.password, user.password_hash):
+        if user is None or not verify_password(payload.password, user.password_hash):
             raise AppError(
                 code=ErrorCode.UNAUTHORIZED,
                 message="Invalid username or password.",
@@ -61,11 +48,19 @@ class AuthService:
             )
 
         settings = get_settings()
-        access_token = create_access_token(
-            subject=user.id,
-            role=user.role,
+        resolved_scopes = resolve_user_scopes(
+            user.role,
             scopes=user.scopes or [],
             stage=user.stage,
+        )
+        canonical_role = resolve_canonical_role(user.role)
+
+        access_token = create_access_token(
+            subject=user.id,
+            role=canonical_role,
+            scopes=resolved_scopes,
+            stage=user.stage,
+            customer_id=user.customer_id,
         )
 
         return LoginResponse(
@@ -76,9 +71,14 @@ class AuthService:
                 id=user.id,
                 username=user.username,
                 display_name=user.display_name,
-                role=user.role,
-                scopes=user.scopes or [],
+                role=canonical_role,
+                scopes=resolved_scopes,
                 stage=user.stage,
-                stageLabel=STAGE_LABELS.get(user.stage or "") if user.stage else None,
+                customerId=user.customer_id,
+                stageLabel=resolve_stage_label(user.stage),
+                canonicalRole=canonical_role,
+                homePath=resolve_home_path(user.role),
+                shell=resolve_shell_name(user.role),
+                canCreateOrders=can_create_orders(user.role),
             ),
         )

@@ -41,3 +41,24 @@ class InventoryModel(Base):
     warehouse_code: Mapped[str] = mapped_column(String(20), default="WH01")
     version: Mapped[int] = mapped_column(Integer, default=1)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
+
+
+class InventoryReservationModel(Base):
+    __tablename__ = "inventory_reservations"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    product_id: Mapped[str] = mapped_column(String(36), ForeignKey("products.id"), index=True)
+    order_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("orders.id"), nullable=True, index=True
+    )
+    order_no: Mapped[str] = mapped_column(String(30), index=True)
+    reserved_qty: Mapped[int] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    released_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    release_reason: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now
+    )

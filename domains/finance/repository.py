@@ -7,6 +7,22 @@ from infra.db.models.finance import ReceivableModel
 
 
 class FinanceRepository:
+    async def get_receivable(self, session: AsyncSession, receivable_id: str) -> ReceivableModel | None:
+        return await session.get(ReceivableModel, receivable_id)
+
+    async def get_receivable_by_order(
+        self,
+        session: AsyncSession,
+        order_id: str,
+    ) -> ReceivableModel | None:
+        result = await session.execute(
+            select(ReceivableModel)
+            .where(ReceivableModel.order_id == order_id)
+            .order_by(ReceivableModel.created_at.desc())
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
     async def list_receivables(
         self,
         session: AsyncSession,

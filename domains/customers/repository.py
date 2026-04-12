@@ -6,7 +6,7 @@ from uuid import uuid4
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from domains.customers.schema import CreateCustomerRequest
+from domains.customers.schema import CreateCustomerRequest, UpdateCustomerRequest
 from infra.db.models.customers import CustomerModel
 
 
@@ -46,6 +46,32 @@ class CustomersRepository:
             is_active=True,
         )
         session.add(customer)
+        await session.flush()
+        await session.refresh(customer)
+        return customer
+
+    async def update_customer(
+        self,
+        session: AsyncSession,
+        customer_id: str,
+        payload: UpdateCustomerRequest,
+    ) -> CustomerModel | None:
+        customer = await self.get_customer(session, customer_id)
+        if customer is None:
+            return None
+
+        provided_fields = payload.model_fields_set
+        if "company_name" in provided_fields:
+            customer.company_name = payload.company_name or customer.company_name
+        if "contact_name" in provided_fields:
+            customer.contact_name = payload.contact_name
+        if "phone" in provided_fields:
+            customer.phone = payload.phone
+        if "email" in provided_fields:
+            customer.email = payload.email
+        if "address" in provided_fields:
+            customer.address = payload.address
+
         await session.flush()
         await session.refresh(customer)
         return customer
