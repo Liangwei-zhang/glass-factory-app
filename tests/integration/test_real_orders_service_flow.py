@@ -12,6 +12,7 @@ from sqlalchemy.orm import selectinload
 
 from domains.orders.schema import CreateOrderItem, CreateOrderRequest
 from domains.orders.service import OrdersService
+from domains.production.service import ProductionService
 from infra.cache.inventory_reservation import reservation_key, stock_key
 from infra.db.models.customers import CustomerModel
 from infra.db.models.events import EventOutboxModel
@@ -257,10 +258,14 @@ async def test_real_infra_orders_service_cancel_releases_inventory_and_reservati
         order_id=cancelled_order.id,
         product_id=product_id,
     )
+    production_service = ProductionService()
+    async with real_db_session_factory() as session:
+        visible_work_orders = await production_service.list_work_orders(session, limit=20)
     assert persisted_order.status == "cancelled"
     assert persisted_order.cancelled_reason == "customer_changed_mind"
     assert persisted_order.total_quantity == 3
     assert len(work_orders) == 1
+    assert all(row.order_id != cancelled_order.id for row in visible_work_orders)
 
     assert inventory.available_qty == 10
     assert inventory.reserved_qty == 0

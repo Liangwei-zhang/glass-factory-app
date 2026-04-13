@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import base64
-import binascii
 import smtplib
+import struct
+import zlib
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal
 from email.message import EmailMessage
-from uuid import uuid4
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -37,40 +37,289 @@ from infra.db.models.users import UserModel
 from infra.events.outbox import OutboxPublisher
 from infra.events.topics import Topics
 from infra.security.identity import resolve_canonical_role
+from infra.signatures import build_signature_storage_key, decode_signature_data_url
 from infra.storage.object_storage import ObjectStorage
-
-
-def _decode_data_url(data_url: str) -> tuple[bytes, str]:
-    raw = data_url.strip()
-    if not raw.startswith("data:") or "," not in raw:
-        raise AppError(
-            code=ErrorCode.VALIDATION_ERROR,
-            message="Invalid signature payload.",
-            status_code=400,
-        )
-
-    header, encoded = raw.split(",", maxsplit=1)
-    extension = "png"
-    if "image/jpeg" in header or "image/jpg" in header:
-        extension = "jpg"
-
-    try:
-        decoded = base64.b64decode(encoded, validate=True)
-    except (binascii.Error, ValueError) as exc:
-        raise AppError(
-            code=ErrorCode.VALIDATION_ERROR,
-            message="Invalid signature payload.",
-            status_code=400,
-        ) from exc
-
-    return decoded, extension
 
 
 def _escape_pdf_text(value: str) -> str:
     return value.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
 
 
-def _build_minimal_pdf(lines: list[str]) -> bytes:
+@dataclass(slots=True)
+class _PdfImageAsset:
+    payload: bytes
+    width: int
+    height: int
+    color_space: str
+    filter_name: str
+    bits_per_component: int = 8
+    decode_parms: str | None = None
+    soft_mask: "_PdfImageAsset | None" = None
+
+
+def _apply_png_filter(filter_type: int, row: bytes, previous: bytes, bpp: int) -> bytes:
+    result = bytearray(row)
+
+    if filter_type == 0:
+        return bytes(result)
+
+    if filter_type == 1:
+        for index in range(len(result)):
+            left = result[index - bpp] if index >= bpp else 0
+            result[index] = (result[index] + left) & 0xFF
+        return bytes(result)
+
+    if filter_type == 2:
+        for index in range(len(result)):
+            result[index] = (result[index] + previous[index]) & 0xFF
+        return bytes(result)
+
+    if filter_type == 3:
+        for index in range(len(result)):
+            left = result[index - bpp] if index >= bpp else 0
+            up = previous[index]
+            result[index] = (result[index] + ((left + up) // 2)) & 0xFF
+        return bytes(result)
+
+    if filter_type == 4:
+        def _paeth_predictor(a: int, b: int, c: int) -> int:
+            p = a + b - c
+            pa = abs(p - a)
+            pb = abs(p - b)
+            pc = abs(p - c)
+            if pa <= pb and pa <= pc:
+                return a
+            if pb <= pc:
+                return b
+            return c
+
+        for index in range(len(result)):
+            left = result[index - bpp] if index >= bpp else 0
+            up = previous[index]
+            up_left = previous[index - bpp] if index >= bpp else 0
+            result[index] = (result[index] + _paeth_predictor(left, up, up_left)) & 0xFF
+        return bytes(result)
+
+    raise AppError(
+        code=ErrorCode.VALIDATION_ERROR,
+        message="Unsupported signature image format.",
+        status_code=400,
+    )
+
+
+def _build_png_pdf_asset(payload: bytes) -> _PdfImageAsset | None:
+    png_signature = b"\x89PNG\r\n\x1a\n"
+    if not payload.startswith(png_signature):
+        return None
+
+    offset = len(png_signature)
+    width = height = 0
+    bit_depth = color_type = interlace_method = None
+    idat_chunks: list[bytes] = []
+
+    while offset + 8 <= len(payload):
+        chunk_length = struct.unpack(">I", payload[offset : offset + 4])[0]
+        chunk_type = payload[offset + 4 : offset + 8]
+        chunk_start = offset + 8
+        chunk_end = chunk_start + chunk_length
+        if chunk_end + 4 > len(payload):
+            return None
+        chunk_data = payload[chunk_start:chunk_end]
+        offset = chunk_end + 4
+
+        if chunk_type == b"IHDR":
+            width, height, bit_depth, color_type, _, _, interlace_method = struct.unpack(
+                ">IIBBBBB", chunk_data
+            )
+        elif chunk_type == b"IDAT":
+            idat_chunks.append(chunk_data)
+        elif chunk_type == b"IEND":
+            break
+
+    if (
+        not width
+        or not height
+        or bit_depth != 8
+        or interlace_method != 0
+        or color_type not in {0, 2, 4, 6}
+        or not idat_chunks
+    ):
+        return None
+
+    bytes_per_pixel = {
+        0: 1,
+        2: 3,
+        4: 2,
+        6: 4,
+    }[color_type]
+    row_stride = width * bytes_per_pixel
+    try:
+        raw = zlib.decompress(b"".join(idat_chunks))
+    except zlib.error:
+        return None
+
+    expected_length = (row_stride + 1) * height
+    if len(raw) != expected_length:
+        return None
+
+    previous = bytes(row_stride)
+    gray_rows = bytearray()
+    rgb_rows = bytearray()
+    alpha_rows = bytearray()
+    cursor = 0
+
+    for _ in range(height):
+        filter_type = raw[cursor]
+        cursor += 1
+        filtered = raw[cursor : cursor + row_stride]
+        cursor += row_stride
+        unfiltered = _apply_png_filter(filter_type, filtered, previous, bytes_per_pixel)
+        previous = unfiltered
+
+        if color_type == 0:
+            gray_rows.append(0)
+            gray_rows.extend(unfiltered)
+            continue
+
+        if color_type == 2:
+            rgb_rows.append(0)
+            rgb_rows.extend(unfiltered)
+            continue
+
+        if color_type == 4:
+            rgb_rows.append(0)
+            for index in range(0, len(unfiltered), 2):
+                gray, alpha = unfiltered[index : index + 2]
+                blended = (gray * alpha + 255 * (255 - alpha)) // 255
+                rgb_rows.extend((blended, blended, blended))
+            continue
+
+        rgb_rows.append(0)
+        alpha_rows.append(0)
+        for index in range(0, len(unfiltered), 4):
+            red, green, blue, alpha = unfiltered[index : index + 4]
+            if alpha == 255:
+                rgb_rows.extend((red, green, blue))
+            elif alpha == 0:
+                rgb_rows.extend((255, 255, 255))
+            else:
+                rgb_rows.extend(
+                    (
+                        (red * alpha + 255 * (255 - alpha)) // 255,
+                        (green * alpha + 255 * (255 - alpha)) // 255,
+                        (blue * alpha + 255 * (255 - alpha)) // 255,
+                    )
+                )
+            alpha_rows.append(alpha)
+
+    if color_type == 0:
+        return _PdfImageAsset(
+            payload=zlib.compress(bytes(gray_rows)),
+            width=width,
+            height=height,
+            color_space="/DeviceGray",
+            filter_name="/FlateDecode",
+            decode_parms=f"<< /Predictor 15 /Colors 1 /BitsPerComponent 8 /Columns {width} >>",
+        )
+
+    decode_parms = f"<< /Predictor 15 /Colors 3 /BitsPerComponent 8 /Columns {width} >>"
+    soft_mask = None
+    if color_type == 6:
+        soft_mask = _PdfImageAsset(
+            payload=zlib.compress(bytes(alpha_rows)),
+            width=width,
+            height=height,
+            color_space="/DeviceGray",
+            filter_name="/FlateDecode",
+            decode_parms=f"<< /Predictor 15 /Colors 1 /BitsPerComponent 8 /Columns {width} >>",
+        )
+
+    return _PdfImageAsset(
+        payload=zlib.compress(bytes(rgb_rows)),
+        width=width,
+        height=height,
+        color_space="/DeviceRGB",
+        filter_name="/FlateDecode",
+        decode_parms=decode_parms,
+        soft_mask=soft_mask,
+    )
+
+
+def _extract_jpeg_dimensions(payload: bytes) -> tuple[int, int] | None:
+    if len(payload) < 4 or payload[:2] != b"\xff\xd8":
+        return None
+
+    offset = 2
+    start_of_frame_markers = {
+        0xC0,
+        0xC1,
+        0xC2,
+        0xC3,
+        0xC5,
+        0xC6,
+        0xC7,
+        0xC9,
+        0xCA,
+        0xCB,
+        0xCD,
+        0xCE,
+        0xCF,
+    }
+
+    while offset + 3 < len(payload):
+        if payload[offset] != 0xFF:
+            offset += 1
+            continue
+
+        while offset < len(payload) and payload[offset] == 0xFF:
+            offset += 1
+        if offset >= len(payload):
+            break
+
+        marker = payload[offset]
+        offset += 1
+
+        if marker in {0xD8, 0xD9} or 0xD0 <= marker <= 0xD7:
+            continue
+        if offset + 2 > len(payload):
+            return None
+
+        segment_length = struct.unpack(">H", payload[offset : offset + 2])[0]
+        if segment_length < 2 or offset + segment_length > len(payload):
+            return None
+
+        if marker in start_of_frame_markers:
+            if segment_length < 7:
+                return None
+            height = struct.unpack(">H", payload[offset + 3 : offset + 5])[0]
+            width = struct.unpack(">H", payload[offset + 5 : offset + 7])[0]
+            return width, height
+
+        offset += segment_length
+
+    return None
+
+
+def _build_signature_pdf_asset(payload: bytes, extension: str) -> _PdfImageAsset | None:
+    normalized_extension = extension.strip().lower().lstrip(".")
+    if normalized_extension in {"jpg", "jpeg"}:
+        dimensions = _extract_jpeg_dimensions(payload)
+        if dimensions is None:
+            return None
+        width, height = dimensions
+        return _PdfImageAsset(
+            payload=payload,
+            width=width,
+            height=height,
+            color_space="/DeviceRGB",
+            filter_name="/DCTDecode",
+        )
+    if normalized_extension == "png":
+        return _build_png_pdf_asset(payload)
+    return None
+
+
+def _build_minimal_pdf(lines: list[str], *, image: _PdfImageAsset | None = None) -> bytes:
     content_parts = ["BT", "/F1 12 Tf", "48 790 Td"]
     for index, line in enumerate(lines):
         escaped = _escape_pdf_text(line)
@@ -79,24 +328,74 @@ def _build_minimal_pdf(lines: list[str]) -> bytes:
         else:
             content_parts.append(f"0 -18 Td ({escaped}) Tj")
     content_parts.append("ET")
+    if image is not None:
+        target_width = min(220, image.width)
+        if image.width > 0 and image.height > 0:
+            target_height = max(56, round(target_width * image.height / image.width))
+        else:
+            target_height = 72
+        image_y = max(96, 790 - (18 * max(len(lines), 1)) - target_height - 48)
+        content_parts.extend(
+            [
+                "q",
+                f"{target_width} 0 0 {target_height} 48 {image_y} cm",
+                "/Im1 Do",
+                "Q",
+            ]
+        )
     stream = "\n".join(content_parts).encode("utf-8")
+
+    content_object_number = 7 if image and image.soft_mask else 6 if image else 5
+    page_resources = "/Resources << /Font << /F1 4 0 R >>"
+    if image is not None:
+        page_resources += " /XObject << /Im1 5 0 R >>"
+    page_resources += " >>"
 
     objects = [
         b"1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",
         b"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n",
         (
-            b"3 0 obj\n"
-            b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] "
-            b"/Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>\n"
-            b"endobj\n"
-        ),
+            f"3 0 obj\n"
+            f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] "
+            f"{page_resources} /Contents {content_object_number} 0 R >>\n"
+            f"endobj\n"
+        ).encode("ascii"),
         b"4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n",
-        b"5 0 obj\n<< /Length "
-        + str(len(stream)).encode("ascii")
-        + b" >>\nstream\n"
-        + stream
-        + b"\nendstream\nendobj\n",
     ]
+    if image is not None:
+        image_dict = (
+            f"5 0 obj\n"
+            f"<< /Type /XObject /Subtype /Image /Width {image.width} /Height {image.height} "
+            f"/ColorSpace {image.color_space} /BitsPerComponent {image.bits_per_component} "
+            f"/Filter {image.filter_name} "
+        )
+        if image.decode_parms:
+            image_dict += f"/DecodeParms {image.decode_parms} "
+        if image.soft_mask is not None:
+            image_dict += "/SMask 6 0 R "
+        image_dict += f"/Length {len(image.payload)} >>\nstream\n"
+        objects.append(image_dict.encode("ascii") + image.payload + b"\nendstream\nendobj\n")
+
+        if image.soft_mask is not None:
+            mask = image.soft_mask
+            mask_dict = (
+                f"6 0 obj\n"
+                f"<< /Type /XObject /Subtype /Image /Width {mask.width} /Height {mask.height} "
+                f"/ColorSpace {mask.color_space} /BitsPerComponent {mask.bits_per_component} "
+                f"/Filter {mask.filter_name} "
+            )
+            if mask.decode_parms:
+                mask_dict += f"/DecodeParms {mask.decode_parms} "
+            mask_dict += f"/Length {len(mask.payload)} >>\nstream\n"
+            objects.append(mask_dict.encode("ascii") + mask.payload + b"\nendstream\nendobj\n")
+
+    objects.append(
+        (
+            f"{content_object_number} 0 obj\n<< /Length {len(stream)} >>\nstream\n".encode("ascii")
+            + stream
+            + b"\nendstream\nendobj\n"
+        )
+    )
 
     header = b"%PDF-1.4\n"
     body = bytearray(header)
@@ -650,9 +949,13 @@ class OrdersService:
             message="Order is not ready for pickup signature.",
         )
 
-        signature_bytes, extension = _decode_data_url(signature_data_url)
+        signature_bytes, extension = decode_signature_data_url(signature_data_url)
         now = datetime.now(timezone.utc)
-        signature_key = f"orders/{order_id}/signatures/{now:%Y%m%d%H%M%S}-{uuid4().hex}.{extension}"
+        signature_key = build_signature_storage_key(
+            scope="orders",
+            entity_id=order_id,
+            extension=extension,
+        )
         storage = ObjectStorage()
         await storage.put_bytes(bucket="signatures", key=signature_key, payload=signature_bytes)
 
@@ -927,12 +1230,6 @@ class OrdersService:
                         "requested_step": normalized_step_key,
                     },
                 )
-            if actor_stage.strip().lower() == "tempering":
-                raise AppError(
-                    code=ErrorCode.FORBIDDEN,
-                    message="Tempering operators are view-only in this workflow.",
-                    status_code=403,
-                )
 
         if (
             normalized_action in {"start", "complete"}
@@ -1187,13 +1484,24 @@ class OrdersService:
         ]
 
         if normalized_document == "pickup":
+            signature_asset = None
+            if row.pickup_signature_key:
+                storage = ObjectStorage()
+                if await storage.exists("signatures", row.pickup_signature_key):
+                    signature_payload = await storage.get_bytes(
+                        "signatures", row.pickup_signature_key
+                    )
+                    extension = row.pickup_signature_key.rsplit(".", 1)[-1].lower()
+                    signature_asset = _build_signature_pdf_asset(signature_payload, extension)
             lines.extend(
                 [
                     f"Pickup Approved At: {row.pickup_approved_at.isoformat() if row.pickup_approved_at else '-'}",
                     f"Picked Up At: {row.picked_up_at.isoformat() if row.picked_up_at else '-'}",
                     f"Signer: {row.pickup_signer_name or '-'}",
+                    f"Signature Asset: {'embedded' if signature_asset is not None else ('stored' if row.pickup_signature_key else '-')}",
                 ]
             )
+            return _build_minimal_pdf(lines, image=signature_asset)
 
         return _build_minimal_pdf(lines)
 

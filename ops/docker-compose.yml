@@ -340,6 +340,7 @@ services:
       - public-api
       - admin-api
     ports:
+      - "3000:8080"
       - "28080:8080"
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro

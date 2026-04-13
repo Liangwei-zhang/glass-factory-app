@@ -40,8 +40,37 @@ router = APIRouter(prefix="/orders", tags=["orders"])
 service = OrdersService()
 operator_guard = require_roles(["operator", "manager", "admin"])
 operator_write_guard = require_scopes(["orders:write"])
+operator_cancel_guard = require_scopes(["orders:cancel"])
 stage_operator_guard = require_scopes(["production:write"])
 manager_guard = require_roles(["manager", "admin"])
+
+
+def _office_or_manager_user(user: AuthUser) -> AuthUser:
+    canonical_role = resolve_canonical_role(user.role)
+    if canonical_role in {"manager", "admin", "super_admin"}:
+        return user
+    if canonical_role == "operator" and not (user.stage or "").strip():
+        return user
+    raise AppError(
+        code=ErrorCode.FORBIDDEN,
+        message="Only office staff or managers can perform this order action.",
+        status_code=403,
+        details={"role": user.role, "stage": user.stage},
+    )
+
+
+async def order_create_guard(user: AuthUser = Depends(operator_write_guard)) -> AuthUser:
+    if resolve_canonical_role(user.role) == "customer":
+        return user
+    return _office_or_manager_user(user)
+
+
+async def office_order_write_guard(user: AuthUser = Depends(operator_write_guard)) -> AuthUser:
+    return _office_or_manager_user(user)
+
+
+async def office_order_cancel_guard(user: AuthUser = Depends(operator_cancel_guard)) -> AuthUser:
+    return _office_or_manager_user(user)
 
 
 async def _normalize_customer_create_order_payload(
@@ -102,7 +131,7 @@ async def create_order(
     request: Request,
     payload: CreateOrderRequest | CustomerCreateOrderRequest = Body(...),
     session: AsyncSession = Depends(get_db_session),
-    user: AuthUser = Depends(operator_write_guard),
+    user: AuthUser = Depends(order_create_guard),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> OrderView:
     _ = request
@@ -160,7 +189,7 @@ async def update_order(
     order_id: str,
     payload: UpdateOrderRequest = Body(...),
     session: AsyncSession = Depends(get_db_session),
-    user: AuthUser = Depends(operator_write_guard),
+    user: AuthUser = Depends(office_order_write_guard),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> OrderView:
     _ = request
@@ -178,7 +207,7 @@ async def cancel_order(
     order_id: str,
     payload: CancelOrderRequest,
     session: AsyncSession = Depends(get_db_session),
-    user: AuthUser = Depends(operator_write_guard),
+    user: AuthUser = Depends(office_order_cancel_guard),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> OrderView:
     _ = user
@@ -191,7 +220,7 @@ async def cancel_order_alias(
     order_id: str,
     payload: CancelOrderRequest,
     session: AsyncSession = Depends(get_db_session),
-    user: AuthUser = Depends(operator_write_guard),
+    user: AuthUser = Depends(office_order_cancel_guard),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> OrderView:
     _ = user
@@ -203,7 +232,7 @@ async def cancel_order_alias(
 async def confirm_order(
     order_id: str,
     session: AsyncSession = Depends(get_db_session),
-    user: AuthUser = Depends(operator_write_guard),
+    user: AuthUser = Depends(office_order_write_guard),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> OrderView:
     _ = user
@@ -215,7 +244,7 @@ async def confirm_order(
 async def mark_order_entered(
     order_id: str,
     session: AsyncSession = Depends(get_db_session),
-    user: AuthUser = Depends(operator_write_guard),
+    user: AuthUser = Depends(office_order_write_guard),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> OrderView:
     await enforce_idempotency_key("orders:entered", idempotency_key)
@@ -238,7 +267,7 @@ async def submit_pickup_signature(
     order_id: str,
     payload: PickupSignatureRequest,
     session: AsyncSession = Depends(get_db_session),
-    user: AuthUser = Depends(operator_write_guard),
+    user: AuthUser = Depends(office_order_write_guard),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> OrderView:
     await enforce_idempotency_key("orders:pickup-signature", idempotency_key)
@@ -255,7 +284,7 @@ async def submit_pickup_signature(
 async def send_pickup_email(
     order_id: str,
     session: AsyncSession = Depends(get_db_session),
-    user: AuthUser = Depends(operator_write_guard),
+    user: AuthUser = Depends(office_order_write_guard),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> dict:
     await enforce_idempotency_key("orders:pickup-send-email", idempotency_key)
@@ -294,7 +323,7 @@ async def upload_order_drawing(
     order_id: str,
     drawing: UploadFile = File(...),
     session: AsyncSession = Depends(get_db_session),
-    user: AuthUser = Depends(operator_write_guard),
+    user: AuthUser = Depends(office_order_write_guard),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> OrderView:
     _ = user

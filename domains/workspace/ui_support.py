@@ -582,7 +582,11 @@ async def serialize_order(
         "pickupApprovedAt": order.pickup_approved_at,
         "pickupApprovedBy": order.pickup_approved_by,
         "pickupSignerName": order.pickup_signer_name,
-        "pickupSignatureUrl": "",
+        "pickupSignatureUrl": (
+            build_order_asset_url(route_prefix, order.id, "pickup-signature")
+            if order.pickup_signature_key
+            else ""
+        ),
         "version": order.version,
         "isModified": order.version > 1,
         "reworkOpen": bool(open_rework_piece_numbers)

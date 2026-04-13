@@ -16,9 +16,12 @@ class CreateShipmentRequest(BaseModel):
 
 
 class DeliverShipmentRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     receiver_name: str = Field(min_length=1, max_length=100)
     receiver_phone: str | None = Field(default=None, max_length=20)
     delivered_at: datetime | None = None
+    signature_data_url: str | None = Field(default=None, min_length=10, alias="signatureDataUrl")
 
 
 class ShipmentView(BaseModel):

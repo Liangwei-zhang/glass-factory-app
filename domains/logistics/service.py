@@ -13,6 +13,8 @@ from infra.db.models.logistics import ShipmentModel
 from infra.db.models.orders import OrderModel
 from infra.events.outbox import OutboxPublisher
 from infra.events.topics import Topics
+from infra.signatures import build_signature_storage_key, decode_signature_data_url
+from infra.storage.object_storage import ObjectStorage
 
 SHIPPABLE_ORDER_STATUSES = {"completed", "ready_for_pickup", "picked_up", "shipping", "delivered"}
 
@@ -118,10 +120,26 @@ class LogisticsService:
             raise ShipmentNotFound(shipment_id)
 
         if row.status != "delivered":
+            signature_key = row.signature_image
+            if payload.signature_data_url:
+                signature_bytes, extension = decode_signature_data_url(payload.signature_data_url)
+                signature_key = build_signature_storage_key(
+                    scope="shipments",
+                    entity_id=shipment_id,
+                    extension=extension,
+                )
+                storage = ObjectStorage()
+                await storage.put_bytes(
+                    bucket="signatures",
+                    key=signature_key,
+                    payload=signature_bytes,
+                )
+
             row.status = "delivered"
             row.delivered_at = payload.delivered_at or datetime.now(timezone.utc)
             row.receiver_name = payload.receiver_name.strip()
             row.receiver_phone = (payload.receiver_phone or "").strip() or None
+            row.signature_image = signature_key
             row.shipped_at = row.shipped_at or row.delivered_at
             await session.flush()
 

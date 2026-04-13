@@ -1,4 +1,4 @@
-const CACHE_NAME = 'glass-factory-static-v1';
+const CACHE_NAME = 'glass-factory-static-v11';
 const APP_SHELL = [
   '/',
   '/app',

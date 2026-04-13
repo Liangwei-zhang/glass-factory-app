@@ -53,6 +53,7 @@ def test_admin_sj_contract_routes_registered() -> None:
         ("GET", "/v1/admin/runtime/probe"),
         ("GET", "/v1/admin/runtime/metrics"),
         ("GET", "/v1/admin/runtime/alerts"),
+        ("POST", "/v1/admin/runtime/outbox/replay"),
         ("GET", "/v1/admin/audit"),
         ("GET", "/v1/admin/audit/logs"),
         ("GET", "/v1/admin/tasks"),

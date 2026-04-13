@@ -221,6 +221,23 @@ async def workspace_download_drawing(
     return FileResponse(path=local_path, filename=filename)
 
 
+@router.get("/orders/{order_id}/pickup-signature")
+async def workspace_download_pickup_signature(
+    order_id: str,
+    auth_user: AuthUser = Depends(workspace_guard),
+    session: AsyncSession = Depends(get_db_session),
+) -> FileResponse:
+    _ = auth_user
+    try:
+        local_path, filename = await workspace_orders.get_order_pickup_signature_file(
+            session,
+            order_id,
+        )
+    except AppError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
+    return FileResponse(path=local_path, filename=filename)
+
+
 @router.get("/orders/{order_id}/export")
 async def workspace_export_order(
     order_id: str,
@@ -513,6 +530,7 @@ async def workspace_deliver_shipment(
             receiver_name=str(payload.get("receiverName") or ""),
             receiver_phone=str(payload.get("receiverPhone") or "") or None,
             delivered_at=payload.get("deliveredAt"),
+            signature_data_url=str(payload.get("signatureDataUrl") or "") or None,
             actor_user_id=auth_user.user_id,
         )
     except AppError as exc:

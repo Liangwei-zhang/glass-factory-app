@@ -5,7 +5,7 @@ from decimal import Decimal
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile
-from fastapi.responses import Response
+from fastapi.responses import FileResponse, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -13,6 +13,7 @@ from sqlalchemy.orm import selectinload
 from domains.notifications.service import NotificationsService
 from domains.orders.schema import CreateOrderItem, CreateOrderRequest
 from domains.orders.service import OrdersService
+from domains.workspace import orders_support as workspace_orders
 from domains.workspace import ui_support as workspace_ui
 from infra.core.errors import AppError
 from infra.db.models.customers import CustomerModel
@@ -325,6 +326,31 @@ async def customer_order_export(
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.get("/orders/{order_id}/pickup-signature")
+async def customer_order_pickup_signature(
+    order_id: str,
+    auth_user: AuthUser = Depends(customer_guard),
+    session: AsyncSession = Depends(get_db_session),
+) -> FileResponse:
+    _, customer = await _load_customer_context(session, auth_user)
+    result = await session.execute(
+        select(OrderModel.id)
+        .where(OrderModel.id == order_id, OrderModel.customer_id == customer.id)
+        .limit(1)
+    )
+    if result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=404, detail="订单不存在。")
+
+    try:
+        local_path, filename = await workspace_orders.get_order_pickup_signature_file(
+            session,
+            order_id,
+        )
+    except AppError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
+    return FileResponse(path=local_path, filename=filename)
 
 
 @router.get("/notifications")

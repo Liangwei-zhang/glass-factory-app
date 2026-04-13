@@ -545,6 +545,8 @@ def serialize_test_order(order: OrderModel) -> dict:
         "orderNo": order.order_no,
         "status": order.status,
         "totalQuantity": order.total_quantity,
+        "pickupSignerName": order.pickup_signer_name,
+        "pickupSignatureUrl": "",
         "reservationIds": list(order.reservation_ids),
         "items": [
             {

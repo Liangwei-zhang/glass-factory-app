@@ -14,3 +14,5 @@ def test_ui_entrypoints_return_spa_html() -> None:
             assert response.status_code == 200
             assert "text/html" in response.headers.get("content-type", "")
             assert 'id="app"' in response.text
+            if path == "/platform":
+                assert "startLiveRefresh" in response.text

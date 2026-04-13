@@ -176,7 +176,7 @@ def test_orders_api_create_then_cancel_restores_inventory(monkeypatch) -> None:
         yield harness.session
 
     async def override_current_user():
-        return make_auth_user()
+        return make_auth_user(scopes=["orders:read", "orders:write", "orders:cancel"])
 
     async def fake_get_redis():
         return harness.redis
@@ -809,7 +809,7 @@ def test_finance_endpoints_surface_receivable_for_completed_order(
         app.dependency_overrides.clear()
 
 
-def test_logistics_and_finance_write_endpoints_cover_direct_flow(monkeypatch) -> None:
+def test_logistics_and_finance_write_endpoints_cover_direct_flow(monkeypatch, tmp_path: Path) -> None:
     harness = build_order_inventory_harness(available_qty=10)
     original_service = orders_router.service
     current_user = {
@@ -827,6 +827,7 @@ def test_logistics_and_finance_write_endpoints_cover_direct_flow(monkeypatch) ->
 
     monkeypatch.setattr(orders_router, "service", harness.orders_service)
     monkeypatch.setattr("infra.security.idempotency.get_redis", fake_get_redis)
+    monkeypatch.setenv("OBJECT_STORAGE_LOCAL_DIR", str(tmp_path / "object-storage"))
     app.dependency_overrides[get_db_session] = override_session
     app.dependency_overrides[get_current_user] = override_current_user
 
@@ -877,6 +878,10 @@ def test_logistics_and_finance_write_endpoints_cover_direct_flow(monkeypatch) ->
                     "receiver_name": "Carol Receiver",
                     "receiver_phone": "+86-13800000001",
                     "delivered_at": "2026-04-12T14:30:00Z",
+                    "signatureDataUrl": (
+                        "data:image/png;base64,"
+                        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+s4e0AAAAASUVORK5CYII="
+                    ),
                 },
             )
 
@@ -884,8 +889,18 @@ def test_logistics_and_finance_write_endpoints_cover_direct_flow(monkeypatch) ->
             delivered_payload = deliver_response.json()["data"]
             assert delivered_payload["status"] == "delivered"
             assert delivered_payload["receiver_name"] == "Carol Receiver"
+            assert delivered_payload["signature_image"]
             assert harness.session.shipments[0].status == "delivered"
+            assert harness.session.shipments[0].signature_image == delivered_payload["signature_image"]
             assert harness.orders_repository.orders_by_id[order_id].status == "delivered"
+
+            delivery_signature_path = ObjectStorage(
+                base_dir=str(tmp_path / "object-storage")
+            ).resolve_local_path(
+                bucket="signatures",
+                key=delivered_payload["signature_image"],
+            )
+            assert delivery_signature_path.exists()
 
             duplicate_deliver_response = client.post(
                 f"/v1/logistics/shipments/{shipment_id}/deliver",

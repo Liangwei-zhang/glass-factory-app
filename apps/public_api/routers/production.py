@@ -16,6 +16,19 @@ service = ProductionService()
 operator_guard = require_roles(["operator", "manager", "admin"])
 
 
+def _resolve_query_scope(
+    user: AuthUser,
+    *,
+    stage: str | None,
+    mine: bool,
+) -> tuple[str | None, str | None, bool]:
+    requested_stage = stage.strip().lower() if stage else None
+    operator_stage = user.stage.strip().lower() if user.stage else None
+    if mine and operator_stage:
+        return operator_stage, user.user_id, True
+    return requested_stage, (user.user_id if mine else None), False
+
+
 @router.get("/work-orders", response_model=list[WorkOrderView])
 async def list_work_orders(
     limit: int = Query(default=100, ge=1, le=500),
@@ -24,9 +37,11 @@ async def list_work_orders(
     session: AsyncSession = Depends(get_db_session),
     user: AuthUser = Depends(operator_guard),
 ) -> list[WorkOrderView]:
-    normalized_stage = stage.strip().lower() if stage else None
-    assignee_user_id = user.user_id if mine else None
-    include_unassigned = False
+    normalized_stage, assignee_user_id, include_unassigned = _resolve_query_scope(
+        user,
+        stage=stage,
+        mine=mine,
+    )
     return await service.list_work_orders(
         session,
         limit=limit,
@@ -58,9 +73,11 @@ async def list_schedule(
     session: AsyncSession = Depends(get_db_session),
     user: AuthUser = Depends(operator_guard),
 ) -> list[WorkOrderView]:
-    normalized_stage = stage.strip().lower() if stage else None
-    assignee_user_id = user.user_id if mine else None
-    include_unassigned = False
+    normalized_stage, assignee_user_id, include_unassigned = _resolve_query_scope(
+        user,
+        stage=stage,
+        mine=mine,
+    )
     return await service.list_schedule(
         session,
         day=day,

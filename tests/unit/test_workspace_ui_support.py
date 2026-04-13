@@ -73,6 +73,9 @@ def test_build_order_asset_url_uses_explicit_route_prefix() -> None:
     assert ui_support.build_order_asset_url("/v1/workspace", "order-1", "drawing") == (
         "/v1/workspace/orders/order-1/drawing"
     )
+    assert ui_support.build_order_asset_url(
+        "/v1/workspace", "order-1", "pickup-signature"
+    ) == "/v1/workspace/orders/order-1/pickup-signature"
     assert ui_support.build_order_asset_url("/v1/app/", "order-2", "/drawing") == (
         "/v1/app/orders/order-2/drawing"
     )

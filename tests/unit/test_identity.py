@@ -45,6 +45,9 @@ def test_canonical_role_and_scope_resolution_bridge_legacy_roles() -> None:
     assert "logistics:write" in office_scopes
     assert "production:write" in worker_scopes
     assert "production:write" in operator_scopes
+    assert "orders:write" not in worker_scopes
+    assert "orders:cancel" not in worker_scopes
+    assert "orders:write" not in operator_scopes
     assert "orders:read" in viewer_scopes
     assert "orders:write" not in viewer_scopes
 

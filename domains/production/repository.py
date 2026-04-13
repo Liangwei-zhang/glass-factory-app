@@ -5,10 +5,18 @@ from datetime import date
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from infra.db.models.orders import OrderModel
 from infra.db.models.production import ProductionLineModel, WorkOrderModel
 
 
 class ProductionRepository:
+    @staticmethod
+    def _base_work_order_stmt():
+        return select(WorkOrderModel).join(OrderModel, OrderModel.id == WorkOrderModel.order_id).where(
+            OrderModel.status != "cancelled",
+            WorkOrderModel.status != "cancelled",
+        )
+
     async def list_work_orders(
         self,
         session: AsyncSession,
@@ -17,7 +25,7 @@ class ProductionRepository:
         assignee_user_id: str | None = None,
         include_unassigned: bool = False,
     ) -> list[WorkOrderModel]:
-        stmt = select(WorkOrderModel)
+        stmt = self._base_work_order_stmt()
         if step_key:
             stmt = stmt.where(WorkOrderModel.process_step_key == step_key)
         if assignee_user_id:
@@ -65,7 +73,7 @@ class ProductionRepository:
         assignee_user_id: str | None = None,
         include_unassigned: bool = False,
     ) -> list[WorkOrderModel]:
-        stmt = select(WorkOrderModel).where(WorkOrderModel.scheduled_date.is_not(None))
+        stmt = self._base_work_order_stmt().where(WorkOrderModel.scheduled_date.is_not(None))
         if day is not None:
             stmt = stmt.where(WorkOrderModel.scheduled_date == day)
         if step_key:

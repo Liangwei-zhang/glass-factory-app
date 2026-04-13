@@ -32,7 +32,14 @@ def _patch_workspace_route(monkeypatch, harness) -> None:
         _session, order_id: str, *, include_detail: bool = True
     ):
         _ = include_detail
-        return serialize_test_order(harness.orders_repository.orders_by_id[order_id])
+        order = harness.orders_repository.orders_by_id[order_id]
+        payload = serialize_test_order(order)
+        payload["pickupSignatureUrl"] = (
+            f"/v1/workspace/orders/{order.id}/pickup-signature"
+            if order.pickup_signature_key
+            else ""
+        )
+        return payload
 
     async def fake_get_order_model(_session, order_id: str, *, include_items: bool = True):
         _ = include_items
@@ -367,10 +374,7 @@ def test_workspace_orders_api_full_lifecycle_reaches_picked_up(
             assert harness.inventory_row.reserved_qty == 0
 
             for step_key in ["cutting", "edging", "tempering", "finishing"]:
-                if step_key == "tempering":
-                    current_user["value"] = make_auth_user(role="manager")
-                else:
-                    current_user["value"] = make_auth_user(stage=step_key)
+                current_user["value"] = make_auth_user(stage=step_key)
                 step_response = client.post(
                     f"/v1/workspace/orders/{order_id}/steps/{step_key}",
                     headers={"Idempotency-Key": f"workspace-e2e-full-lifecycle-{step_key}"},
@@ -417,6 +421,10 @@ def test_workspace_orders_api_full_lifecycle_reaches_picked_up(
             assert signature_response.status_code == 200
             signature_payload = signature_response.json()["data"]["order"]
             assert signature_payload["status"] == "picked_up"
+            assert (
+                signature_payload["pickupSignatureUrl"]
+                == f"/v1/workspace/orders/{order_id}/pickup-signature"
+            )
 
             picked_up_order = harness.orders_repository.orders_by_id[order_id]
             assert picked_up_order.pickup_signer_name == "Alice Receiver"
@@ -434,6 +442,20 @@ def test_workspace_orders_api_full_lifecycle_reaches_picked_up(
             assert shipments[0].status == "delivered"
             assert shipments[0].receiver_name == "Alice Receiver"
             assert shipments[0].signature_image == picked_up_order.pickup_signature_key
+
+            signature_download_response = client.get(
+                f"/v1/workspace/orders/{order_id}/pickup-signature"
+            )
+            assert signature_download_response.status_code == 200
+            assert signature_download_response.content == signature_path.read_bytes()
+
+            pickup_export_response = client.get(
+                f"/v1/workspace/orders/{order_id}/export",
+                params={"document": "pickup"},
+            )
+            assert pickup_export_response.status_code == 200
+            assert pickup_export_response.headers["content-type"] == "application/pdf"
+            assert b"/Subtype /Image" in pickup_export_response.content
     finally:
         app.dependency_overrides.clear()
 
@@ -442,6 +464,7 @@ def test_workspace_orders_api_shipping_and_finance_flow(monkeypatch) -> None:
     harness = build_order_inventory_harness(available_qty=10)
     _patch_workspace_route(monkeypatch, harness)
     current_user = {"value": make_auth_user()}
+    stored_signatures: list[tuple[str, str, bytes]] = []
 
     async def override_session() -> AsyncGenerator:
         yield harness.session
@@ -452,7 +475,12 @@ def test_workspace_orders_api_shipping_and_finance_flow(monkeypatch) -> None:
     async def fake_get_redis():
         return harness.redis
 
+    async def fake_put_bytes(self, *, bucket: str, key: str, payload: bytes):
+        _ = self
+        stored_signatures.append((bucket, key, payload))
+
     monkeypatch.setattr("infra.security.idempotency.get_redis", fake_get_redis)
+    monkeypatch.setattr("domains.logistics.service.ObjectStorage.put_bytes", fake_put_bytes)
     app.dependency_overrides[get_db_session] = override_session
     app.dependency_overrides[get_current_user] = override_current_user
 
@@ -501,6 +529,10 @@ def test_workspace_orders_api_shipping_and_finance_flow(monkeypatch) -> None:
                     "receiverName": "Carol Receiver",
                     "receiverPhone": "+86-13800000000",
                     "deliveredAt": "2026-04-12T14:30:00Z",
+                    "signatureDataUrl": (
+                        "data:image/png;base64,"
+                        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+s4e0AAAAASUVORK5CYII="
+                    ),
                 },
             )
 
@@ -508,9 +540,12 @@ def test_workspace_orders_api_shipping_and_finance_flow(monkeypatch) -> None:
             delivered_payload = deliver_response.json()["data"]["shipment"]
             assert delivered_payload["status"] == "delivered"
             assert delivered_payload["receiver_name"] == "Carol Receiver"
+            assert delivered_payload["signature_image"]
             assert harness.session.shipments[0].status == "delivered"
             assert harness.session.shipments[0].receiver_phone == "+86-13800000000"
+            assert harness.session.shipments[0].signature_image == delivered_payload["signature_image"]
             assert harness.orders_repository.orders_by_id[order_id].status == "delivered"
+            assert stored_signatures and stored_signatures[0][0] == "signatures"
 
             duplicate_deliver_response = client.post(
                 f"/v1/workspace/shipments/{shipment_id}/deliver",

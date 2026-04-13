@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from loguru import logger
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 
 from infra.db.models.events import EventOutboxModel
 from infra.db.models.notifications import NotificationModel
@@ -30,6 +30,64 @@ HANDLED_TOPICS = {
     Topics.LOGISTICS_DELIVERED,
     Topics.INVENTORY_LOW_STOCK,
 }
+
+
+def _notification_dispatched(event: EventOutboxModel) -> bool:
+    return bool((event.headers or {}).get("notification_dispatched"))
+
+
+async def _claim_undispatched_published_events(session, batch_size: int) -> list[EventOutboxModel]:
+    selected: list[EventOutboxModel] = []
+    cursor: tuple[datetime | None, datetime, str] | None = None
+
+    while len(selected) < batch_size:
+        statement = (
+            select(EventOutboxModel)
+            .where(
+                EventOutboxModel.status == "published",
+                EventOutboxModel.topic.in_(HANDLED_TOPICS),
+            )
+            .order_by(
+                EventOutboxModel.published_at.asc(),
+                EventOutboxModel.created_at.asc(),
+                EventOutboxModel.id.asc(),
+            )
+            .limit(batch_size)
+            .with_for_update(skip_locked=True)
+        )
+
+        if cursor is not None:
+            published_at, created_at, event_id = cursor
+            statement = statement.where(
+                or_(
+                    EventOutboxModel.published_at > published_at,
+                    and_(
+                        EventOutboxModel.published_at == published_at,
+                        EventOutboxModel.created_at > created_at,
+                    ),
+                    and_(
+                        EventOutboxModel.published_at == published_at,
+                        EventOutboxModel.created_at == created_at,
+                        EventOutboxModel.id > event_id,
+                    ),
+                )
+            )
+
+        event_result = await session.execute(statement)
+        rows = list(event_result.scalars().all())
+        if not rows:
+            break
+
+        for row in rows:
+            if not _notification_dispatched(row):
+                selected.append(row)
+                if len(selected) >= batch_size:
+                    break
+
+        last_row = rows[-1]
+        cursor = (last_row.published_at, last_row.created_at, last_row.id)
+
+    return selected
 
 
 def _build_notification(event: EventOutboxModel) -> tuple[str, str, str]:
@@ -105,13 +163,21 @@ def _resolve_target_user_ids(event: EventOutboxModel, active_users: list[UserMod
         Topics.ORDER_ENTERED,
         Topics.ORDER_PRODUCING,
         Topics.ORDER_COMPLETED,
-        Topics.ORDER_READY_FOR_PICKUP,
         Topics.ORDER_PICKED_UP,
         Topics.ORDER_CANCELLED,
         Topics.LOGISTICS_SHIPPED,
         Topics.LOGISTICS_DELIVERED,
         Topics.INVENTORY_LOW_STOCK,
     }
+
+    if event.topic == Topics.ORDER_READY_FOR_PICKUP:
+        warehouse_stage_ids = {
+            str(user.id)
+            for user in active_users
+            if resolve_canonical_role(user.role) == "operator"
+            and (user.stage or "").strip().lower() in {"finishing", "warehouse"}
+        }
+        return sorted(manager_like_ids | office_ids | warehouse_stage_ids)
 
     if event.topic in internal_ops_topics:
         return sorted(manager_like_ids | office_ids)
@@ -140,20 +206,7 @@ def _resolve_target_user_ids(event: EventOutboxModel, active_users: list[UserMod
 async def run_once(batch_size: int = 200) -> int:
     session_factory = build_session_factory()
     async with session_factory() as session:
-        event_result = await session.execute(
-            select(EventOutboxModel)
-            .where(
-                EventOutboxModel.status == "published",
-                EventOutboxModel.topic.in_(HANDLED_TOPICS),
-            )
-            .order_by(EventOutboxModel.published_at.asc(), EventOutboxModel.created_at.asc())
-            .limit(batch_size)
-            .with_for_update(skip_locked=True)
-        )
-        rows = list(event_result.scalars().all())
-        pending_rows = [
-            row for row in rows if not bool((row.headers or {}).get("notification_dispatched"))
-        ]
+        pending_rows = await _claim_undispatched_published_events(session, batch_size)
         if not pending_rows:
             return 0
 

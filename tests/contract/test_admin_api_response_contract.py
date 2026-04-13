@@ -46,6 +46,7 @@ class _FakeUsersSession:
         self._execute_results = list(execute_results or [])
         self._scalar_results = list(scalar_results or [])
         self._get_map = dict(get_map or {})
+        self.commit_calls = 0
 
     async def execute(self, _statement):
         if not self._execute_results:
@@ -62,6 +63,9 @@ class _FakeUsersSession:
 
     async def flush(self) -> None:
         return None
+
+    async def commit(self) -> None:
+        self.commit_calls += 1
 
 
 def _make_auth_user(*, role: str) -> AuthUser:
@@ -462,7 +466,7 @@ def test_admin_audit_logs_response_contract() -> None:
         app.dependency_overrides.clear()
 
 
-def test_admin_runtime_alerts_response_contract() -> None:
+def test_admin_runtime_alerts_response_contract(monkeypatch) -> None:
     now = datetime.now(timezone.utc)
     outbox_row = SimpleNamespace(
         id="evt-alert-1",
@@ -482,6 +486,19 @@ def test_admin_runtime_alerts_response_contract() -> None:
     async def override_current_user():
         return _make_auth_user(role="manager")
 
+    async def fake_collect_runtime_snapshot(_session) -> dict:
+        return {
+            "checks": {"database": True, "redis": True, "kafka": True},
+            "redis_memory_used_bytes": 0.0,
+            "redis_connected_clients": 0.0,
+            "redis_memory_utilization_ratio": None,
+            "clickhouse_up": True,
+            "pgbouncer_waiting_clients": 0.0,
+            "kafka_consumer_lag": 0.0,
+            "outbox_records": {"pending": 0.0, "published": 0.0, "failed": 0.0, "dead_letter": 0.0},
+        }
+
+    monkeypatch.setattr(runtime_router, "collect_runtime_snapshot", fake_collect_runtime_snapshot)
     app.dependency_overrides[get_db_session] = override_session
     app.dependency_overrides[get_current_user] = override_current_user
 
@@ -494,6 +511,87 @@ def test_admin_runtime_alerts_response_contract() -> None:
             assert payload["items"][0]["id"] == "evt-alert-1"
             assert payload["items"][0]["status"] == "dead_letter"
             assert payload["items"][0]["last_error"] == "smtp timeout"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_admin_runtime_alerts_include_threshold_breaches(monkeypatch) -> None:
+    session = _FakeUsersSession(execute_results=[_ScalarRowsResult([])])
+
+    async def override_session() -> AsyncGenerator:
+        yield session
+
+    async def override_current_user():
+        return _make_auth_user(role="manager")
+
+    async def fake_collect_runtime_snapshot(_session) -> dict:
+        return {
+            "checks": {"database": True, "redis": True, "kafka": True},
+            "redis_memory_used_bytes": 1024.0,
+            "redis_connected_clients": 5.0,
+            "redis_memory_utilization_ratio": 0.9,
+            "clickhouse_up": True,
+            "pgbouncer_waiting_clients": 12.0,
+            "kafka_consumer_lag": 250.0,
+            "outbox_records": {"pending": 0.0, "published": 0.0, "failed": 0.0, "dead_letter": 0.0},
+        }
+
+    monkeypatch.setattr(runtime_router, "collect_runtime_snapshot", fake_collect_runtime_snapshot)
+    app.dependency_overrides[get_db_session] = override_session
+    app.dependency_overrides[get_current_user] = override_current_user
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/v1/admin/runtime/alerts")
+
+            payload = _assert_success_envelope(response, status_code=200)
+            alert_ids = {item["id"] for item in payload["items"]}
+            assert "runtime-threshold-pgbouncer-waiting" in alert_ids
+            assert "runtime-threshold-redis-memory" in alert_ids
+            assert "runtime-threshold-kafka-lag" in alert_ids
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_admin_runtime_outbox_replay_response_contract(monkeypatch) -> None:
+    session = _FakeUsersSession()
+
+    async def override_session() -> AsyncGenerator:
+        yield session
+
+    async def override_current_user():
+        return _make_auth_user(role="manager")
+
+    async def fake_requeue_outbox_events(_session, *, ids=None, statuses=None, limit=100):
+        assert _session is session
+        assert ids == []
+        assert statuses == ["dead_letter"]
+        assert limit == 25
+        return [
+            SimpleNamespace(id="evt-dead-1"),
+            SimpleNamespace(id="evt-dead-2"),
+        ]
+
+    monkeypatch.setattr(runtime_router, "requeue_outbox_events", fake_requeue_outbox_events)
+    app.dependency_overrides[get_db_session] = override_session
+    app.dependency_overrides[get_current_user] = override_current_user
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/v1/admin/runtime/outbox/replay",
+                json={"statuses": ["dead_letter"], "limit": 25},
+            )
+
+            payload = _assert_success_envelope(response, status_code=200)
+            assert payload == {
+                "requested_statuses": ["dead_letter"],
+                "requested_ids": [],
+                "replayed": 2,
+                "replayed_ids": ["evt-dead-1", "evt-dead-2"],
+                "missing_ids": [],
+            }
+            assert session.commit_calls == 1
     finally:
         app.dependency_overrides.clear()
 

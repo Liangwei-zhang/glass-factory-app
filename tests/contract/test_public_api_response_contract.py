@@ -221,7 +221,14 @@ def _patch_workspace_route(monkeypatch, harness) -> None:
         _session, order_id: str, *, include_detail: bool = True
     ):
         _ = include_detail
-        return serialize_test_order(harness.orders_repository.orders_by_id[order_id])
+        order = harness.orders_repository.orders_by_id[order_id]
+        payload = serialize_test_order(order)
+        payload["pickupSignatureUrl"] = (
+            f"/v1/workspace/orders/{order.id}/pickup-signature"
+            if order.pickup_signature_key
+            else ""
+        )
+        return payload
 
     async def fake_get_order_model(_session, order_id: str, *, include_items: bool = True):
         _ = include_items
@@ -524,6 +531,7 @@ def test_workspace_orders_read_response_contracts(monkeypatch) -> None:
             assert (
                 detail_payload["order"]["customer"]["companyName"] == harness.customer.company_name
             )
+            assert detail_payload["order"]["pickupSignatureUrl"] == ""
             assert len(detail_payload["order"]["steps"]) == 4
             assert detail_payload["order"]["timeline"] == []
             assert detail_payload["order"]["versionHistory"][0]["versionNumber"] == 1
@@ -887,7 +895,9 @@ def test_workspace_pickup_send_email_response_contract(monkeypatch) -> None:
 
 def test_orders_update_cancel_and_pickup_signature_response_contracts(monkeypatch) -> None:
     harness = build_order_inventory_harness(available_qty=10)
-    current_user = {"value": make_auth_user(scopes=["orders:read", "orders:write"])}
+    current_user = {
+        "value": make_auth_user(scopes=["orders:read", "orders:write", "orders:cancel"])
+    }
     stored_signatures: list[tuple[str, str, bytes]] = []
 
     async def override_session() -> AsyncGenerator:
@@ -1015,7 +1025,7 @@ def test_workspace_orders_update_cancel_and_pickup_signature_response_contracts(
     monkeypatch,
 ) -> None:
     harness = build_order_inventory_harness(available_qty=10)
-    current_user = {"value": make_auth_user(stage="cutting")}
+    current_user = {"value": make_auth_user()}
     stored_signatures: list[tuple[str, str, bytes]] = []
 
     async def override_session() -> AsyncGenerator:
@@ -1040,6 +1050,11 @@ def test_workspace_orders_update_cancel_and_pickup_signature_response_contracts(
         payload = serialize_test_order(order)
         payload["pickupSignerName"] = order.pickup_signer_name
         payload["pickupSignatureKey"] = order.pickup_signature_key
+        payload["pickupSignatureUrl"] = (
+            f"/v1/workspace/orders/{order.id}/pickup-signature"
+            if order.pickup_signature_key
+            else ""
+        )
         return payload
 
     async def fake_put_bytes(self, *, bucket: str, key: str, payload: bytes):
@@ -1064,6 +1079,7 @@ def test_workspace_orders_update_cancel_and_pickup_signature_response_contracts(
             create_payload = _create_contract_order(client, harness.customer.id)
             order_id = create_payload["id"]
 
+            current_user["value"] = make_auth_user(stage="cutting")
             forbidden_update_response = client.put(
                 f"/v1/workspace/orders/{order_id}",
                 headers={"Idempotency-Key": f"contract-workspace-order-update-forbidden-{uuid4()}"},
@@ -1187,6 +1203,10 @@ def test_workspace_orders_update_cancel_and_pickup_signature_response_contracts(
             assert signature_payload["order"]["status"] == "picked_up"
             assert signature_payload["order"]["pickupSignerName"] == "Alice Receiver"
             assert signature_payload["order"]["pickupSignatureKey"]
+            assert (
+                signature_payload["order"]["pickupSignatureUrl"]
+                == f"/v1/workspace/orders/{signature_order_id}/pickup-signature"
+            )
             assert stored_signatures and stored_signatures[0][0] == "signatures"
     finally:
         app.dependency_overrides.clear()
@@ -1215,6 +1235,23 @@ def test_orders_confirm_entered_step_and_pickup_approve_response_contracts(monke
             create_payload = _create_contract_order(client, harness.customer.id)
             order_id = create_payload["id"]
 
+            current_user["value"] = make_auth_user(
+                scopes=["orders:read", "orders:write", "orders:cancel", "production:write"],
+                stage="cutting",
+            )
+            worker_confirm_response = client.put(
+                f"/v1/orders/{order_id}/confirm",
+                headers={"Idempotency-Key": f"contract-order-confirm-worker-{uuid4()}"},
+            )
+            worker_confirm_payload = _assert_error_envelope(
+                worker_confirm_response,
+                status_code=403,
+                code="FORBIDDEN",
+                message="Only office staff or managers can perform this order action.",
+            )
+            assert worker_confirm_payload["details"]["stage"] == "cutting"
+
+            current_user["value"] = make_auth_user(scopes=["orders:read", "orders:write"])
             missing_key_confirm_response = client.put(f"/v1/orders/{order_id}/confirm")
             missing_key_confirm_payload = _assert_error_envelope(
                 missing_key_confirm_response,
@@ -2343,7 +2380,7 @@ def test_production_response_contracts(monkeypatch) -> None:
         assert limit == 10
         assert step_key == "cutting"
         assert assignee_user_id == "user-1"
-        assert include_unassigned is False
+        assert include_unassigned is True
         return [work_order]
 
     async def fake_get_work_order(_session, *, work_order_id: str):
@@ -2366,7 +2403,7 @@ def test_production_response_contracts(monkeypatch) -> None:
         assert limit == 10
         assert step_key == "cutting"
         assert assignee_user_id == "user-1"
-        assert include_unassigned is False
+        assert include_unassigned is True
         return [work_order]
 
     monkeypatch.setattr(production_router.service, "list_work_orders", fake_list_work_orders)
@@ -3980,6 +4017,7 @@ def test_workspace_logistics_and_finance_write_response_contracts(monkeypatch) -
     harness = build_order_inventory_harness(available_qty=10)
     original_service = orders_router.service
     current_user = {"value": make_auth_user(scopes=["orders:read", "orders:write"])}
+    stored_signatures: list[tuple[str, str, bytes]] = []
 
     async def override_session() -> AsyncGenerator:
         yield harness.session
@@ -3990,8 +4028,13 @@ def test_workspace_logistics_and_finance_write_response_contracts(monkeypatch) -
     async def fake_get_redis():
         return harness.redis
 
+    async def fake_put_bytes(self, *, bucket: str, key: str, payload: bytes):
+        _ = self
+        stored_signatures.append((bucket, key, payload))
+
     monkeypatch.setattr(orders_router, "service", harness.orders_service)
     monkeypatch.setattr("infra.security.idempotency.get_redis", fake_get_redis)
+    monkeypatch.setattr("domains.logistics.service.ObjectStorage.put_bytes", fake_put_bytes)
     app.dependency_overrides[get_db_session] = override_session
     app.dependency_overrides[get_current_user] = override_current_user
 
@@ -4071,6 +4114,10 @@ def test_workspace_logistics_and_finance_write_response_contracts(monkeypatch) -
                     "receiverName": "Carol Receiver",
                     "receiverPhone": "+86-13800000000",
                     "deliveredAt": "2026-04-12T14:30:00Z",
+                    "signatureDataUrl": (
+                        "data:image/png;base64,"
+                        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+s4e0AAAAASUVORK5CYII="
+                    ),
                 },
             )
             shipment_deliver_payload = _assert_success_envelope(
@@ -4079,6 +4126,8 @@ def test_workspace_logistics_and_finance_write_response_contracts(monkeypatch) -
             assert shipment_deliver_payload["shipment"]["id"] == shipment_id
             assert shipment_deliver_payload["shipment"]["status"] == "delivered"
             assert shipment_deliver_payload["shipment"]["receiver_name"] == "Carol Receiver"
+            assert shipment_deliver_payload["shipment"]["signature_image"]
+            assert stored_signatures and stored_signatures[0][0] == "signatures"
 
             receivable_create_response = client.post(
                 f"/v1/workspace/orders/{order_id}/receivable",

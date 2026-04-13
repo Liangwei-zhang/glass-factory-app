@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Glass Factory — 生产业务操作端</title>
 <link rel="manifest" href="/manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
 <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 <script src="https://unpkg.com/element-plus/dist/index.full.js"></script>
@@ -164,7 +167,455 @@ html, body { height: 100%; background: var(--bg); font-family: -apple-system,Bli
 /* ── RESPONSIVE ── */
 @media (max-width: 1100px) { .order-grid { grid-template-columns: 1fr; } .kanban-wrap { grid-template-columns: repeat(2,1fr); } }
 @media (max-width: 800px)  { .inv-summary { grid-template-columns: repeat(2,1fr); } .cus-grid { grid-template-columns: 1fr; } }
-</style>
+
+/* ── V2 REFRESH ── */
+:root {
+  --primary: #f59e0b;
+  --primary-v: #f97316;
+  --accent: #38bdf8;
+  --success: #22c55e;
+  --warn: #f59e0b;
+  --danger: #ef4444;
+  --border: rgba(148, 163, 184, 0.18);
+  --sidebar-bg: #0f172a;
+  --text: #e2e8f0;
+  --text-2: #94a3b8;
+  --bg: #020617;
+  --font-head: 'Barlow Condensed', sans-serif;
+  --font-body: 'Barlow', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+html, body {
+  background:
+    radial-gradient(circle at top left, rgba(249, 115, 22, 0.14), transparent 30%),
+    radial-gradient(circle at top right, rgba(56, 189, 248, 0.12), transparent 30%),
+    linear-gradient(180deg, #020617 0%, #0f172a 100%);
+  font-family: var(--font-body);
+  color: var(--text);
+}
+.layout { background: transparent; }
+.sidebar {
+  background:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.96) 0%, rgba(15, 23, 42, 0.88) 100%);
+  border-right: 1px solid rgba(148, 163, 184, 0.12);
+  backdrop-filter: blur(20px);
+}
+.sidebar-logo {
+  height: 64px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+}
+.logo-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+  box-shadow: 0 10px 24px rgba(249, 115, 22, 0.28);
+}
+.logo-text,
+.nav-group-label,
+.page-title,
+.card-title,
+.order-num,
+.wo-no,
+.cus-name,
+.inv-mini-num {
+  font-family: var(--font-head);
+  letter-spacing: 0.04em;
+}
+.nav-group-label {
+  color: rgba(148, 163, 184, 0.56);
+  letter-spacing: 0.16em;
+}
+.nav-item {
+  margin: 2px 8px;
+  border-radius: 12px;
+  border-left: none;
+  color: rgba(226, 232, 240, 0.72);
+}
+.nav-item:hover {
+  background: rgba(30, 41, 59, 0.82);
+  color: #fff7ed;
+}
+.nav-item.active {
+  color: #fff;
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.22), rgba(56, 189, 248, 0.16));
+  box-shadow: inset 0 0 0 1px rgba(249, 115, 22, 0.28);
+}
+.sidebar-bottom {
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+  padding: 14px 10px 18px;
+}
+.user-chip {
+  background: rgba(30, 41, 59, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 14px;
+}
+.user-ava {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #38bdf8 0%, #0ea5e9 100%);
+  font-family: var(--font-head);
+  font-size: 13px;
+}
+.topbar {
+  height: 68px;
+  padding: 0 24px;
+  background: rgba(255, 255, 255, 0.92);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+  backdrop-filter: blur(24px);
+}
+.page-title {
+  font-size: 24px;
+  line-height: 1;
+  color: #0f172a;
+}
+.page-subtitle {
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+}
+.header-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.06);
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 600;
+}
+.header-state::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.14);
+}
+.content {
+  padding: 24px;
+  background:
+    linear-gradient(180deg, rgba(248, 250, 252, 0.96) 0%, rgba(241, 245, 249, 0.98) 100%);
+}
+.workspace-overview {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+.overview-card {
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.98) 100%);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+  padding: 16px 18px;
+  text-align: left;
+  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+}
+.overview-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 22px 44px rgba(15, 23, 42, 0.12);
+  border-color: rgba(249, 115, 22, 0.24);
+}
+.overview-card.active {
+  border-color: rgba(249, 115, 22, 0.24);
+  box-shadow: 0 20px 40px rgba(249, 115, 22, 0.12);
+}
+.overview-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.overview-value {
+  display: block;
+  margin-top: 10px;
+  font-family: var(--font-head);
+  font-size: 34px;
+  line-height: 1;
+  color: #0f172a;
+}
+.overview-note {
+  display: block;
+  margin-top: 10px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+}
+.workspace-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 20px;
+  padding: 22px 24px;
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at top right, rgba(249, 115, 22, 0.16), transparent 40%),
+    linear-gradient(135deg, rgba(15, 23, 42, 0.96) 0%, rgba(30, 41, 59, 0.98) 100%);
+  color: #fff;
+  box-shadow: 0 28px 64px rgba(15, 23, 42, 0.2);
+}
+.workspace-kicker {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(226, 232, 240, 0.72);
+}
+.workspace-headline {
+  margin-top: 8px;
+  font-family: var(--font-head);
+  font-size: 34px;
+  line-height: 1;
+  letter-spacing: 0.04em;
+}
+.workspace-subline {
+  margin-top: 8px;
+  max-width: 720px;
+  color: rgba(226, 232, 240, 0.8);
+  font-size: 13px;
+  font-weight: 500;
+}
+.workspace-hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.card,
+.order-panel,
+.wo-card,
+.kanban-col,
+.inv-mini,
+.cus-card,
+.qc-section {
+  border-color: rgba(148, 163, 184, 0.14);
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.08);
+}
+.card,
+.order-panel,
+.inv-mini,
+.cus-card,
+.qc-section {
+  border-radius: 18px;
+}
+.card-header,
+.order-panel-head {
+  background: linear-gradient(180deg, rgba(248, 250, 252, 1) 0%, rgba(241, 245, 249, 0.72) 100%);
+}
+.order-panel {
+  overflow: hidden;
+}
+.order-panel-head {
+  padding: 14px 18px;
+}
+.order-panel-body,
+.card-body {
+  padding: 18px;
+}
+.order-actions {
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(248, 250, 252, 0.74);
+}
+.kanban-col {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.84) 0%, rgba(248, 250, 252, 0.94) 100%);
+  padding: 14px;
+}
+.wo-card {
+  border-radius: 14px;
+  border-left-width: 4px;
+}
+.el-table,
+.el-dialog {
+  --el-border-color-lighter: rgba(148, 163, 184, 0.16);
+}
+.el-table {
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.06);
+}
+.el-table .el-table__header-wrapper th {
+  background: #f8fafc !important;
+  color: #475569;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+.bottom-nav {
+  display: none;
+}
+@media (max-width: 980px) {
+  .workspace-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .topbar {
+    height: auto;
+    padding: 16px 14px;
+    align-items: flex-start;
+    gap: 12px;
+    flex-direction: column;
+  }
+  .topbar-right,
+  .header-state,
+  .workspace-hero-actions,
+  .card-header,
+  .order-panel-head {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .topbar-right {
+    gap: 8px;
+  }
+  .workspace-hero-actions .el-button,
+  .topbar-right .el-button {
+    min-height: 42px;
+  }
+  .content {
+    padding: 16px 12px 88px;
+  }
+  .workspace-overview,
+  .inv-summary,
+  .qc-form-wrap,
+  .kanban-wrap,
+  .cus-grid,
+  .order-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .workspace-hero {
+    padding: 18px;
+    border-radius: 20px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .workspace-headline {
+    font-size: 28px;
+  }
+  .bottom-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 60;
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+    background: rgba(15, 23, 42, 0.96);
+    border-top: 1px solid rgba(148, 163, 184, 0.14);
+    backdrop-filter: blur(16px);
+  }
+  .bottom-nav-item {
+    min-width: 0;
+    border: none;
+    border-radius: 14px;
+    background: transparent;
+    color: rgba(226, 232, 240, 0.72);
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    flex: 0 0 auto;
+  }
+  .bottom-nav-item.active {
+    background: rgba(249, 115, 22, 0.16);
+    color: #fff;
+  }
+  .bottom-nav-item .count {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    opacity: 0.88;
+  }
+  .el-dialog {
+    width: min(96vw, 680px) !important;
+    margin: 4vh auto !important;
+  }
+  .el-dialog .el-dialog__body {
+    max-height: calc(100vh - 180px);
+    overflow: auto;
+  }
+  .el-table {
+    font-size: 12px;
+  }
+  .el-table .cell {
+    white-space: nowrap;
+  }
+  .card-body,
+  .qc-section,
+  .order-panel-body {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+}
+@media (max-width: 480px) {
+  .workspace-overview {
+    grid-template-columns: 1fr !important;
+  }
+  .workspace-headline {
+    font-size: 24px;
+  }
+  .overview-card,
+  .inv-mini,
+  .card,
+  .order-panel,
+  .qc-section,
+  .cus-card {
+    border-radius: 18px;
+  }
+  .bottom-nav-item {
+    min-width: 82px;
+    padding: 10px 10px;
+  }
+}
+@media (max-width: 768px) {
+  .topbar-right > *,
+  .workspace-hero-actions > * {
+    flex: 1 1 calc(50% - 8px);
+    min-width: 0;
+  }
+  .card-header > div,
+  .card-header .el-input,
+  .card-header .el-select,
+  .card-header .el-date-editor,
+  .card-header .el-button,
+  .card-header .el-radio-group {
+    width: 100% !important;
+  }
+  .content .el-input,
+  .content .el-select,
+  .content .el-date-editor,
+  .content .el-input-number {
+    max-width: 100%;
+  }
+  .el-table,
+  .item-table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .el-table table,
+  .item-table table,
+  .item-table {
+    min-width: 720px;
+  }
+  .el-table .cell,
+  .item-table td,
+  .item-table th {
+    white-space: nowrap;
+  }
+}
+  </style>
 </head>
 <body>
 <div id="app" v-cloak>
@@ -177,51 +628,19 @@ html, body { height: 100%; background: var(--bg); font-family: -apple-system,Bli
       <span class="logo-text" v-show="!sideCollapsed">业务操作台</span>
     </div>
     <div class="sidebar-nav">
-      <div class="nav-group-label" v-show="!sideCollapsed">订单业务</div>
-      <div class="nav-item" :class="{active: page==='order-confirm'}" @click="page='order-confirm'">
-        <el-icon class="nav-icon"><document-checked></document-checked></el-icon>
-        <span v-show="!sideCollapsed">订单确认</span>
-      </div>
-      <div class="nav-item" :class="{active: page==='order-entry'}" @click="page='order-entry'">
-        <el-icon class="nav-icon"><document-add></document-add></el-icon>
-        <span v-show="!sideCollapsed">订单录入</span>
-      </div>
-
-      <div class="nav-group-label" v-show="!sideCollapsed">生产管理</div>
-      <div class="nav-item" :class="{active: page==='prod-kanban'}" @click="page='prod-kanban'">
-        <el-icon class="nav-icon"><grid></grid></el-icon>
-        <span v-show="!sideCollapsed">排产看板</span>
-      </div>
-      <div class="nav-item" :class="{active: page==='qc'}" @click="page='qc'">
-        <el-icon class="nav-icon"><finished></finished></el-icon>
-        <span v-show="!sideCollapsed">质检录入</span>
-      </div>
-
-      <div class="nav-group-label" v-show="!sideCollapsed">仓储物流</div>
-      <div class="nav-item" :class="{active: page==='inventory'}" @click="page='inventory'">
-        <el-icon class="nav-icon"><box></box></el-icon>
-        <span v-show="!sideCollapsed">库存管理</span>
-      </div>
-      <div class="nav-item" :class="{active: page==='shipping'}" @click="page='shipping'">
-        <el-icon class="nav-icon"><van></van></el-icon>
-        <span v-show="!sideCollapsed">发货管理</span>
-      </div>
-      <div class="nav-item" :class="{active: page==='pickup'}" @click="page='pickup'">
-        <el-icon class="nav-icon"><edit-pen></edit-pen></el-icon>
-        <span v-show="!sideCollapsed">提货签字</span>
-      </div>
-
-      <div class="nav-group-label" v-show="!sideCollapsed">客户</div>
-      <div class="nav-item" :class="{active: page==='customers'}" @click="page='customers'">
-        <el-icon class="nav-icon"><user-filled></user-filled></el-icon>
-        <span v-show="!sideCollapsed">客户管理</span>
-      </div>
-
-      <div class="nav-group-label" v-show="!sideCollapsed">配置</div>
-      <div class="nav-item" :class="{active: page==='settings'}" @click="page='settings'">
-        <el-icon class="nav-icon"><setting></setting></el-icon>
-        <span v-show="!sideCollapsed">业务配置</span>
-      </div>
+      <template v-for="group in platformNavSections" :key="group.key">
+        <div class="nav-group-label" v-show="!sideCollapsed">{{ group.label }}</div>
+        <div
+          v-for="item in group.items"
+          :key="item.key"
+          class="nav-item"
+          :class="{active: page===item.key}"
+          @click="setPage(item.key)"
+        >
+          <el-icon class="nav-icon"><component :is="item.icon"></component></el-icon>
+          <span v-show="!sideCollapsed">{{ item.label }}</span>
+        </div>
+      </template>
     </div>
     <div class="sidebar-bottom" v-show="!sideCollapsed">
       <div class="user-chip">
@@ -239,9 +658,13 @@ html, body { height: 100%; background: var(--bg); font-family: -apple-system,Bli
     <div class="topbar">
       <div style="display:flex;align-items:center;gap:12px">
         <el-button :icon="sideCollapsed ? 'Expand' : 'Fold'" text circle @click="sideCollapsed=!sideCollapsed"></el-button>
-        <div class="page-title">{{ pageTitles[page] }}</div>
+        <div>
+          <div class="page-title">{{ pageTitles[page] }}</div>
+          <div class="page-subtitle">{{ pageSubtitles[page] }}</div>
+        </div>
       </div>
       <div class="topbar-right">
+        <div class="header-state">{{ canOfficeManage ? '实时联动中' : '当前工位视图' }}</div>
         <el-select v-model="locale" size="small" style="width:110px">
           <el-option label="中文" value="zh-CN"></el-option>
           <el-option label="English" value="en-US"></el-option>
@@ -257,6 +680,35 @@ html, body { height: 100%; background: var(--bg); font-family: -apple-system,Bli
     </div>
 
     <div class="content">
+      <div class="workspace-overview" v-if="token">
+        <button
+          v-for="card in overviewCards"
+          :key="card.key"
+          type="button"
+          class="overview-card"
+          :class="{active: page===card.key}"
+          @click="setPage(card.key)"
+        >
+          <span class="overview-label">{{ card.label }}</span>
+          <strong class="overview-value">{{ card.value }}</strong>
+          <span class="overview-note">{{ card.note }}</span>
+        </button>
+      </div>
+
+      <div class="workspace-hero" v-if="token">
+        <div>
+          <div class="workspace-kicker">Glass Factory Workspace</div>
+          <div class="workspace-headline">{{ pageTitles[page] }}</div>
+          <div class="workspace-subline">{{ pageSubtitles[page] }}</div>
+        </div>
+        <div class="workspace-hero-actions">
+          <el-button type="primary" :icon="'Refresh'" @click="loadAllData">刷新数据</el-button>
+          <el-button v-if="canOfficeManage && isPageVisible('order-entry')" plain :icon="'DocumentAdd'" @click="setPage('order-entry')">新建录入</el-button>
+          <el-button v-if="page==='prod-kanban'" plain :icon="'Grid'" @click="productionViewMode = productionViewMode === 'status' ? 'worker' : 'status'">
+            {{ productionViewMode === 'status' ? '切换工位汇总' : '切换状态看板' }}
+          </el-button>
+        </div>
+      </div>
 
       <!-- ===== ORDER CONFIRM ===== -->
       <div v-show="page==='order-confirm'">
@@ -451,7 +903,7 @@ html, body { height: 100%; background: var(--bg); font-family: -apple-system,Bli
               <div class="wo-product">{{ c.product_name }}</div>
               <div style="font-size:12px;color:var(--text-2);margin-top:2px">{{ c.order_no }}</div>
               <div v-if="c.reworkUnread" style="margin-top:6px;font-size:12px;color:#dc2626;font-weight:600">
-                返工通知：{{ c.reworkPieceSummary || `共 ${c.reworkCount || 0} 片` }}
+                返工通知：{{ c.reworkPieceSummary || ('共 ' + (c.reworkCount || 0) + ' 片') }}
               </div>
               <div class="wo-meta">
                 <span>{{ c.line }}</span>
@@ -526,7 +978,7 @@ html, body { height: 100%; background: var(--bg); font-family: -apple-system,Bli
                 </el-form-item>
                 <el-form-item label="返工片号" v-if="qcForm.result==='fail' && selectedQcTarget && selectedQcTarget.step_key !== 'cutting'">
                   <el-select v-model="qcForm.piece_numbers" multiple collapse-tags collapse-tags-tooltip placeholder="选择返工片号" style="width:100%">
-                    <el-option v-for="piece in qcReworkPieceOptions" :key="piece" :label="`第 ${piece} 片`" :value="piece"></el-option>
+                    <el-option v-for="piece in qcReworkPieceOptions" :key="piece" :label="'第 ' + piece + ' 片'" :value="piece"></el-option>
                   </el-select>
                 </el-form-item>
                 <el-form-item label="备注">
@@ -707,6 +1159,7 @@ html, body { height: 100%; background: var(--bg); font-family: -apple-system,Bli
                     <el-button v-if="row.detail_status==='completed' && isManagerLike" size="small" type="success" plain @click="approvePickup(row)">审批提货</el-button>
                     <el-button v-if="['ready_for_pickup','picked_up'].includes(row.detail_status) && canOfficeManage" size="small" type="primary" plain @click="sendPickupEmail(row)">发送通知</el-button>
                     <el-button v-if="row.detail_status==='ready_for_pickup' && canOfficeManage" size="small" type="warning" plain @click="openPickupSignature(row)">现场签字</el-button>
+                    <el-button v-if="row.detail && row.detail.pickupSignatureUrl" size="small" type="success" plain @click="openAssetUrl(row.detail.pickupSignatureUrl)">查看签名</el-button>
                     <el-button v-if="['ready_for_pickup','picked_up'].includes(row.detail_status)" size="small" type="info" plain @click="downloadOrderDocument(row, 'pickup')">提货单PDF</el-button>
                     <el-button size="small" plain @click="downloadOrderDocument(row, 'order')">订单PDF</el-button>
                   </div>
@@ -809,7 +1262,7 @@ html, body { height: 100%; background: var(--bg); font-family: -apple-system,Bli
           <div class="card-body">
             <div style="font-size:12px;color:var(--text-2);margin-bottom:10px">
               可用变量：
-              <el-tag v-for="variable in pickupTemplate.availableVariables" :key="variable" size="small" style="margin-right:6px">{{ `{{${variable}}}` }}</el-tag>
+              <el-tag v-for="variable in pickupTemplate.availableVariables" :key="variable" size="small" style="margin-right:6px">{{ formatPickupTemplateVariable(variable) }}</el-tag>
             </div>
             <el-form :model="pickupTemplate" label-width="90px" size="default">
               <el-form-item label="邮件标题">
@@ -866,7 +1319,7 @@ html, body { height: 100%; background: var(--bg); font-family: -apple-system,Bli
       </el-form-item>
     </el-form>
     <div style="font-size:12px;color:var(--text-2);line-height:1.6;margin-top:8px">
-      开发环境可使用 office@glass.local 或车间工人账号登录。
+      本地测试环境默认已填：office@glass.local / office123
     </div>
   </div>
   <template #footer>
@@ -900,7 +1353,7 @@ html, body { height: 100%; background: var(--bg); font-family: -apple-system,Bli
   </template>
 </el-dialog>
 
-<el-dialog v-model="editOrderVisible" :title="`编辑订单 ${editOrderForm.orderNo || ''}`" width="520px">
+<el-dialog v-model="editOrderVisible" :title="'编辑订单 ' + (editOrderForm.orderNo || '')" width="520px">
   <el-form :model="editOrderForm" label-width="100px" size="default">
     <el-form-item label="订单数量">
       <el-input-number v-model="editOrderForm.quantity" :min="1" style="width:100%" controls-position="right"></el-input-number>
@@ -978,6 +1431,36 @@ html, body { height: 100%; background: var(--bg); font-family: -apple-system,Bli
   </template>
 </el-dialog>
 
+<el-dialog v-model="deliverySignatureVisible" title="Delivery 电子签字" width="620px" :close-on-click-modal="false">
+  <el-form label-width="90px" size="default">
+    <el-form-item label="运单号">
+      <el-input :model-value="deliverySignatureTarget?.tracking_no || ''" disabled></el-input>
+    </el-form-item>
+    <el-form-item label="签收人">
+      <el-input v-model="deliverySignerName" placeholder="请输入签收人姓名"></el-input>
+    </el-form-item>
+    <el-form-item label="电子签名">
+      <div style="width:100%">
+        <canvas
+          ref="deliverySignatureCanvas"
+          @pointerdown="startDeliverySignature"
+          @pointermove="moveDeliverySignature"
+          @pointerup="endDeliverySignature"
+          @pointerleave="endDeliverySignature"
+          style="width:100%;height:180px;border:1px dashed var(--border);border-radius:8px;background:#fff;touch-action:none"
+        ></canvas>
+        <div style="display:flex;justify-content:flex-end;margin-top:8px">
+          <el-button size="small" @click="clearDeliverySignature">清空签名</el-button>
+        </div>
+      </div>
+    </el-form-item>
+  </el-form>
+  <template #footer>
+    <el-button @click="deliverySignatureVisible=false">取消</el-button>
+    <el-button type="primary" @click="submitDeliverySignature">提交签收</el-button>
+  </template>
+</el-dialog>
+
 <el-dialog v-model="pickupSignatureVisible" title="Pickup 电子签字" width="620px" :close-on-click-modal="false">
   <el-form label-width="90px" size="default">
     <el-form-item label="订单号">
@@ -1035,9 +1518,23 @@ html, body { height: 100%; background: var(--bg); font-family: -apple-system,Bli
   </template>
 </el-dialog>
 
+<nav class="bottom-nav" v-if="token">
+    <button
+      v-for="item in mobileNavItems"
+      :key="item.key"
+      type="button"
+      class="bottom-nav-item"
+      :class="{active: page===item.key}"
+      @click="setPage(item.key)"
+    >
+      <span>{{ item.label }}</span>
+      <span class="count">{{ item.count }}</span>
+    </button>
+  </nav>
+
 </div>
 <script>
-const { createApp, ref, computed, onMounted, nextTick, watch } = Vue;
+const { createApp, ref, computed, onMounted, onBeforeUnmount, nextTick, watch } = Vue;
 
 const app = createApp({
   setup() {
@@ -1188,22 +1685,34 @@ const app = createApp({
           };
       return mapping[status] || status;
     };
+    const formatPickupTemplateVariable = (variable) => `{{${variable}}}`;
+    const demoLogin = Object.freeze({ account: 'office@glass.local', password: 'office123' });
+    const shouldPrefillDemoLogin = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname)
+      || window.location.hostname.endsWith('.local');
+    const buildDefaultLoginForm = () => (
+      shouldPrefillDemoLogin ? { ...demoLogin } : { account: '', password: '' }
+    );
     const resetAuth = () => {
+      stopLiveRefresh();
       token.value = '';
       currentUser.value = null;
       localStorage.removeItem('gf_platform_token');
       localStorage.removeItem('gf_platform_user');
+      loginForm.value = buildDefaultLoginForm();
       loginVisible.value = true;
     };
 
     const token = ref(localStorage.getItem('gf_platform_token') || '');
     const currentUser = ref(safeJsonParse(localStorage.getItem('gf_platform_user'), null));
     const loginVisible = ref(!token.value);
-    const loginForm = ref({ account: '', password: '' });
+    const loginForm = ref(buildDefaultLoginForm());
     const loginLoading = ref(false);
 
-    const sideCollapsed = ref(false);
-    const page = ref('order-confirm');
+    const sideCollapsed = ref(localStorage.getItem('gf_platform_sidebar_collapsed') === '1');
+    watch(sideCollapsed, (value) => {
+      localStorage.setItem('gf_platform_sidebar_collapsed', value ? '1' : '0');
+    });
+    const page = ref(localStorage.getItem('gf_platform_page') || 'order-confirm');
     const pageTitles = {
       'order-confirm':'订单确认', 'order-entry':'订单录入',
       'prod-kanban':'排产看板', 'qc':'质检录入',
@@ -1213,6 +1722,9 @@ const app = createApp({
 
     const currentTime = ref(new Date().toLocaleTimeString(locale.value,{hour:'2-digit',minute:'2-digit'}));
     setInterval(() => { currentTime.value = new Date().toLocaleTimeString(locale.value,{hour:'2-digit',minute:'2-digit'}); }, 60000);
+    const LIVE_REFRESH_INTERVAL_MS = 15000;
+    const liveRefreshTimerId = ref(null);
+    const liveRefreshInFlight = ref(false);
 
     const options = ref({ glassTypes: [], thicknessOptions: [], orderStatuses: [], productionSteps: [] });
     const notifications = ref([]);
@@ -1234,7 +1746,83 @@ const app = createApp({
     const displayRoleText = computed(() => currentUser.value?.stageLabel || roleLabels[currentUser.value?.canonicalRole || currentUser.value?.role] || '业务操作端');
     const isManagerLike = computed(() => ['manager', 'admin', 'super_admin'].includes(currentUser.value?.canonicalRole || currentUser.value?.role));
     const canOfficeManage = computed(() => isManagerLike.value || ((currentUser.value?.canonicalRole || currentUser.value?.role) === 'operator' && !currentUser.value?.stage));
+    const isInspectorRole = computed(() => (currentUser.value?.canonicalRole || currentUser.value?.role) === 'inspector');
+    const isStageOperator = computed(() => (currentUser.value?.canonicalRole || currentUser.value?.role) === 'operator' && !!currentUser.value?.stage);
+    const platformAccessiblePages = computed(() => {
+      if (isManagerLike.value) return ['order-confirm', 'order-entry', 'prod-kanban', 'qc', 'inventory', 'shipping', 'pickup', 'customers', 'settings'];
+      if (canOfficeManage.value) return ['order-confirm', 'order-entry', 'prod-kanban', 'inventory', 'shipping', 'pickup', 'customers'];
+      if (isInspectorRole.value) return ['prod-kanban', 'qc'];
+      if (isStageOperator.value) return ['prod-kanban'];
+      return ['prod-kanban'];
+    });
+    const isPageVisible = (key) => platformAccessiblePages.value.includes(key);
+    const setPage = (key) => {
+      page.value = isPageVisible(key) ? key : (platformAccessiblePages.value[0] || 'prod-kanban');
+    };
+    const platformNavSections = computed(() => {
+      const sections = [
+        {
+          key: 'orders',
+          label: '订单业务',
+          items: [
+            { key: 'order-confirm', label: '订单确认', icon: 'DocumentChecked' },
+            { key: 'order-entry', label: '订单录入', icon: 'DocumentAdd' },
+          ],
+        },
+        {
+          key: 'production',
+          label: '生产管理',
+          items: [
+            { key: 'prod-kanban', label: '排产看板', icon: 'Grid' },
+            { key: 'qc', label: '质检录入', icon: 'Finished' },
+          ],
+        },
+        {
+          key: 'warehouse',
+          label: '仓储物流',
+          items: [
+            { key: 'inventory', label: '库存管理', icon: 'Box' },
+            { key: 'shipping', label: '发货管理', icon: 'Van' },
+            { key: 'pickup', label: '提货签字', icon: 'EditPen' },
+          ],
+        },
+        {
+          key: 'customers',
+          label: '客户',
+          items: [{ key: 'customers', label: '客户管理', icon: 'UserFilled' }],
+        },
+        {
+          key: 'settings',
+          label: '配置',
+          items: [{ key: 'settings', label: '业务配置', icon: 'Setting' }],
+        },
+      ];
+      return sections
+        .map((group) => ({ ...group, items: group.items.filter((item) => isPageVisible(item.key)) }))
+        .filter((group) => group.items.length);
+    });
+    watch(platformAccessiblePages, (pages) => {
+      if (!pages.includes(page.value)) {
+        page.value = pages[0] || 'prod-kanban';
+      }
+    }, { immediate: true });
+    watch(page, (value) => {
+      const normalized = isPageVisible(value) ? value : (platformAccessiblePages.value[0] || 'prod-kanban');
+      if (normalized !== value) {
+        page.value = normalized;
+        return;
+      }
+      localStorage.setItem('gf_platform_page', normalized);
+    });
     const alertBadge = computed(() => notifications.value.filter((item) => !item.isRead).length);
+    const redirectToHomeSurface = (user) => {
+      const normalized = normalizeUser(user);
+      if (normalized.homePath && normalized.homePath !== '/platform') {
+        window.location.href = normalized.homePath;
+        return true;
+      }
+      return false;
+    };
 
     const api = async (url, opts = {}) => {
       const headers = { ...(opts.headers || {}) };
@@ -1244,6 +1832,9 @@ const app = createApp({
       if (response.status === 401) {
         resetAuth();
         throw new Error('登录已失效，请重新登录');
+      }
+      if (response.status === 403 && redirectToHomeSurface(currentUser.value)) {
+        throw new Error('当前账号应访问其他工作台');
       }
       if (!response.ok) {
         const text = await response.text();
@@ -1268,14 +1859,12 @@ const app = createApp({
         if (!response.ok) throw new Error(await response.text());
         const data = unwrapEnvelope(await response.json());
         const normalized = normalizeUser(data.user || {});
-        if (normalized.homePath === '/app') {
-          window.location.href = '/app';
-          return;
-        }
+        if (redirectToHomeSurface(normalized)) return;
         token.value = data.access_token;
         localStorage.setItem('gf_platform_token', data.access_token);
         syncLoginUser(normalized);
         loginVisible.value = false;
+        startLiveRefresh();
         await loadAllData();
       } catch {
         ElementPlus.ElMessage.error('登录失败，请检查账号和密码');
@@ -1327,7 +1916,7 @@ const app = createApp({
         detail,
       };
     }));
-    const pendingOrders = computed(() => orderViews.value.filter((order) => order.status === 'pending'));
+    const pendingOrders = computed(() => orderViews.value.filter((order) => ['pending', 'received'].includes(order.status)));
     const todayEntries = computed(() => {
       const todayKey = formatDateInput(new Date());
       const rows = orderViews.value.filter((order) => formatDateInput(order.created_raw) === todayKey);
@@ -1463,10 +2052,8 @@ const app = createApp({
     };
     const canOperateWorkOrder = (card) => {
       if (isManagerLike.value) return true;
-      if (isTemperingOperator.value) return false;
       return currentUser.value?.stage === card.step_key;
     };
-    const isTemperingOperator = computed(() => (currentUser.value?.stage || '').toLowerCase() === 'tempering');
     const qcableWOs = computed(() => workOrders.value
       .filter((row) => row.status === 'completed')
       .map((row) => ({ id: row.id, order_id: row.order_id, step_key: row.process_step_key, work_order_no: row.work_order_no, product_name: `${row.glass_type || ''} ${row.specification || ''}`.trim() })));
@@ -1540,6 +2127,12 @@ const app = createApp({
     const shipmentByOrderId = computed(() => Object.fromEntries(shipmentRows.value.map((row) => [row.order_id, row])));
     const shipForm = ref({ order_id:'', carrier:'', vehicle_no:'', driver_phone:'', planned_date:null, remark:'' });
     const shipableOrders = computed(() => canOfficeManage.value ? orderViews.value.filter((order) => ['completed', 'ready_for_pickup'].includes(order.detail_status || order.status) && !shipmentByOrderId.value[order.id]) : []);
+    const deliverySignatureVisible = ref(false);
+    const deliverySignatureTarget = ref(null);
+    const deliverySignerName = ref('');
+    const deliverySignatureCanvas = ref(null);
+    const deliverySignatureDrawing = ref(false);
+    const deliverySignatureHasInk = ref(false);
     const pickupSignatureVisible = ref(false);
     const pickupSignatureTarget = ref(null);
     const pickupSignerName = ref('');
@@ -1612,7 +2205,46 @@ const app = createApp({
         }));
     });
 
-    const newWOVisible = ref(false);
+    const pageSubtitles = computed(() => ({
+      'order-confirm': `前台待确认 ${pendingOrders.value.length} 单，支持直接确认、改单和驳回`,
+      'order-entry': `按客户、玻璃规格和图纸一次性录入，直连 /v1/workspace/orders`,
+      'prod-kanban': `当前在产 ${totalActiveWO.value} 单，可按状态看板或工位汇总切换`,
+      qc: '基于已完工工单记录质检与返工，结果即时回写车间链路',
+      inventory: '库存、预留和安全库存同屏查看，支持即时入库与出库登记',
+      shipping: '发货计划、运单状态与送达签收在同一条链路闭环',
+      pickup: '提货审批、通知、现场手写签名与 PDF 导出集中处理',
+      customers: '按客户或最近下单日期分组查看，活跃客户优先高亮',
+      settings: '玻璃类型、提货通知模板和邮件日志统一维护',
+    })[page.value] || '业务工作台');
+
+    const overviewCards = computed(() => {
+      const cards = [
+        { key: 'order-confirm', label: '待确认', value: pendingOrders.value.length, note: '前台接单池' },
+        { key: 'order-entry', label: '今日录入', value: todayEntries.value.length, note: '随时补录新单' },
+        { key: 'prod-kanban', label: '在产工单', value: totalActiveWO.value, note: '车间推进中' },
+        { key: 'qc', label: '待质检', value: qcableWOs.value.length, note: '质检结果录入' },
+        { key: 'pickup', label: '待取货', value: filteredPickupOrders.value.length, note: '审批与签收' },
+        { key: 'customers', label: '客户数', value: customerList.value.length, note: '活跃客户视图' },
+      ];
+      return cards.filter((card) => isPageVisible(card.key));
+    });
+
+      const mobileNavItems = computed(() => {
+        const items = [
+          { key: 'order-confirm', label: '订单', count: pendingOrders.value.length },
+          { key: 'order-entry', label: '录入', count: todayEntries.value.length },
+          { key: 'prod-kanban', label: '生产', count: totalActiveWO.value },
+          { key: 'qc', label: '质检', count: qcableWOs.value.length },
+          { key: 'inventory', label: '库存', count: invStats.value.alertCount },
+          { key: 'shipping', label: '发货', count: shipments.value.length },
+          { key: 'pickup', label: '提货', count: filteredPickupOrders.value.length },
+          { key: 'customers', label: '客户', count: customerList.value.length },
+          { key: 'settings', label: '配置', count: alertBadge.value },
+        ];
+        return items.filter((item) => isPageVisible(item.key));
+      });
+
+      const newWOVisible = ref(false);
     const newWOForm = ref({ order_no:'', product_name:'', line_id:'', deadline:null });
     const woDetailVisible = ref(false);
     const selectedWO = ref(null);
@@ -1703,6 +2335,38 @@ const app = createApp({
         loadReceivables(),
         loadSettings(),
       ]);
+    };
+    const refreshLiveOfficeSlices = async () => {
+      if (!token.value || loginVisible.value) return;
+      if (!(canOfficeManage.value || isManagerLike.value)) return;
+      if (document.hidden || liveRefreshInFlight.value) return;
+      liveRefreshInFlight.value = true;
+      try {
+        await loadBootstrap();
+        await Promise.all([
+          loadRawOrders(),
+          loadWorkOrders(),
+          loadShipments(),
+          loadReceivables(),
+        ]);
+      } catch {
+        // Keep polling best-effort so the front desk view auto-recovers on the next tick.
+      } finally {
+        liveRefreshInFlight.value = false;
+      }
+    };
+    const startLiveRefresh = () => {
+      if (liveRefreshTimerId.value !== null) return;
+      liveRefreshTimerId.value = window.setInterval(() => {
+        void refreshLiveOfficeSlices();
+      }, LIVE_REFRESH_INTERVAL_MS);
+    };
+    const stopLiveRefresh = () => {
+      if (liveRefreshTimerId.value !== null) {
+        window.clearInterval(liveRefreshTimerId.value);
+        liveRefreshTimerId.value = null;
+      }
+      liveRefreshInFlight.value = false;
     };
 
     const confirmOrd = async (order) => {
@@ -2018,20 +2682,128 @@ const app = createApp({
         ElementPlus.ElMessage.error('发货单创建失败');
       }
     };
+    const resetSignatureCanvas = (canvasRef, drawingRef, hasInkRef) => {
+      const canvas = canvasRef.value;
+      if (!canvas) return;
+      const ratio = window.devicePixelRatio || 1;
+      const width = Math.max(320, canvas.clientWidth || 560);
+      const height = 180;
+      canvas.width = width * ratio;
+      canvas.height = height * ratio;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      ctx.clearRect(0, 0, width, height);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, width, height);
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      hasInkRef.value = false;
+      drawingRef.value = false;
+    };
+    const resolveSignaturePoint = (canvasRef, event) => {
+      const canvas = canvasRef.value;
+      if (!canvas) return { x: 0, y: 0 };
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+      };
+    };
+    const startSignatureStroke = (canvasRef, drawingRef, hasInkRef, event) => {
+      const canvas = canvasRef.value;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      const point = resolveSignaturePoint(canvasRef, event);
+      ctx.beginPath();
+      ctx.moveTo(point.x, point.y);
+      drawingRef.value = true;
+      hasInkRef.value = true;
+    };
+    const moveSignatureStroke = (canvasRef, drawingRef, event) => {
+      if (!drawingRef.value) return;
+      const canvas = canvasRef.value;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      const point = resolveSignaturePoint(canvasRef, event);
+      ctx.lineTo(point.x, point.y);
+      ctx.stroke();
+    };
+    const endSignatureStroke = (drawingRef) => {
+      drawingRef.value = false;
+    };
+    const signatureCanvasDataUrl = (canvasRef) => (
+      canvasRef.value ? canvasRef.value.toDataURL('image/jpeg', 0.92) : ''
+    );
+    const openAssetUrl = (url) => {
+      if (!url) return;
+      window.open(url, '_blank', 'noopener');
+    };
     const markDelivered = async (row) => {
+      const shipment = shipmentRows.value.find((item) => item.id === row.id);
+      if (!shipment) {
+        ElementPlus.ElMessage.error('未找到发货单');
+        return;
+      }
+      deliverySignatureTarget.value = row;
+      deliverySignerName.value = '';
+      deliverySignatureVisible.value = true;
+      await nextTick();
+      resetSignatureCanvas(
+        deliverySignatureCanvas,
+        deliverySignatureDrawing,
+        deliverySignatureHasInk,
+      );
+    };
+    const clearDeliverySignature = () => {
+      resetSignatureCanvas(
+        deliverySignatureCanvas,
+        deliverySignatureDrawing,
+        deliverySignatureHasInk,
+      );
+    };
+    const startDeliverySignature = (event) => {
+      startSignatureStroke(
+        deliverySignatureCanvas,
+        deliverySignatureDrawing,
+        deliverySignatureHasInk,
+        event,
+      );
+    };
+    const moveDeliverySignature = (event) => {
+      moveSignatureStroke(deliverySignatureCanvas, deliverySignatureDrawing, event);
+    };
+    const endDeliverySignature = () => {
+      endSignatureStroke(deliverySignatureDrawing);
+    };
+    const submitDeliverySignature = async () => {
+      if (!deliverySignatureTarget.value) return;
+      if (!deliverySignerName.value.trim()) {
+        ElementPlus.ElMessage.warning('请填写签收人姓名');
+        return;
+      }
+      if (!deliverySignatureHasInk.value || !deliverySignatureCanvas.value) {
+        ElementPlus.ElMessage.warning('请先完成电子签名');
+        return;
+      }
       try {
-        const { value } = await ElementPlus.ElMessageBox.prompt('请输入签收人姓名', `确认送达 ${row.tracking_no}`, { inputPlaceholder: '收货人' });
-        const shipment = shipmentRows.value.find((item) => item.id === row.id);
-        if (!shipment) throw new Error('shipment-not-found');
-        await api(`/v1/workspace/shipments/${shipment.id}/deliver`, {
+        await api(`/v1/workspace/shipments/${deliverySignatureTarget.value.id}/deliver`, {
           method: 'POST',
           headers: { 'Idempotency-Key': generateIdempotencyKey() },
-          body: JSON.stringify({ receiverName: value || '客户签收', deliveredAt: new Date().toISOString() }),
+          body: JSON.stringify({
+            receiverName: deliverySignerName.value.trim(),
+            deliveredAt: new Date().toISOString(),
+            signatureDataUrl: signatureCanvasDataUrl(deliverySignatureCanvas),
+          }),
         });
-        ElementPlus.ElMessage.success(`已确认送达：${row.tracking_no}`);
+        deliverySignatureVisible.value = false;
+        ElementPlus.ElMessage.success(`已确认送达：${deliverySignatureTarget.value.tracking_no}`);
         await loadAllData();
-      } catch (error) {
-        if (error === 'cancel') return;
+      } catch {
         ElementPlus.ElMessage.error('送达确认失败');
       }
     };
@@ -2066,61 +2838,24 @@ const app = createApp({
       pickupSignerName.value = '';
       pickupSignatureVisible.value = true;
       await nextTick();
-      clearPickupSignature();
+      resetSignatureCanvas(pickupSignatureCanvas, pickupSignatureDrawing, pickupSignatureHasInk);
     };
     const clearPickupSignature = () => {
-      const canvas = pickupSignatureCanvas.value;
-      if (!canvas) return;
-      const ratio = window.devicePixelRatio || 1;
-      const width = Math.max(320, canvas.clientWidth || 560);
-      const height = 180;
-      canvas.width = width * ratio;
-      canvas.height = height * ratio;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-      ctx.clearRect(0, 0, width, height);
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, width, height);
-      ctx.strokeStyle = '#0f172a';
-      ctx.lineWidth = 2;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      pickupSignatureHasInk.value = false;
-      pickupSignatureDrawing.value = false;
-    };
-    const _pickupSignaturePoint = (event) => {
-      const canvas = pickupSignatureCanvas.value;
-      if (!canvas) return { x: 0, y: 0 };
-      const rect = canvas.getBoundingClientRect();
-      return {
-        x: event.clientX - rect.left,
-        y: event.clientY - rect.top,
-      };
+      resetSignatureCanvas(pickupSignatureCanvas, pickupSignatureDrawing, pickupSignatureHasInk);
     };
     const startPickupSignature = (event) => {
-      const canvas = pickupSignatureCanvas.value;
-      if (!canvas) return;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-      const point = _pickupSignaturePoint(event);
-      ctx.beginPath();
-      ctx.moveTo(point.x, point.y);
-      pickupSignatureDrawing.value = true;
-      pickupSignatureHasInk.value = true;
+      startSignatureStroke(
+        pickupSignatureCanvas,
+        pickupSignatureDrawing,
+        pickupSignatureHasInk,
+        event,
+      );
     };
     const movePickupSignature = (event) => {
-      if (!pickupSignatureDrawing.value) return;
-      const canvas = pickupSignatureCanvas.value;
-      if (!canvas) return;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-      const point = _pickupSignaturePoint(event);
-      ctx.lineTo(point.x, point.y);
-      ctx.stroke();
+      moveSignatureStroke(pickupSignatureCanvas, pickupSignatureDrawing, event);
     };
     const endPickupSignature = () => {
-      pickupSignatureDrawing.value = false;
+      endSignatureStroke(pickupSignatureDrawing);
     };
     const submitPickupSignature = async () => {
       if (!pickupSignatureTarget.value) return;
@@ -2138,7 +2873,7 @@ const app = createApp({
           headers: { 'Idempotency-Key': generateIdempotencyKey() },
           body: JSON.stringify({
             signerName: pickupSignerName.value.trim(),
-            signatureDataUrl: pickupSignatureCanvas.value.toDataURL('image/png'),
+            signatureDataUrl: signatureCanvasDataUrl(pickupSignatureCanvas),
           }),
         });
         pickupSignatureVisible.value = false;
@@ -2346,23 +3081,24 @@ const app = createApp({
       if ('serviceWorker' in navigator) {
         try { await navigator.serviceWorker.register('/sw.js'); } catch {}
       }
+      startLiveRefresh();
       if (!token.value) return;
       try {
         const normalized = normalizeUser(currentUser.value || {});
-        if (normalized.homePath === '/app') {
-          window.location.href = '/app';
-          return;
-        }
+        if (redirectToHomeSurface(normalized)) return;
         syncLoginUser(normalized);
         await loadAllData();
       } catch {
         resetAuth();
       }
     });
+    onBeforeUnmount(() => {
+      stopLiveRefresh();
+    });
 
     return {
-      token, currentUser, loginVisible, loginForm, loginLoading, login, logout,
-      locale, sideCollapsed, page, pageTitles, alertBadge, todayStr, currentTime,
+        token, currentUser, loginVisible, loginForm, loginLoading, login, logout,
+      locale, sideCollapsed, page, pageTitles, pageSubtitles, overviewCards, mobileNavItems, platformNavSections, setPage, isPageVisible, alertBadge, todayStr, currentTime,
       displayUserName, displayRoleText, userInitial, canOfficeManage, isManagerLike,
       pendingOrders, confirmOrd, openAdjustDlg, rejectOrd, loadAllData, markNotificationsRead,
       glassTypes, thicknesses, thicknessLabel, priorityOptions, customerList, entryOrder, addEntryItem, todayEntries, resetEntry, submitEntry,
@@ -2374,11 +3110,13 @@ const app = createApp({
       invStats, inventoryItems, adjVisible, adjType, adjForm, openInventoryAdjust, submitAdj,
       editOrderVisible, editOrderForm, editOrderDrawingInput, handleEditOrderDrawingChange, clearEditOrderDrawing, submitOrderEdit,
       shipForm, shipableOrders, shipments, createShipment, markDelivered,
-      pickupSearch, filteredPickupOrders, approvePickup, sendPickupEmail, openPickupSignature, downloadOrderDocument,
+      deliverySignatureVisible, deliverySignatureTarget, deliverySignerName, deliverySignatureCanvas,
+      clearDeliverySignature, startDeliverySignature, moveDeliverySignature, endDeliverySignature, submitDeliverySignature,
+      pickupSearch, filteredPickupOrders, approvePickup, sendPickupEmail, openPickupSignature, downloadOrderDocument, openAssetUrl,
       pickupSignatureVisible, pickupSignatureTarget, pickupSignerName, pickupSignatureCanvas,
       clearPickupSignature, startPickupSignature, movePickupSignature, endPickupSignature, submitPickupSignature,
       cusSearch, customerGroupMode, customerSections, openCustomerCreate, openCustomerEdit, submitCustomer, customerDialogVisible, customerDialogModeLabel, customerForm, customerLoading, viewCustomerOrders,
-      settingsGlassTypes, newGlassTypeName, pickupTemplate, templateSaving, emailLogs, createGlassType, renameGlassType, toggleGlassType, savePickupTemplate, loadSettings,
+      settingsGlassTypes, newGlassTypeName, pickupTemplate, templateSaving, emailLogs, createGlassType, renameGlassType, toggleGlassType, savePickupTemplate, loadSettings, formatPickupTemplateVariable,
       statusLabel, formatMoney, formatDateTime,
     };
   }

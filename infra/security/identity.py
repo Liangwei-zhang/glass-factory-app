@@ -150,8 +150,10 @@ def resolve_user_scopes(
 
     # Compatibility bridge while the workspace still carries pre-sj roles.
     legacy_role = normalize_role(role)
-    if legacy_role == "worker" or normalized_stage:
+    is_stage_operator = canonical_role == "operator" and bool(normalized_stage)
+    if legacy_role == "worker" or is_stage_operator:
         resolved_scopes.update({"production:read", "production:write", "orders:read"})
+        resolved_scopes.difference_update({"orders:write", "orders:cancel", "logistics:write"})
     if legacy_role == "office":
         resolved_scopes.update({"orders:read", "orders:write", "orders:cancel", "logistics:write"})
 

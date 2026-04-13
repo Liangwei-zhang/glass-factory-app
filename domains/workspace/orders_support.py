@@ -266,6 +266,33 @@ async def get_order_drawing_file(
     return local_path, order.drawing_original_name or "drawing.pdf"
 
 
+async def get_order_pickup_signature_file(
+    session: AsyncSession,
+    order_id: str,
+) -> tuple[Path, str]:
+    order = await get_order_model(session, order_id, include_items=False)
+    if not order.pickup_signature_key:
+        raise AppError(
+            code=ErrorCode.VALIDATION_ERROR,
+            message="提货签名不存在。",
+            status_code=404,
+            details={"order_id": order_id},
+        )
+
+    storage = ObjectStorage()
+    if not await storage.exists("signatures", order.pickup_signature_key):
+        raise AppError(
+            code=ErrorCode.VALIDATION_ERROR,
+            message="提货签名不存在。",
+            status_code=404,
+            details={"order_id": order_id},
+        )
+
+    local_path = await storage.get_downloadable_path("signatures", order.pickup_signature_key)
+    extension = local_path.suffix or ".png"
+    return local_path, f"{order.order_no}-pickup-signature{extension}"
+
+
 async def export_workspace_order_document(
     session: AsyncSession,
     order_id: str,

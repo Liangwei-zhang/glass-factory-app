@@ -60,6 +60,7 @@ async def deliver_workspace_shipment(
     receiver_name: str,
     receiver_phone: str | None,
     delivered_at,
+    signature_data_url: str | None,
     actor_user_id: str,
 ) -> dict[str, Any]:
     shipment = await service.deliver_shipment(
@@ -69,6 +70,7 @@ async def deliver_workspace_shipment(
             receiver_name=receiver_name,
             receiver_phone=receiver_phone,
             delivered_at=delivered_at,
+            signature_data_url=signature_data_url,
         ),
         actor_user_id=actor_user_id,
     )

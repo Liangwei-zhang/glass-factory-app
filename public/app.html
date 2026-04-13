@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Glass Factory — 客户采购平台</title>
 <link rel="manifest" href="/manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
 <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
 <script src="https://unpkg.com/element-plus/dist/index.full.js"></script>
@@ -190,6 +193,212 @@ html, body { height: 100%; background: var(--bg); font-family: -apple-system,Bli
   .stat-row { grid-template-columns:repeat(2,1fr); }
   .fin-summary { grid-template-columns:1fr; }
 }
+
+/* ── BRAND REFRESH ── */
+:root {
+  --primary: #f97316;
+  --primary-light: rgba(249, 115, 22, 0.08);
+  --success: #22c55e;
+  --warn: #f59e0b;
+  --danger: #ef4444;
+  --border: rgba(148, 163, 184, 0.16);
+  --text: #0f172a;
+  --text-2: #64748b;
+  --bg: #f8fafc;
+  --font-head: 'Barlow Condensed', sans-serif;
+  --font-body: 'Barlow', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+html, body {
+  font-family: var(--font-body);
+  background:
+    radial-gradient(circle at top left, rgba(249, 115, 22, 0.14), transparent 30%),
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 28%),
+    linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+}
+.brand-name,
+.section-title,
+.order-no,
+.track-no,
+.stat-mini-num,
+.credit-main h2 {
+  font-family: var(--font-head);
+  letter-spacing: 0.03em;
+}
+.app-header,
+.app-nav,
+.form-card,
+.order-card,
+.track-card,
+.stat-mini {
+  border-color: rgba(148, 163, 184, 0.16);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+}
+.app-header {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(20px);
+}
+.app-nav {
+  background: rgba(255, 255, 255, 0.84);
+  backdrop-filter: blur(18px);
+}
+.brand-logo {
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+  box-shadow: 0 14px 28px rgba(249, 115, 22, 0.24);
+}
+.nav-item {
+  border-radius: 999px;
+  font-weight: 600;
+}
+.nav-item.active {
+  background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+  box-shadow: 0 12px 24px rgba(249, 115, 22, 0.22);
+}
+.credit-banner {
+  background:
+    radial-gradient(circle at top right, rgba(255,255,255,0.22), transparent 34%),
+    linear-gradient(135deg, #1e293b 0%, #0f172a 45%, #1d4ed8 100%);
+  box-shadow: 0 28px 56px rgba(15, 23, 42, 0.18);
+}
+.form-card,
+.order-card,
+.track-card {
+  border-radius: 18px;
+}
+.section-title::before {
+  background: linear-gradient(180deg, #f59e0b 0%, #f97316 100%);
+}
+.badge.ready_for_pickup {
+  background: rgba(99, 102, 241, 0.12);
+  color: #4f46e5;
+}
+  .badge.picked_up,
+  .badge.delivered,
+  .badge.paid {
+    background: rgba(34, 197, 94, 0.12);
+    color: #15803d;
+  }
+  @media (max-width: 768px) {
+    .app-header {
+      height: auto;
+      padding: 14px 14px 12px;
+      gap: 12px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+    .header-right {
+      width: 100%;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .header-user {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 16px;
+      border: 1px solid rgba(148, 163, 184, 0.14);
+      background: rgba(255, 255, 255, 0.82);
+    }
+    .app-nav {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 90;
+      height: auto;
+      padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+      gap: 8px;
+      border-top: 1px solid rgba(148, 163, 184, 0.16);
+      box-shadow: 0 -12px 36px rgba(15, 23, 42, 0.14);
+    }
+    .nav-item {
+      flex: 0 0 auto;
+      padding: 10px 14px;
+      font-size: 12px;
+    }
+    .app-body {
+      padding: 18px 12px 96px;
+    }
+    .credit-banner {
+      padding: 18px;
+      gap: 16px;
+      border-radius: 22px;
+    }
+    .stat-row {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+    .form-card,
+    .track-card {
+      padding: 18px;
+    }
+    .order-card-head,
+    .order-card-body,
+    .track-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .timeline-steps {
+      overflow-x: auto;
+      padding-bottom: 6px;
+    }
+    .tl-step {
+      min-width: 86px;
+    }
+    .item-table {
+      display: block;
+      overflow-x: auto;
+    }
+    .el-dialog {
+      width: min(96vw, 700px) !important;
+      margin: 4vh auto !important;
+    }
+    .el-dialog .el-dialog__body {
+      max-height: calc(100vh - 170px);
+      overflow: auto;
+    }
+  }
+  @media (max-width: 480px) {
+    .stat-row {
+      grid-template-columns: 1fr;
+    }
+    .credit-main h2 {
+      font-size: 20px;
+    }
+    .nav-item {
+      min-width: 84px;
+      justify-content: center;
+    }
+  }
+  @media (max-width: 768px) {
+    .app-nav {
+      scroll-snap-type: x proximity;
+      -webkit-overflow-scrolling: touch;
+    }
+    .nav-item {
+      scroll-snap-align: start;
+    }
+    .app-body .el-input,
+    .app-body .el-select,
+    .app-body .el-date-editor,
+    .app-body .el-input-number,
+    .app-body .el-button {
+      max-width: 100%;
+    }
+    .app-body .el-table {
+      display: block;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .app-body .el-table table {
+      min-width: 680px;
+    }
+    .app-body .el-table .cell {
+      white-space: nowrap;
+    }
+  }
 </style>
 </head>
 <body>
@@ -674,7 +883,7 @@ html, body { height: 100%; background: var(--bg); font-family: -apple-system,Bli
         </el-form-item>
       </el-form>
       <div style="font-size:12px;color:var(--text-2);line-height:1.6;margin-top:8px">
-        建议使用客户账号登录，例如开发环境演示账号：customer@glass.local
+        本地测试环境默认已填：customer@glass.local / customer123
       </div>
     </div>
     <template #footer>
@@ -760,11 +969,18 @@ const app = createApp({
         return fallback;
       }
     };
+    const demoLogin = Object.freeze({ account: 'customer@glass.local', password: 'customer123' });
+    const shouldPrefillDemoLogin = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname)
+      || window.location.hostname.endsWith('.local');
+    const buildDefaultLoginForm = () => (
+      shouldPrefillDemoLogin ? { ...demoLogin } : { account: '', password: '' }
+    );
     const resetAuth = () => {
       token.value = '';
       currentUser.value = null;
       localStorage.removeItem('gf_app_token');
       localStorage.removeItem('gf_app_user');
+      loginForm.value = buildDefaultLoginForm();
       loginVisible.value = true;
     };
     const toDate = (value) => {
@@ -878,29 +1094,37 @@ const app = createApp({
     const token = ref(localStorage.getItem('gf_app_token') || '');
     const currentUser = ref(safeJsonParse(localStorage.getItem('gf_app_user'), null));
     const loginVisible = ref(!token.value);
-    const loginForm = ref({ account: '', password: '' });
+    const loginForm = ref(buildDefaultLoginForm());
     const loginLoading = ref(false);
 
     const activeNav = ref('home');
-    const navItems = computed(() => locale.value === 'en-US'
-      ? [
-          { key:'home', label:'Overview', icon:'HomeFilled' },
-          { key:'new-order', label:'New Order', icon:'DocumentAdd' },
-          { key:'orders', label:'My Orders', icon:'List' },
-          { key:'pickup', label:'Pickup', icon:'DocumentChecked' },
-          { key:'logistics', label:'Logistics', icon:'Van' },
-          { key:'finance', label:'Finance', icon:'Wallet' },
-          { key:'profile', label:'Profile', icon:'UserFilled' },
-        ]
-      : [
-          { key:'home', label:'首页概览', icon:'HomeFilled' },
-          { key:'new-order', label:'在线下单', icon:'DocumentAdd' },
-          { key:'orders', label:'我的订单', icon:'List' },
-          { key:'pickup', label:'提货签收', icon:'DocumentChecked' },
-          { key:'logistics', label:'物流追踪', icon:'Van' },
-          { key:'finance', label:'财务账单', icon:'Wallet' },
-          { key:'profile', label:'个人中心', icon:'UserFilled' },
-        ]);
+    const navItems = computed(() => {
+      const baseItems = locale.value === 'en-US'
+        ? [
+            { key:'home', label:'Overview', icon:'HomeFilled' },
+            { key:'new-order', label:'New Order', icon:'DocumentAdd' },
+            { key:'orders', label:'My Orders', icon:'List' },
+            { key:'pickup', label:'Pickup', icon:'DocumentChecked' },
+            { key:'logistics', label:'Logistics', icon:'Van' },
+            { key:'finance', label:'Finance', icon:'Wallet' },
+            { key:'profile', label:'Profile', icon:'UserFilled' },
+          ]
+        : [
+            { key:'home', label:'首页概览', icon:'HomeFilled' },
+            { key:'new-order', label:'在线下单', icon:'DocumentAdd' },
+            { key:'orders', label:'我的订单', icon:'List' },
+            { key:'pickup', label:'提货签收', icon:'DocumentChecked' },
+            { key:'logistics', label:'物流追踪', icon:'Van' },
+            { key:'finance', label:'财务账单', icon:'Wallet' },
+            { key:'profile', label:'个人中心', icon:'UserFilled' },
+          ];
+      return baseItems.filter((item) => item.key !== 'new-order' || currentUser.value?.canCreateOrders);
+    });
+    watch(navItems, (items) => {
+      if (!items.some((item) => item.key === activeNav.value)) {
+        activeNav.value = items[0]?.key || 'home';
+      }
+    }, { immediate: true });
 
     const profile = ref(defaultProfile());
     const credit = ref(defaultCredit());
