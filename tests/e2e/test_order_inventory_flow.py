@@ -63,10 +63,16 @@ def _drive_order_to_picked_up(client: TestClient, current_user: dict[str, object
     assert entered_response.status_code == 200
 
     for step_key in ["cutting", "edging", "tempering", "finishing"]:
-        current_user["value"] = make_auth_user(
-            scopes=["orders:read", "production:write"],
-            stage=step_key,
-        )
+        if step_key == "tempering":
+            current_user["value"] = make_auth_user(
+                role="manager",
+                scopes=["orders:read", "production:write"],
+            )
+        else:
+            current_user["value"] = make_auth_user(
+                scopes=["orders:read", "production:write"],
+                stage=step_key,
+            )
         step_response = client.post(
             f"/v1/orders/{order_id}/steps/{step_key}",
             headers={"Idempotency-Key": f"e2e-read-chain-{step_key}-{uuid4()}"},
@@ -134,10 +140,16 @@ def _drive_order_to_ready_for_pickup(client: TestClient, current_user: dict[str,
     assert entered_response.status_code == 200
 
     for step_key in ["cutting", "edging", "tempering", "finishing"]:
-        current_user["value"] = make_auth_user(
-            scopes=["orders:read", "production:write"],
-            stage=step_key,
-        )
+        if step_key == "tempering":
+            current_user["value"] = make_auth_user(
+                role="manager",
+                scopes=["orders:read", "production:write"],
+            )
+        else:
+            current_user["value"] = make_auth_user(
+                scopes=["orders:read", "production:write"],
+                stage=step_key,
+            )
         step_response = client.post(
             f"/v1/orders/{order_id}/steps/{step_key}",
             headers={"Idempotency-Key": f"e2e-direct-write-{step_key}-{uuid4()}"},
@@ -561,10 +573,16 @@ def test_orders_api_full_lifecycle_reaches_picked_up(monkeypatch, tmp_path: Path
             assert harness.inventory_row.reserved_qty == 0
 
             for step_key in ["cutting", "edging", "tempering", "finishing"]:
-                current_user["value"] = make_auth_user(
-                    scopes=["orders:read", "production:write"],
-                    stage=step_key,
-                )
+                if step_key == "tempering":
+                    current_user["value"] = make_auth_user(
+                        role="manager",
+                        scopes=["orders:read", "production:write"],
+                    )
+                else:
+                    current_user["value"] = make_auth_user(
+                        scopes=["orders:read", "production:write"],
+                        stage=step_key,
+                    )
                 step_response = client.post(
                     f"/v1/orders/{order_id}/steps/{step_key}",
                     headers={"Idempotency-Key": f"e2e-full-lifecycle-{step_key}"},

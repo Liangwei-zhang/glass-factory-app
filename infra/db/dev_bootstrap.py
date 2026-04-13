@@ -70,6 +70,14 @@ DEMO_USERS = (
         "stage": None,
     },
     {
+        "username": "admin",
+        "display_name": "System Administrator",
+        "email": "admin@glass.local",
+        "password": "admin123",
+        "role": "admin",
+        "stage": None,
+    },
+    {
         "username": "customer-demo",
         "display_name": "Demo Customer",
         "email": "customer@glass.local",

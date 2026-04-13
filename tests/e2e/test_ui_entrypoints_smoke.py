@@ -13,4 +13,4 @@ def test_ui_entrypoints_return_spa_html() -> None:
             response = client.get(path)
             assert response.status_code == 200
             assert "text/html" in response.headers.get("content-type", "")
-            assert '<div id="app"></div>' in response.text
+            assert 'id="app"' in response.text

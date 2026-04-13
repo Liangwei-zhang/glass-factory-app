@@ -1,92 +1,60 @@
-const CACHE_NAME = 'glass-factory-flow-v3';
-const CORE_ASSETS = [
+const CACHE_NAME = 'glass-factory-static-v1';
+const APP_SHELL = [
   '/',
-  '/index.html',
-  '/app.html',
-  '/platform.html',
-  '/admin.html',
-  '/styles.css',
-  '/app.js',
-  '/client-app.js',
-  '/admin-app.js',
+  '/app',
+  '/platform',
+  '/admin',
   '/manifest.webmanifest',
   '/icon.svg',
 ];
-const NETWORK_FIRST_PATHS = new Set(['/', '/index.html', '/app.js', '/client-app.js', '/admin-app.js']);
-
-self.addEventListener('message', (event) => {
-  if (event.data?.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
-});
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    Promise.all([
-      self.skipWaiting(),
-      caches.open(CACHE_NAME).then((cache) => cache.addAll(CORE_ASSETS)),
-    ])
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)).catch(() => undefined)
   );
+  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    Promise.all([
-      self.clients.claim(),
-      caches.keys().then((keys) =>
-        Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))
-      ),
-    ])
+    caches.keys().then((keys) => Promise.all(
+      keys
+        .filter((key) => key !== CACHE_NAME)
+        .map((key) => caches.delete(key))
+    ))
   );
+  self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
   const request = event.request;
+  if (request.method !== 'GET') return;
+
   const url = new URL(request.url);
-  if (
-    request.method !== 'GET' ||
-    request.url.includes('/v1/') ||
-    !['http:', 'https:'].includes(url.protocol) ||
-    url.origin !== self.location.origin
-  ) {
+  if (url.origin !== self.location.origin) return;
+
+  // Keep API responses online-first and uncached to avoid stale business data.
+  if (url.pathname.startsWith('/v1/')) {
+    event.respondWith(fetch(request));
     return;
   }
 
-  const isShellRequest = request.mode === 'navigate' || NETWORK_FIRST_PATHS.has(url.pathname);
-
   event.respondWith(
-    (isShellRequest
-      ? fetch(request)
-          .then((response) => {
-            if (!response.ok || response.type !== 'basic') {
-              return response;
-            }
-
-            const clone = response.clone();
-            caches
-              .open(CACHE_NAME)
-              .then((cache) => cache.put(request, clone))
-              .catch(() => {});
-            return response;
-          })
-          .catch(() => caches.match(request))
-      : caches.match(request).then((cached) => {
-          if (cached) {
-            return cached;
-          }
-
-          return fetch(request).then((response) => {
-            if (!response.ok || response.type !== 'basic') {
-              return response;
-            }
-
-            const clone = response.clone();
-            caches
-              .open(CACHE_NAME)
-              .then((cache) => cache.put(request, clone))
-              .catch(() => {});
-            return response;
-          });
-        }))
+    fetch(request)
+      .then((response) => {
+        if (response && response.status === 200 && response.type === 'basic') {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+        }
+        return response;
+      })
+      .catch(async () => {
+        const cached = await caches.match(request);
+        if (cached) return cached;
+        if (request.mode === 'navigate') {
+          return (await caches.match('/app')) || (await caches.match('/'));
+        }
+        return new Response('', { status: 504, statusText: 'Offline' });
+      })
   );
 });

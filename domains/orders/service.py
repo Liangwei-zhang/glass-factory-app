@@ -33,6 +33,7 @@ from infra.db.models.logistics import ShipmentModel
 from infra.db.models.orders import OrderModel
 from infra.db.models.production import QualityCheckModel, WorkOrderModel
 from infra.db.models.settings import EmailLogModel, NotificationTemplateModel
+from infra.db.models.users import UserModel
 from infra.events.outbox import OutboxPublisher
 from infra.events.topics import Topics
 from infra.security.identity import resolve_canonical_role
@@ -261,6 +262,31 @@ class OrdersService:
         self.id_generator = id_generator or OrderIdGenerator()
         self.customers_service = customers_service or CustomersService()
 
+    async def _resolve_stage_assignee_id(
+        self,
+        session: AsyncSession,
+        stage_key: str,
+    ) -> str | None:
+        normalized_stage_key = stage_key.strip().lower()
+        if not normalized_stage_key:
+            return None
+
+        try:
+            result = await session.execute(
+                select(UserModel.id)
+                .where(
+                    UserModel.is_active.is_(True),
+                    UserModel.stage == normalized_stage_key,
+                )
+                .order_by(UserModel.updated_at.desc(), UserModel.created_at.asc())
+                .limit(1)
+            )
+            user_id = result.scalar_one_or_none()
+            return str(user_id) if user_id else None
+        except Exception:
+            # Keep production flow available even when assignment metadata is incomplete.
+            return None
+
     async def create_order(self, session: AsyncSession, payload: CreateOrderRequest) -> OrderView:
         normalized_priority = _normalize_priority(payload.priority)
         payload = payload.model_copy(update={"priority": normalized_priority})
@@ -309,12 +335,14 @@ class OrdersService:
             reservation_ids=reservation.reservation_ids,
         )
 
+        cutting_assignee_id = await self._resolve_stage_assignee_id(session, "cutting")
         for index, item in enumerate(order.items, start=1):
             session.add(
                 WorkOrderModel(
                     work_order_no=f"WO-{order.order_no}-{index:03d}",
                     order_id=order.id,
                     order_item_id=item.id,
+                    assigned_user_id=cutting_assignee_id,
                     process_step_key="cutting",
                     status="pending",
                     glass_type=item.glass_type,
@@ -899,6 +927,12 @@ class OrdersService:
                         "requested_step": normalized_step_key,
                     },
                 )
+            if actor_stage.strip().lower() == "tempering":
+                raise AppError(
+                    code=ErrorCode.FORBIDDEN,
+                    message="Tempering operators are view-only in this workflow.",
+                    status_code=403,
+                )
 
         if (
             normalized_action in {"start", "complete"}
@@ -989,6 +1023,7 @@ class OrdersService:
                 else:
                     row.status = "pending"
                     row.process_step_key = next_step
+                    row.assigned_user_id = await self._resolve_stage_assignee_id(session, next_step)
                     row.started_at = None
                     row.completed_at = None
                 row.rework_unread = False
@@ -1062,6 +1097,7 @@ class OrdersService:
 
             target.status = "pending"
             target.process_step_key = "cutting"
+            target.assigned_user_id = await self._resolve_stage_assignee_id(session, "cutting")
             target.rework_unread = True
             target.defect_qty += defect_qty
             target.completed_qty = max(target.completed_qty - defect_qty, 0)

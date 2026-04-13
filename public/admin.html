@@ -1,22 +1,2221 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-CN">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#102a43" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="description" content="钢化玻璃工厂管理端。" />
-    <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/styles.css" />
-    <title>Glass Factory Admin</title>
-  </head>
-  <body data-shell="admin">
-    <div class="ambient ambient-a"></div>
-    <div class="ambient ambient-b"></div>
-    <div class="grid-sheen"></div>
-    <div id="app"></div>
-    <script type="module" src="/admin-app.js"></script>
-  </body>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Glass Factory — 管理控制台</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<script src="https://unpkg.com/element-plus/dist/index.full.js"></script>
+<script src="https://unpkg.com/@element-plus/icons-vue/dist/index.iife.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --sidebar-bg: #0f1117;
+  --sidebar-w: 220px;
+  --sidebar-w-collapsed: 64px;
+  --header-h: 56px;
+  --accent: #4f8ef7;
+  --accent2: #67c23a;
+  --accent3: #e6a23c;
+  --accent4: #f56c6c;
+  --border: #e4e7ed;
+  --text-secondary: #909399;
+}
+[v-cloak] { display: none; }
+html, body { height: 100%; background: #f0f2f5; font-family: -apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif; }
+.layout { display: flex; height: 100vh; overflow: hidden; }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width: var(--sidebar-w);
+  background: var(--sidebar-bg);
+  display: flex; flex-direction: column;
+  transition: width .22s ease;
+  flex-shrink: 0;
+  z-index: 100;
+  overflow: hidden;
+}
+.sidebar.collapsed { width: var(--sidebar-w-collapsed); }
+.sidebar-logo {
+  height: var(--header-h);
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 16px;
+  border-bottom: 1px solid #1e2230;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.logo-icon {
+  width: 32px; height: 32px;
+  background: linear-gradient(135deg, var(--accent) 0%, #2c5ed3 100%);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 16px; font-weight: 700;
+  flex-shrink: 0;
+}
+.logo-text { color: #fff; font-size: 15px; font-weight: 600; white-space: nowrap; }
+.sidebar .el-menu {
+  border: none !important;
+  background: transparent !important;
+  flex: 1;
+  overflow-y: auto; overflow-x: hidden;
+}
+.sidebar .el-menu::-webkit-scrollbar { width: 3px; }
+.sidebar .el-menu::-webkit-scrollbar-thumb { background: #2e3447; }
+.sidebar .el-menu-item,
+.sidebar .el-sub-menu__title {
+  color: #c4c9d8 !important;
+  background: transparent !important;
+  height: 44px; line-height: 44px;
+}
+.sidebar .el-menu-item:hover,
+.sidebar .el-sub-menu__title:hover { color: #fff !important; background: #1e2230 !important; }
+.sidebar .el-menu-item.is-active { color: #fff !important; background: var(--accent) !important; }
+.sidebar .el-sub-menu .el-menu-item { padding-left: 48px !important; height: 38px; line-height: 38px; font-size: 13px; }
+.sidebar .el-sub-menu .el-menu { background: #080a10 !important; }
+
+/* ── MAIN ── */
+.main-wrap { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.header {
+  height: var(--header-h);
+  background: #fff;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 20px;
+  flex-shrink: 0;
+}
+.header-left { display: flex; align-items: center; gap: 16px; }
+.breadcrumb-text { color: #606266; font-size: 14px; }
+.header-right { display: flex; align-items: center; gap: 12px; }
+.user-info { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.user-avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent) 0%, #2c5ed3 100%);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 13px; font-weight: 600;
+}
+.user-name { font-size: 14px; color: #303133; }
+
+.content { flex: 1; overflow-y: auto; padding: 20px; }
+
+/* ── STAT CARDS ── */
+.stat-cards { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; margin-bottom: 20px; }
+.stat-card {
+  background: #fff; border-radius: 10px; padding: 20px;
+  display: flex; align-items: center; gap: 16px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+}
+.stat-icon {
+  width: 52px; height: 52px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; flex-shrink: 0;
+}
+.stat-icon.blue { background: #eff6ff; color: var(--accent); }
+.stat-icon.green { background: #f0fdf4; color: #22c55e; }
+.stat-icon.orange { background: #fff7ed; color: var(--accent3); }
+.stat-icon.red { background: #fef2f2; color: var(--accent4); }
+.stat-body { min-width: 0; }
+.stat-num { font-size: 26px; font-weight: 700; color: #1a1d2e; line-height: 1.2; }
+.stat-label { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+.stat-change { font-size: 12px; margin-top: 4px; }
+.stat-change.up { color: #22c55e; }
+.stat-change.dn { color: var(--accent4); }
+
+/* ── CHARTS ROW ── */
+.charts-row { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 20px; }
+.chart-card { background: #fff; border-radius: 10px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+.card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.card-title { font-size: 15px; font-weight: 600; color: #303133; }
+#trendChart, #pieChart { height: 240px; }
+
+/* ── TABLES ── */
+.data-card { background: #fff; border-radius: 10px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.06); margin-bottom: 20px; }
+.toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+
+/* ── PROGRESS BARS ── */
+.prod-list { display: flex; flex-direction: column; gap: 10px; }
+.prod-item label { font-size: 13px; color: #606266; display: flex; justify-content: space-between; margin-bottom: 4px; }
+.prog-bar { height: 8px; background: #f0f2f5; border-radius: 4px; }
+.prog-fill { height: 8px; border-radius: 4px; background: var(--accent); transition: width .4s; }
+.prog-fill.green { background: var(--accent2); }
+.prog-fill.orange { background: var(--accent3); }
+.prog-fill.red { background: var(--accent4); }
+
+/* ── STATUS BADGES ── */
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 500; }
+.badge.pending  { background: #fdf6ec; color: #e6a23c; }
+.badge.confirmed{ background: #ecf5ff; color: #409eff; }
+.badge.producing{ background: #f0f9eb; color: #67c23a; }
+.badge.shipping { background: #e9f5e9; color: #19be6b; }
+.badge.completed{ background: #f4f4f5; color: #909399; }
+.badge.cancelled{ background: #fef0f0; color: #f56c6c; }
+.badge.overdue  { background: #fef0f0; color: #f56c6c; }
+
+/* ── ALERT PANEL ── */
+.alert-list { display: flex; flex-direction: column; gap: 8px; }
+.alert-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 12px; border-radius: 8px; font-size: 13px;
+}
+.alert-item.warn { background: #fff8e1; border-left: 3px solid #e6a23c; }
+.alert-item.danger { background: #fef0f0; border-left: 3px solid #f56c6c; }
+.alert-item.info { background: #ecf5ff; border-left: 3px solid #409eff; }
+.alert-icon { font-size: 16px; margin-top: 1px; }
+.alert-content strong { display: block; font-weight: 600; color: #303133; }
+.alert-content span { color: var(--text-secondary); }
+
+/* ── KANBAN ── */
+.kanban { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.kanban-col { background: #f7f8fc; border-radius: 10px; padding: 12px; min-height: 300px; }
+.kanban-col-header { font-size: 13px; font-weight: 600; color: #606266; margin-bottom: 10px; display: flex; justify-content: space-between; }
+.kanban-card { background: #fff; border-radius: 8px; padding: 12px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.06); cursor: pointer; }
+.kanban-card:hover { box-shadow: 0 3px 10px rgba(0,0,0,.12); }
+.kanban-card .wo-id { font-size: 12px; color: var(--accent); font-weight: 600; }
+.kanban-card .wo-order { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+.kankan-card .wo-product { font-size: 13px; color: #303133; margin-top: 4px; }
+.kanban-card .wo-meta { font-size: 11px; color: var(--text-secondary); margin-top: 6px; display: flex; justify-content: space-between; }
+.kanban-card .wo-bar { height: 3px; background: #f0f2f5; border-radius: 2px; margin-top: 8px; }
+.kanban-card .wo-prog { height: 3px; border-radius: 2px; }
+
+/* ── HEALTH GRID ── */
+.health-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.health-card { background: #fff; border-radius: 10px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+.health-name { font-size: 13px; font-weight: 600; color: #303133; margin-bottom: 8px; }
+.health-metrics { display: flex; flex-direction: column; gap: 4px; }
+.health-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+.health-row span { color: var(--text-secondary); }
+.health-row strong { color: #303133; }
+.health-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; }
+.dot-ok { background: #22c55e; }
+.dot-warn { background: #e6a23c; }
+.dot-err { background: #f56c6c; }
+
+/* ── PAGINATION ── */
+.pager-row { display: flex; justify-content: flex-end; margin-top: 14px; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 1280px) { .stat-cards { grid-template-columns: repeat(2,1fr); } .kanban { grid-template-columns: repeat(2,1fr); } }
+@media (max-width: 768px) { .charts-row { grid-template-columns: 1fr; } .health-grid { grid-template-columns: repeat(2,1fr); } }
+</style>
+</head>
+<body>
+<div id="app" v-cloak>
+  <div class="layout">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar" :class="{collapsed: sideCollapsed}">
+      <div class="sidebar-logo" @click="sideCollapsed=!sideCollapsed">
+        <div class="logo-icon">G</div>
+        <span class="logo-text" v-show="!sideCollapsed">GlassFactory Pro</span>
+      </div>
+      <el-menu :collapse="sideCollapsed" :default-active="activeMenu" @select="onMenuSelect" text-color="#c4c9d8">
+        <el-menu-item index="dashboard">
+          <el-icon><data-analysis></data-analysis></el-icon>
+          <template #title>经营大屏</template>
+        </el-menu-item>
+        <el-sub-menu index="orders">
+          <template #title>
+            <el-icon><document></document></el-icon>
+            <span>订单管理</span>
+          </template>
+          <el-menu-item index="order-list">全部订单</el-menu-item>
+          <el-menu-item index="order-timeout">超时预警</el-menu-item>
+          <el-menu-item index="order-pickup">提货签收</el-menu-item>
+        </el-sub-menu>
+        <el-sub-menu index="production">
+          <template #title>
+            <el-icon><cpu></cpu></el-icon>
+            <span>生产管理</span>
+          </template>
+          <el-menu-item index="prod-kanban">工单排产</el-menu-item>
+          <el-menu-item index="prod-schedule">产线配置</el-menu-item>
+          <el-menu-item index="prod-qc">质检追踪</el-menu-item>
+        </el-sub-menu>
+        <el-sub-menu index="inventory">
+          <template #title>
+            <el-icon><box></box></el-icon>
+            <span>库存中心</span>
+          </template>
+          <el-menu-item index="inv-stock">实时库存</el-menu-item>
+          <el-menu-item index="inv-alert">安全预警</el-menu-item>
+          <el-menu-item index="inv-logs">出入库记录</el-menu-item>
+        </el-sub-menu>
+        <el-sub-menu index="finance">
+          <template #title>
+            <el-icon><wallet></wallet></el-icon>
+            <span>财务结算</span>
+          </template>
+          <el-menu-item index="fin-receivable">应收账单</el-menu-item>
+          <el-menu-item index="fin-invoice">发票管理</el-menu-item>
+        </el-sub-menu>
+        <el-sub-menu index="customers">
+          <template #title>
+            <el-icon><user-filled></user-filled></el-icon>
+            <span>客户管理</span>
+          </template>
+          <el-menu-item index="cus-list">客户档案</el-menu-item>
+          <el-menu-item index="cus-credit">信用管理</el-menu-item>
+        </el-sub-menu>
+        <el-sub-menu index="system">
+          <template #title>
+            <el-icon><setting></setting></el-icon>
+            <span>系统权限</span>
+          </template>
+          <el-menu-item index="sys-users">用户管理</el-menu-item>
+          <el-menu-item index="sys-roles">角色权限</el-menu-item>
+        </el-sub-menu>
+        <el-sub-menu index="ops">
+          <template #title>
+            <el-icon><monitor></monitor></el-icon>
+            <span>运维监控</span>
+          </template>
+          <el-menu-item index="ops-health">服务健康</el-menu-item>
+          <el-menu-item index="ops-audit">审计日志</el-menu-item>
+        </el-sub-menu>
+      </el-menu>
+    </div>
+
+    <!-- MAIN -->
+    <div class="main-wrap">
+      <div class="header">
+        <div class="header-left">
+          <el-button :icon="sideCollapsed ? 'Expand' : 'Fold'" text circle @click="sideCollapsed=!sideCollapsed"></el-button>
+          <span class="breadcrumb-text">{{ breadcrumb }}</span>
+        </div>
+        <div class="header-right">
+          <el-badge :value="alertCount" class="badge-item">
+            <el-button :icon="'Bell'" text circle></el-button>
+          </el-badge>
+          <el-select v-model="locale" size="small" style="width:110px">
+            <el-option label="中文" value="zh-CN"></el-option>
+            <el-option label="English" value="en-US"></el-option>
+          </el-select>
+          <el-dropdown @command="onDropdownCmd">
+            <div class="user-info">
+              <div class="user-avatar">{{ currentUser ? (currentUser.display_name || currentUser.email || '管')[0] : '管' }}</div>
+              <span class="user-name">{{ currentUser ? (currentUser.display_name || currentUser.email) : '管理员' }}</span>
+              <el-icon><arrow-down></arrow-down></el-icon>
+            </div>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="profile">个人设置</el-dropdown-item>
+                <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </div>
+      </div>
+
+      <div class="content">
+
+        <!-- ===== DASHBOARD ===== -->
+        <div v-show="activeMenu === 'dashboard'">
+          <div class="stat-cards">
+            <div class="stat-card">
+              <div class="stat-icon blue"><el-icon style="font-size:26px"><document></document></el-icon></div>
+              <div class="stat-body">
+                <div class="stat-num">{{ dashStats.todayOrders }}</div>
+                <div class="stat-label">今日新增订单</div>
+                <div class="stat-change up">↑ 12% 较昨日</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon green"><el-icon style="font-size:26px"><cpu></cpu></el-icon></div>
+              <div class="stat-body">
+                <div class="stat-num">{{ dashStats.prodLoad }}%</div>
+                <div class="stat-label">综合产能负载</div>
+                <div class="stat-change up">↑ 3% 较本周均值</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon orange"><el-icon style="font-size:26px"><money></money></el-icon></div>
+              <div class="stat-body">
+                <div class="stat-num">¥ {{ dashStats.monthRevenue }}</div>
+                <div class="stat-label">本月累计营收</div>
+                <div class="stat-change dn">↓ 5% 较上月</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon red"><el-icon style="font-size:26px"><warning></warning></el-icon></div>
+              <div class="stat-body">
+                <div class="stat-num">{{ dashStats.pendingAlerts }}</div>
+                <div class="stat-label">待处理告警</div>
+                <div class="stat-change dn">↑ 2 较昨日</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="charts-row">
+            <div class="chart-card">
+              <div class="card-header">
+                <span class="card-title">近30日 — 下单 / 完工 / 发货趋势</span>
+                <el-radio-group v-model="trendRange" size="small">
+                  <el-radio-button label="7d">7天</el-radio-button>
+                  <el-radio-button label="30d">30天</el-radio-button>
+                </el-radio-group>
+              </div>
+              <div id="trendChart"></div>
+            </div>
+            <div class="chart-card">
+              <div class="card-header">
+                <span class="card-title">订单状态分布</span>
+              </div>
+              <div id="pieChart"></div>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px">
+            <div class="data-card">
+              <div class="card-header">
+                <span class="card-title">最新订单</span>
+                <el-button size="small" text type="primary" @click="activeMenu='order-list'">查看全部</el-button>
+              </div>
+              <el-table :data="recentOrders" size="small" stripe>
+                <el-table-column prop="order_no" label="订单编号" width="175"></el-table-column>
+                <el-table-column prop="customer_name" label="客户" width="130"></el-table-column>
+                <el-table-column prop="product_summary" label="品种概况" min-width="120"></el-table-column>
+                <el-table-column prop="total_area" label="面积(㎡)" width="90" align="right"></el-table-column>
+                <el-table-column label="状态" width="90">
+                  <template #default="{ row }">
+                    <span :class="'badge ' + row.status">{{ statusLabel(row.status) }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="created_at" label="下单时间" width="115"></el-table-column>
+              </el-table>
+            </div>
+            <div class="data-card">
+              <div class="card-header">
+                <span class="card-title">告警通知</span>
+                <el-tag size="small" type="danger">{{ alertCount }} 条</el-tag>
+              </div>
+              <div class="alert-list">
+                <div v-for="a in alerts" :key="a.id" :class="'alert-item ' + a.level">
+                  <div class="alert-icon">{{ a.level === 'danger' ? '⚠️' : '🔔' }}</div>
+                  <div class="alert-content">
+                    <strong>{{ a.title }}</strong>
+                    <span>{{ a.msg }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="data-card">
+            <div class="card-header"><span class="card-title">产线实时负载</span></div>
+            <div class="prod-list">
+              <div class="prod-item" v-for="l in prodLines" :key="l.id">
+                <label>
+                  <span>{{ l.name }}</span>
+                  <span :style="{color: l.load>90?'#f56c6c':l.load>75?'#e6a23c':'#67c23a'}">{{ l.load }}%</span>
+                </label>
+                <div class="prog-bar">
+                  <div class="prog-fill" :class="l.load>90?'red':l.load>75?'orange':'green'" :style="{width:l.load+'%'}"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== ORDER LIST ===== -->
+        <div v-show="activeMenu === 'order-list'">
+          <div class="data-card">
+            <div class="card-header"><span class="card-title">全部订单</span></div>
+            <div class="toolbar">
+              <el-input v-model="orderSearch" placeholder="订单号 / 客户名称" clearable style="width:220px" :prefix-icon="'Search'"></el-input>
+              <el-select v-model="orderStatusFilter" placeholder="订单状态" clearable style="width:130px">
+                <el-option v-for="s in orderStatuses" :key="s.value" :label="s.label" :value="s.value"></el-option>
+              </el-select>
+              <el-date-picker v-model="orderDateRange" type="daterange" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" size="default" style="width:240px"></el-date-picker>
+              <el-button type="primary" :icon="'Search'">查询</el-button>
+              <el-button :icon="'Refresh'">重置</el-button>
+              <el-button type="success" :icon="'Download'" style="margin-left:auto">导出</el-button>
+            </div>
+            <el-table :data="filteredOrders" stripe border size="small">
+              <el-table-column type="selection" width="44"></el-table-column>
+              <el-table-column prop="order_no" label="订单编号" width="175" fixed></el-table-column>
+              <el-table-column prop="customer_name" label="客户" width="140"></el-table-column>
+              <el-table-column prop="product_summary" label="产品概况" min-width="130"></el-table-column>
+              <el-table-column prop="total_area" label="面积(㎡)" width="90" align="right"></el-table-column>
+              <el-table-column prop="amount" label="金额(元)" width="110" align="right">
+                <template #default="{ row }">{{ formatMoney(row.amount) }}</template>
+              </el-table-column>
+              <el-table-column label="订单状态" width="95">
+                <template #default="{ row }">
+                  <span :class="'badge ' + row.status">{{ statusLabel(row.status) }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="delivery_date" label="交货日期" width="100"></el-table-column>
+              <el-table-column prop="created_at" label="下单时间" width="115"></el-table-column>
+              <el-table-column label="操作" width="140" fixed="right">
+                <template #default="{ row }">
+                  <el-button size="small" text type="primary" @click="viewOrder(row)">详情</el-button>
+                  <el-button size="small" text type="success" v-if="row.status==='pending'" @click="confirmOrder(row)">确认</el-button>
+                  <el-button size="small" text type="danger" v-if="['pending','confirmed'].includes(row.status)" @click="cancelOrder(row)">取消</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+            <div class="pager-row">
+              <el-pagination layout="total, sizes, prev, pager, next" :total="allOrders.length" :page-size="20" background></el-pagination>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== ORDER TIMEOUT ===== -->
+        <div v-show="activeMenu === 'order-timeout'">
+          <div class="data-card">
+            <div class="card-header">
+              <span class="card-title">超时预警订单</span>
+              <el-tag type="danger">{{ timeoutOrders.length }} 条待处理</el-tag>
+            </div>
+            <el-table :data="timeoutOrders" stripe border size="small">
+              <el-table-column prop="order_no" label="订单编号" width="175"></el-table-column>
+              <el-table-column prop="customer_name" label="客户" width="140"></el-table-column>
+              <el-table-column label="当前状态" width="95">
+                <template #default="{ row }">
+                  <span :class="'badge ' + row.status">{{ statusLabel(row.status) }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="delivery_date" label="承诺交货日" width="110"></el-table-column>
+              <el-table-column prop="overdue_days" label="超期天数" width="90" align="right">
+                <template #default="{ row }">
+                  <span style="color:#f56c6c;font-weight:600">{{ row.overdue_days }} 天</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="amount" label="订单金额" width="110" align="right">
+                <template #default="{ row }">¥ {{ formatMoney(row.amount) }}</template>
+              </el-table-column>
+              <el-table-column label="操作" width="160">
+                <template #default>
+                  <el-button size="small" type="warning" text>催产</el-button>
+                  <el-button size="small" type="primary" text>修改日期</el-button>
+                  <el-button size="small" type="info" text>联系客户</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </div>
+
+        <!-- ===== ORDER PICKUP ===== -->
+        <div v-show="activeMenu === 'order-pickup'">
+          <div class="data-card">
+            <div class="card-header">
+              <span class="card-title">提货审批与签收</span>
+            </div>
+            <div class="toolbar">
+              <el-input v-model="pickupSearch" placeholder="订单号 / 客户 / 手机 / 邮箱" clearable style="width:260px" :prefix-icon="'Search'"></el-input>
+              <el-select v-model="pickupStatusFilter" placeholder="提货状态" clearable style="width:140px">
+                <el-option label="已完工" value="completed"></el-option>
+                <el-option label="待提货" value="ready_for_pickup"></el-option>
+                <el-option label="已提货" value="picked_up"></el-option>
+              </el-select>
+              <el-button type="primary" :icon="'Refresh'" @click="loadOrders">刷新</el-button>
+            </div>
+            <el-table :data="filteredPickupOrders" stripe border size="small">
+              <el-table-column prop="order_no" label="订单号" width="175"></el-table-column>
+              <el-table-column prop="customer_name" label="客户" width="140"></el-table-column>
+              <el-table-column prop="product_summary" label="产品概况" min-width="160"></el-table-column>
+              <el-table-column prop="delivery_date" label="交货日期" width="110"></el-table-column>
+              <el-table-column label="状态" width="110">
+                <template #default="{ row }">
+                  <span :class="'badge ' + row.status">{{ statusLabel(row.status) }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" min-width="360">
+                <template #default="{ row }">
+                  <div style="display:flex;gap:6px;flex-wrap:wrap">
+                    <el-button v-if="row.status==='completed'" size="small" type="success" plain @click="approvePickup(row)">审批提货</el-button>
+                    <el-button v-if="['ready_for_pickup','picked_up'].includes(row.status)" size="small" type="primary" plain @click="sendPickupEmail(row)">发送通知</el-button>
+                    <el-button v-if="row.status==='ready_for_pickup'" size="small" type="warning" plain @click="submitPickupSignature(row)">登记签收</el-button>
+                    <el-button v-if="['ready_for_pickup','picked_up'].includes(row.status)" size="small" type="info" plain @click="downloadOrderDocument(row, 'pickup')">提货单PDF</el-button>
+                    <el-button size="small" plain @click="downloadOrderDocument(row, 'order')">订单PDF</el-button>
+                  </div>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </div>
+
+        <!-- ===== PROD KANBAN ===== -->
+        <div v-show="activeMenu === 'prod-kanban'">
+          <div class="data-card">
+            <div class="card-header">
+              <span class="card-title">工单排产看板 — {{ todayStr }}</span>
+              <div style="display:flex;gap:8px">
+                <el-select v-model="kanbanLine" placeholder="产线筛选" style="width:140px" clearable>
+                  <el-option label="全部产线" value=""></el-option>
+                  <el-option v-for="l in prodLines" :key="l.id" :label="l.name" :value="l.id"></el-option>
+                </el-select>
+                <el-button type="primary" :icon="'Plus'" size="small">新增工单</el-button>
+              </div>
+            </div>
+            <div class="kanban">
+              <div class="kanban-col" v-for="col in kanbanCols" :key="col.status">
+                <div class="kanban-col-header">
+                  <span>{{ col.label }}</span>
+                  <el-badge :value="col.cards.length" type="info"></el-badge>
+                </div>
+                <div class="kanban-card" v-for="c in col.cards" :key="c.id">
+                  <div class="wo-id">{{ c.work_order_no }}</div>
+                  <div class="wo-order">{{ c.order_no }}</div>
+                  <div style="font-size:13px;color:#303133;margin-top:4px">{{ c.product_name }}</div>
+                  <div class="wo-meta">
+                    <span>{{ c.line }}</span>
+                    <span>{{ c.deadline }}</span>
+                  </div>
+                  <div class="wo-bar" v-if="c.progress !== undefined">
+                    <div class="wo-prog" :style="{width:c.progress+'%', background: c.progress===100?'#67c23a':'#4f8ef7'}"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== PROD QC ===== -->
+        <div v-show="activeMenu === 'prod-qc'">
+          <div class="data-card">
+            <div class="card-header">
+              <span class="card-title">质检追踪</span>
+              <el-button type="primary" size="small" :icon="'Plus'">录入质检</el-button>
+            </div>
+            <div class="toolbar">
+              <el-select v-model="qcResultFilter" placeholder="质检结果" clearable style="width:130px">
+                <el-option label="全部" value=""></el-option>
+                <el-option label="合格" value="pass"></el-option>
+                <el-option label="不合格" value="fail"></el-option>
+                <el-option label="让步接收" value="concession"></el-option>
+              </el-select>
+              <el-date-picker v-model="qcDate" type="date" placeholder="检验日期" style="width:160px"></el-date-picker>
+            </div>
+            <el-table :data="qcRecords" stripe border size="small">
+              <el-table-column prop="work_order_no" label="工单号" width="140"></el-table-column>
+              <el-table-column prop="product_name" label="产品" min-width="120"></el-table-column>
+              <el-table-column prop="batch_qty" label="批次数量" width="90" align="right"></el-table-column>
+              <el-table-column prop="pass_qty" label="合格数量" width="90" align="right"></el-table-column>
+              <el-table-column prop="yield_rate" label="良率" width="80" align="right">
+                <template #default="{ row }">
+                  <span :style="{color:row.yield_rate<95?'#f56c6c':row.yield_rate<98?'#e6a23c':'#67c23a'}">{{ row.yield_rate }}%</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="结果" width="90">
+                <template #default="{ row }">
+                  <el-tag :type="row.result==='pass'?'success':row.result==='fail'?'danger':'warning'" size="small">{{ row.result_label }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="defect_type" label="缺陷类型" width="120"></el-table-column>
+              <el-table-column prop="inspector" label="检验员" width="90"></el-table-column>
+              <el-table-column prop="checked_at" label="检验时间" width="115"></el-table-column>
+            </el-table>
+          </div>
+        </div>
+
+        <!-- ===== INVENTORY STOCK ===== -->
+        <div v-show="activeMenu === 'inv-stock'">
+          <div class="data-card">
+            <div class="card-header">
+              <span class="card-title">实时库存</span>
+              <div style="display:flex;gap:8px">
+                <el-button size="small" :icon="'Download'">导出</el-button>
+                <el-button size="small" type="primary" :icon="'Plus'">入库登记</el-button>
+              </div>
+            </div>
+            <div class="toolbar">
+              <el-input v-model="invSearch" placeholder="物料名称 / SKU" clearable style="width:220px" :prefix-icon="'Search'"></el-input>
+              <el-select v-model="invType" placeholder="物料类型" clearable style="width:140px">
+                <el-option label="原材料" value="raw"></el-option>
+                <el-option label="在制品" value="wip"></el-option>
+                <el-option label="成品" value="finished"></el-option>
+              </el-select>
+              <el-checkbox v-model="invAlertOnly">仅显示预警</el-checkbox>
+            </div>
+            <el-table :data="inventoryItems" stripe border size="small">
+              <el-table-column prop="sku_code" label="SKU" width="130"></el-table-column>
+              <el-table-column prop="name" label="物料名称" min-width="150"></el-table-column>
+              <el-table-column prop="type_label" label="类型" width="80"></el-table-column>
+              <el-table-column prop="unit" label="单位" width="60" align="center"></el-table-column>
+              <el-table-column prop="qty_available" label="可用库存" width="90" align="right">
+                <template #default="{ row }">
+                  <span :style="{color:row.qty_available<=row.safety_stock?'#f56c6c':'#303133', fontWeight:row.qty_available<=row.safety_stock?'600':'400'}">
+                    {{ row.qty_available }}
+                  </span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="qty_reserved" label="预占" width="80" align="right"></el-table-column>
+              <el-table-column prop="qty_on_order" label="在途" width="80" align="right"></el-table-column>
+              <el-table-column prop="safety_stock" label="安全库存" width="90" align="right"></el-table-column>
+              <el-table-column label="库存预警" width="90">
+                <template #default="{ row }">
+                  <el-tag v-if="row.qty_available<=row.safety_stock" type="danger" size="small">低于安全值</el-tag>
+                  <el-tag v-else type="success" size="small">正常</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="updated_at" label="更新时间" width="115"></el-table-column>
+              <el-table-column label="操作" width="120">
+                <template #default>
+                  <el-button size="small" text type="primary">调整</el-button>
+                  <el-button size="small" text type="info">明细</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </div>
+
+        <!-- ===== FINANCE RECEIVABLE ===== -->
+        <div v-show="activeMenu === 'fin-receivable'">
+          <div class="data-card">
+            <div class="card-header">
+              <span class="card-title">应收账单</span>
+              <div style="display:flex;gap:8px">
+                <el-button size="small" :icon="'Download'">导出</el-button>
+                <el-button size="small" type="primary" :icon="'Plus'">手工记账</el-button>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px">
+              <div v-for="s in finStats" :key="s.label" style="background:#f7f8fc;border-radius:8px;padding:14px;">
+                <div style="font-size:12px;color:#909399;margin-bottom:4px">{{ s.label }}</div>
+                <div :style="{fontSize:'22px',fontWeight:'700',color:s.color}">¥ {{ s.value }}</div>
+              </div>
+            </div>
+            <div class="toolbar">
+              <el-select v-model="finStatus" placeholder="账单状态" clearable style="width:130px">
+                <el-option label="待收款" value="unpaid"></el-option>
+                <el-option label="部分付款" value="partial"></el-option>
+                <el-option label="已结清" value="paid"></el-option>
+                <el-option label="逾期" value="overdue"></el-option>
+              </el-select>
+              <el-input v-model="finSearch" placeholder="客户 / 单号" clearable style="width:200px" :prefix-icon="'Search'"></el-input>
+            </div>
+            <el-table :data="receivables" stripe border size="small">
+              <el-table-column prop="bill_no" label="账单编号" width="150"></el-table-column>
+              <el-table-column prop="order_no" label="关联订单" width="175"></el-table-column>
+              <el-table-column prop="customer_name" label="客户" width="140"></el-table-column>
+              <el-table-column prop="amount" label="应收金额" width="110" align="right">
+                <template #default="{ row }">¥ {{ formatMoney(row.amount) }}</template>
+              </el-table-column>
+              <el-table-column prop="paid_amount" label="已收金额" width="110" align="right">
+                <template #default="{ row }">¥ {{ formatMoney(row.paid_amount) }}</template>
+              </el-table-column>
+              <el-table-column label="状态" width="90">
+                <template #default="{ row }">
+                  <span :class="'badge ' + row.status">{{ row.status_label }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="due_date" label="到期日" width="100"></el-table-column>
+              <el-table-column label="操作" width="130">
+                <template #default="{ row }">
+                  <el-button size="small" text type="primary" @click="openPaymentDialog(row)">收款</el-button>
+                  <el-button size="small" text type="success">开票</el-button>
+                  <el-button size="small" text type="info">明细</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </div>
+
+        <!-- ===== CUSTOMERS ===== -->
+        <div v-show="activeMenu === 'cus-list'">
+          <div class="data-card">
+            <div class="card-header">
+              <span class="card-title">客户档案</span>
+              <el-button size="small" type="primary" :icon="'Plus'">新增客户</el-button>
+            </div>
+            <div class="toolbar">
+              <el-input v-model="cusSearch" placeholder="客户名称 / 联系人" clearable style="width:220px" :prefix-icon="'Search'"></el-input>
+              <el-select v-model="cusTier" placeholder="价格等级" clearable style="width:130px">
+                <el-option label="标准" value="standard"></el-option>
+                <el-option label="VIP" value="vip"></el-option>
+                <el-option label="SVIP" value="svip"></el-option>
+              </el-select>
+            </div>
+            <el-table :data="customers" stripe border size="small">
+              <el-table-column prop="code" label="客户编码" width="120"></el-table-column>
+              <el-table-column prop="name" label="公司名称" min-width="160"></el-table-column>
+              <el-table-column prop="contact_name" label="联系人" width="100"></el-table-column>
+              <el-table-column prop="contact_phone" label="电话" width="130"></el-table-column>
+              <el-table-column label="等级" width="80">
+                <template #default="{ row }">
+                  <el-tag :type="row.tier==='svip'?'danger':row.tier==='vip'?'warning':''" size="small">{{ row.tier.toUpperCase() }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="credit_limit" label="授信额度" width="110" align="right">
+                <template #default="{ row }">¥ {{ formatMoney(row.credit_limit) }}</template>
+              </el-table-column>
+              <el-table-column prop="credit_used" label="已用额度" width="110" align="right">
+                <template #default="{ row }">¥ {{ formatMoney(row.credit_used) }}</template>
+              </el-table-column>
+              <el-table-column label="额度使用率" width="150">
+                <template #default="{ row }">
+                  <el-progress :percentage="Math.round(row.credit_used/row.credit_limit*100)" :color="row.credit_used/row.credit_limit>0.9?'#f56c6c':row.credit_used/row.credit_limit>0.7?'#e6a23c':'#67c23a'" :stroke-width="8"></el-progress>
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="130">
+                <template #default="{ row }">
+                  <el-button size="small" text type="primary">详情</el-button>
+                  <el-button size="small" text type="warning" @click="openCreditDialog(row)">调整授信</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </div>
+
+        <!-- ===== USERS ===== -->
+        <div v-show="activeMenu === 'sys-users'">
+          <div class="data-card">
+            <div class="card-header">
+              <span class="card-title">用户管理</span>
+              <el-button size="small" type="primary" :icon="'Plus'">新增用户</el-button>
+            </div>
+            <div class="toolbar">
+              <el-input v-model="userSearch" placeholder="用户名 / 邮箱" clearable style="width:220px" :prefix-icon="'Search'"></el-input>
+              <el-select v-model="userRoleFilter" placeholder="角色" clearable style="width:130px">
+                <el-option v-for="r in roles" :key="r.value" :label="r.label" :value="r.value"></el-option>
+              </el-select>
+            </div>
+            <el-table :data="systemUsers" stripe border size="small">
+              <el-table-column prop="display_name" label="姓名" width="100"></el-table-column>
+              <el-table-column prop="email" label="邮箱" min-width="180"></el-table-column>
+              <el-table-column label="角色" width="110">
+                <template #default="{ row }">
+                  <el-tag :type="roleTagType(row.role)" size="small">{{ row.role_label }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="状态" width="80">
+                <template #default="{ row }">
+                  <el-tag :type="row.is_active?'success':'info'" size="small">{{ row.is_active?'启用':'禁用' }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="last_login" label="最近登录" width="115"></el-table-column>
+              <el-table-column prop="created_at" label="创建时间" width="115"></el-table-column>
+              <el-table-column label="操作" width="160">
+                <template #default="{ row }">
+                  <el-button size="small" text type="primary" @click="editUser(row)">编辑</el-button>
+                  <el-button size="small" text type="warning">重置密码</el-button>
+                  <el-button size="small" text :type="row.is_active?'danger':'success'" @click="toggleUserActive(row)">{{ row.is_active?'禁用':'启用' }}</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </div>
+
+        <!-- ===== OPS HEALTH ===== -->
+        <div v-show="activeMenu === 'ops-health'">
+          <div class="data-card" style="margin-bottom:20px">
+            <div class="card-header"><span class="card-title">服务健康状态</span>
+              <el-tag type="success">最近更新: {{ nowTime }}</el-tag>
+            </div>
+            <div class="health-grid">
+              <div class="health-card" v-for="svc in services" :key="svc.name">
+                <div class="health-name">
+                  <span class="health-dot" :class="svc.status==='ok'?'dot-ok':svc.status==='warn'?'dot-warn':'dot-err'"></span>
+                  {{ svc.name }}
+                </div>
+                <div class="health-metrics">
+                  <div class="health-row" v-for="m in svc.metrics" :key="m.key">
+                    <span>{{ m.key }}</span>
+                    <strong :style="{color:m.alert?'#f56c6c':''}">{{ m.val }}</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="data-card">
+            <div class="card-header"><span class="card-title">Worker 进程状态</span></div>
+            <el-table :data="workers" stripe border size="small">
+              <el-table-column prop="name" label="Worker 名称" min-width="160"></el-table-column>
+              <el-table-column label="状态" width="80">
+                <template #default="{ row }">
+                  <el-tag :type="row.online?'success':'danger'" size="small">{{ row.online?'运行中':'已停止' }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="uptime" label="运行时长" width="110"></el-table-column>
+              <el-table-column prop="processed" label="已处理" width="90" align="right"></el-table-column>
+              <el-table-column prop="failed" label="失败数" width="80" align="right">
+                <template #default="{ row }"><span :style="{color:row.failed>0?'#f56c6c':''}">{{ row.failed }}</span></template>
+              </el-table-column>
+              <el-table-column prop="memory" label="内存" width="80" align="right"></el-table-column>
+              <el-table-column label="操作" width="120">
+                <template #default>
+                  <el-button size="small" text type="warning">重启</el-button>
+                  <el-button size="small" text type="info">日志</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </div>
+
+        <!-- ===== AUDIT LOG ===== -->
+        <div v-show="activeMenu === 'ops-audit'">
+          <div class="data-card">
+            <div class="card-header"><span class="card-title">审计日志</span></div>
+            <div class="toolbar">
+              <el-input v-model="auditSearch" placeholder="操作人 / 模块 / 关键词" clearable style="width:260px" :prefix-icon="'Search'"></el-input>
+              <el-select v-model="auditModule" placeholder="操作模块" clearable style="width:140px">
+                <el-option label="订单" value="order"></el-option>
+                <el-option label="生产" value="production"></el-option>
+                <el-option label="库存" value="inventory"></el-option>
+                <el-option label="财务" value="finance"></el-option>
+                <el-option label="用户" value="user"></el-option>
+                <el-option label="系统" value="system"></el-option>
+              </el-select>
+              <el-date-picker v-model="auditDateRange" type="datetimerange" range-separator="至" start-placeholder="开始" end-placeholder="结束" style="width:340px"></el-date-picker>
+              <el-button type="primary" :icon="'Search'">查询</el-button>
+            </div>
+            <el-table :data="auditLogs" stripe border size="small">
+              <el-table-column prop="operator" label="操作人" width="100"></el-table-column>
+              <el-table-column prop="module" label="模块" width="80">
+                <template #default="{ row }">
+                  <el-tag size="small" type="info">{{ row.module }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="action" label="操作类型" width="90"></el-table-column>
+              <el-table-column prop="target" label="操作对象" width="160"></el-table-column>
+              <el-table-column prop="detail" label="详情" min-width="200"></el-table-column>
+              <el-table-column prop="ip" label="IP地址" width="120"></el-table-column>
+              <el-table-column prop="ts" label="时间" width="150"></el-table-column>
+            </el-table>
+            <div class="pager-row">
+              <el-pagination layout="total, sizes, prev, pager, next" :total="auditLogs.length" :page-size="20" background></el-pagination>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== PROD SCHEDULE ===== -->
+        <div v-show="activeMenu === 'prod-schedule'">
+          <div class="data-card">
+            <div class="card-header">
+              <span class="card-title">产线配置</span>
+              <el-button type="primary" size="small" :icon="'RefreshRight'" @click="loadSchedLines()">刷新</el-button>
+            </div>
+            <el-table :data="schedLines" stripe border size="small">
+              <el-table-column prop="line_code" label="代码" width="100"></el-table-column>
+              <el-table-column prop="name" label="产线名称" min-width="130"></el-table-column>
+              <el-table-column prop="daily_capacity_sqm" label="日产能(㎡)" width="110" align="right"></el-table-column>
+              <el-table-column label="活跃工单" width="90" align="right">
+                <template #default="{ row }">{{ row.active_work_orders }}</template>
+              </el-table-column>
+              <el-table-column label="当前负载" width="140">
+                <template #default="{ row }">
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <div class="prog-bar" style="flex:1"><div class="prog-fill" :class="row.load>90?'red':row.load>75?'orange':'green'" :style="{width:row.load+'%'}"></div></div>
+                    <span style="font-size:12px;width:36px;text-align:right" :style="{color:row.load>90?'#f56c6c':row.load>75?'#e6a23c':'#67c23a'}">{{ row.load }}%</span>
+                  </div>
+                </template>
+              </el-table-column>
+              <el-table-column label="支持工序" min-width="180">
+                <template #default="{ row }">
+                  <el-tag v-for="p in row.supported_processes" :key="p" size="small" type="info" style="margin:2px">{{ p }}</el-tag>
+                  <span v-if="!row.supported_processes || !row.supported_processes.length" style="color:#909399">—</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="状态" width="80">
+                <template #default="{ row }">
+                  <el-tag :type="row.is_active?'success':'info'" size="small">{{ row.is_active?'启用':'停用' }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="100">
+                <template #default="{ row }">
+                  <el-button size="small" text :type="row.is_active?'danger':'success'" @click="toggleLineActive(row)">{{ row.is_active?'停用':'启用' }}</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </div>
+
+        <!-- ===== INV ALERT ===== -->
+        <div v-show="activeMenu === 'inv-alert'">
+          <div class="data-card">
+            <div class="card-header">
+              <span class="card-title">库存安全预警</span>
+              <el-tag type="danger">{{ alertInventoryItems.length }} 项低于安全值</el-tag>
+            </div>
+            <el-table :data="alertInventoryItems" stripe border size="small">
+              <el-table-column prop="sku_code" label="SKU" width="130"></el-table-column>
+              <el-table-column prop="name" label="物料名称" min-width="150"></el-table-column>
+              <el-table-column prop="type_label" label="类型" width="80"></el-table-column>
+              <el-table-column prop="unit" label="单位" width="60" align="center"></el-table-column>
+              <el-table-column prop="qty_available" label="可用库存" width="90" align="right">
+                <template #default="{ row }"><span style="color:#f56c6c;font-weight:600">{{ row.qty_available }}</span></template>
+              </el-table-column>
+              <el-table-column prop="safety_stock" label="安全库存" width="90" align="right"></el-table-column>
+              <el-table-column label="缺口" width="80" align="right">
+                <template #default="{ row }"><span style="color:#f56c6c;font-weight:600">{{ row.safety_stock - row.qty_available }}</span></template>
+              </el-table-column>
+              <el-table-column prop="qty_reserved" label="预占" width="80" align="right"></el-table-column>
+              <el-table-column prop="updated_at" label="更新时间" width="115"></el-table-column>
+            </el-table>
+          </div>
+        </div>
+
+        <!-- ===== INV LOGS ===== -->
+        <div v-show="activeMenu === 'inv-logs'">
+          <div class="data-card">
+            <div class="card-header">
+              <span class="card-title">库存出入记录</span>
+              <el-button size="small" :icon="'RefreshRight'" @click="loadInvLogs()">刷新</el-button>
+            </div>
+            <el-table :data="invLogs" stripe border size="small">
+              <el-table-column prop="event_key" label="操作类型" width="160"></el-table-column>
+              <el-table-column prop="product_id" label="物料 / 订单" min-width="180"></el-table-column>
+              <el-table-column label="数量变动" width="90" align="right">
+                <template #default="{ row }">
+                  <span v-if="row.qty_delta !== 0" :style="{color:row.qty_delta>0?'#22c55e':'#f56c6c',fontWeight:'600'}">{{ row.qty_delta > 0 ? '+' + row.qty_delta : row.qty_delta }}</span>
+                  <span v-else style="color:#909399">—</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="状态" width="100">
+                <template #default="{ row }">
+                  <el-tag :type="row.status==='published'?'success':row.status==='dead_letter'?'danger':'warning'" size="small">{{ row.status }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="ts" label="时间" width="150"></el-table-column>
+            </el-table>
+          </div>
+        </div>
+
+        <!-- ===== FIN INVOICE ===== -->
+        <div v-show="activeMenu === 'fin-invoice'">
+          <div class="data-card">
+            <div class="card-header">
+              <span class="card-title">发票管理</span>
+              <el-button size="small" :icon="'RefreshRight'" @click="loadInvoices()">刷新</el-button>
+            </div>
+            <el-table :data="invoices" stripe border size="small">
+              <el-table-column prop="invoice_no" label="发票号" width="150"></el-table-column>
+              <el-table-column prop="order_no" label="关联订单" width="175"></el-table-column>
+              <el-table-column prop="customer_name" label="客户" width="140"></el-table-column>
+              <el-table-column prop="amount" label="发票金额" width="110" align="right">
+                <template #default="{ row }">¥ {{ formatMoney(row.amount) }}</template>
+              </el-table-column>
+              <el-table-column prop="paid_amount" label="已核销" width="110" align="right">
+                <template #default="{ row }">¥ {{ formatMoney(row.paid_amount) }}</template>
+              </el-table-column>
+              <el-table-column label="状态" width="90">
+                <template #default="{ row }">
+                  <span :class="'badge ' + row.status">{{ statusLabel(row.status) }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="due_date" label="到期日" width="100"></el-table-column>
+              <el-table-column prop="created_at" label="时间" width="100"></el-table-column>
+            </el-table>
+          </div>
+        </div>
+
+        <!-- ===== CUS CREDIT ===== -->
+        <div v-show="activeMenu === 'cus-credit'">
+          <div class="data-card">
+            <div class="card-header">
+              <span class="card-title">信用管理</span>
+              <el-button size="small" :icon="'RefreshRight'" @click="loadCustomers()">刷新</el-button>
+            </div>
+            <el-table :data="customers" stripe border size="small">
+              <el-table-column prop="code" label="客户编码" width="120"></el-table-column>
+              <el-table-column prop="name" label="公司名称" min-width="160"></el-table-column>
+              <el-table-column prop="credit_limit" label="授信额度" width="120" align="right">
+                <template #default="{ row }">¥ {{ formatMoney(row.credit_limit) }}</template>
+              </el-table-column>
+              <el-table-column prop="credit_used" label="已用额度" width="120" align="right">
+                <template #default="{ row }">¥ {{ formatMoney(row.credit_used) }}</template>
+              </el-table-column>
+              <el-table-column label="可用额度" width="120" align="right">
+                <template #default="{ row }">
+                  <span :style="{color: (row.credit_limit - row.credit_used) < row.credit_limit * 0.1 ? '#f56c6c' : '#67c23a'}">
+                    ¥ {{ formatMoney(row.credit_limit - row.credit_used) }}
+                  </span>
+                </template>
+              </el-table-column>
+              <el-table-column label="使用率" width="150">
+                <template #default="{ row }">
+                  <el-progress :percentage="row.credit_limit > 0 ? Math.min(100, Math.round(row.credit_used / row.credit_limit * 100)) : 0" :color="row.credit_limit>0 && row.credit_used/row.credit_limit>0.9?'#f56c6c':row.credit_limit>0 && row.credit_used/row.credit_limit>0.7?'#e6a23c':'#67c23a'" :stroke-width="8"></el-progress>
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="100">
+                <template #default="{ row }">
+                  <el-button size="small" text type="warning" @click="openCreditDialog(row)">调整授信</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </div>
+
+        <!-- ===== SYS ROLES ===== -->
+        <div v-show="activeMenu === 'sys-roles'">
+          <div class="data-card">
+            <div class="card-header"><span class="card-title">角色权限说明</span></div>
+            <el-table :data="roleDefinitions" stripe border size="small">
+              <el-table-column prop="role" label="角色标识" width="140"></el-table-column>
+              <el-table-column prop="label" label="中文名" width="90"></el-table-column>
+              <el-table-column prop="canonical" label="规范角色" width="120"></el-table-column>
+              <el-table-column prop="desc" label="权限描述" min-width="200"></el-table-column>
+              <el-table-column label="默认 Scopes" min-width="220">
+                <template #default="{ row }">
+                  <el-tag v-for="s in row.scopes" :key="s" size="small" style="margin:2px">{{ s }}</el-tag>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </div>
+
+        <!-- Placeholder for other menus -->
+        <div v-show="!activePanels.includes(activeMenu)">
+          <div class="data-card" style="text-align:center;padding:60px">
+            <el-empty description="功能开发中…" :image-size="80"></el-empty>
+          </div>
+        </div>
+
+      </div><!-- /content -->
+    </div><!-- /main-wrap -->
+  </div><!-- /layout -->
+
+  <!-- LOGIN DIALOG -->
+  <el-dialog v-model="loginVisible" title="GlassFactory Pro — 管理后台" width="400px" :close-on-click-modal="false" :show-close="false" :close-on-press-escape="false" align-center>
+    <div style="padding:8px 0">
+      <el-form label-position="top" @submit.prevent="login">
+        <el-form-item label="账号（邮箱/手机号/WhatsApp/微信号）">
+          <el-input v-model="loginForm.account" placeholder="admin@glass.local" size="large" autocomplete="username"></el-input>
+        </el-form-item>
+        <el-form-item label="密码">
+          <el-input v-model="loginForm.password" placeholder="••••••••" type="password" size="large" autocomplete="current-password" @keyup.enter="login"></el-input>
+        </el-form-item>
+      </el-form>
+      <div style="font-size:12px;color:#909399;line-height:1.6;margin-top:8px">
+        开发环境可用：`admin@glass.local / admin123`，或 `supervisor@glass.local / supervisor123`
+      </div>
+    </div>
+    <template #footer>
+      <el-button type="primary" size="large" style="width:100%" :loading="loginLoading" @click="login">登 录</el-button>
+    </template>
+  </el-dialog>
+
+  <!-- ORDER DETAIL DIALOG -->
+  <el-dialog v-model="orderDetailVisible" :title="'订单详情 — ' + (selectedOrder ? selectedOrder.order_no : '')" width="680px">
+    <div v-if="selectedOrder" style="display:flex;flex-direction:column;gap:12px">
+      <el-descriptions :column="2" border size="small">
+        <el-descriptions-item label="订单编号">{{ selectedOrder.order_no }}</el-descriptions-item>
+        <el-descriptions-item label="客户名称">{{ selectedOrder.customer_name }}</el-descriptions-item>
+        <el-descriptions-item label="订单状态">
+          <span :class="'badge ' + selectedOrder.status">{{ statusLabel(selectedOrder.status) }}</span>
+        </el-descriptions-item>
+        <el-descriptions-item label="交货日期">{{ selectedOrder.delivery_date }}</el-descriptions-item>
+        <el-descriptions-item label="总面积">{{ selectedOrder.total_area }} ㎡</el-descriptions-item>
+        <el-descriptions-item label="订单金额">¥ {{ formatMoney(selectedOrder.amount) }}</el-descriptions-item>
+        <el-descriptions-item label="收货地址" :span="2">{{ selectedOrder.delivery_address }}</el-descriptions-item>
+        <el-descriptions-item label="备注" :span="2">{{ selectedOrder.remark || '—' }}</el-descriptions-item>
+      </el-descriptions>
+      <div style="font-weight:600;color:#303133;margin-top:4px">明细行</div>
+      <el-table :data="selectedOrder.items" size="small" border>
+        <el-table-column prop="glass_type" label="玻璃种类" width="100"></el-table-column>
+        <el-table-column prop="width_mm" label="宽(mm)" width="80" align="right"></el-table-column>
+        <el-table-column prop="height_mm" label="高(mm)" width="80" align="right"></el-table-column>
+        <el-table-column prop="quantity" label="数量" width="70" align="right"></el-table-column>
+        <el-table-column prop="area" label="面积(㎡)" width="90" align="right"></el-table-column>
+        <el-table-column prop="process_requirements" label="工艺要求" min-width="140"></el-table-column>
+      </el-table>
+    </div>
+    <template #footer>
+      <el-button @click="orderDetailVisible=false">关闭</el-button>
+      <el-button type="primary" v-if="selectedOrder && selectedOrder.status==='pending'" @click="confirmOrder(selectedOrder)">确认订单</el-button>
+    </template>
+  </el-dialog>
+
+  <!-- PAYMENT DIALOG -->
+  <el-dialog v-model="paymentDialogVisible" title="记录收款" width="420px" :close-on-click-modal="false" align-center>
+    <el-descriptions :column="1" border size="small" style="margin-bottom:16px" v-if="paymentTarget">
+      <el-descriptions-item label="账单编号">{{ paymentTarget.bill_no }}</el-descriptions-item>
+      <el-descriptions-item label="应收金额">¥ {{ formatMoney(paymentTarget.amount) }}</el-descriptions-item>
+      <el-descriptions-item label="已收金额">¥ {{ formatMoney(paymentTarget.paid_amount) }}</el-descriptions-item>
+      <el-descriptions-item label="待收金额"><span style="color:#e6a23c;font-weight:600">¥ {{ formatMoney(paymentTarget.amount - paymentTarget.paid_amount) }}</span></el-descriptions-item>
+    </el-descriptions>
+    <el-form label-position="top">
+      <el-form-item label="本次收款金额 (元)" required>
+        <el-input-number v-model="paymentAmount" :min="0.01" :max="paymentTarget ? paymentTarget.amount - paymentTarget.paid_amount : 9999999" :precision="2" :step="1000" style="width:100%"></el-input-number>
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="paymentDialogVisible=false">取消</el-button>
+      <el-button type="primary" :loading="paymentLoading" @click="submitPayment">确认收款</el-button>
+    </template>
+  </el-dialog>
+
+  <!-- USER EDIT DIALOG -->
+  <el-dialog v-model="userEditDialogVisible" title="编辑用户" width="480px" :close-on-click-modal="false" align-center>
+    <el-form v-if="userEditForm" label-position="top">
+      <el-form-item label="姓名">
+        <el-input v-model="userEditForm.display_name" placeholder="显示名称"></el-input>
+      </el-form-item>
+      <el-form-item label="角色">
+        <el-select v-model="userEditForm.role" style="width:100%">
+          <el-option v-for="r in roles" :key="r.value" :label="r.label" :value="r.value"></el-option>
+        </el-select>
+      </el-form-item>
+      <el-form-item label="工序阶段（操作员专属）" v-if="['operator','office','worker','supervisor'].includes(userEditForm.role)">
+        <el-select v-model="userEditForm.stage" clearable placeholder="空 = 前台/录单" style="width:100%">
+          <el-option label="切割 (cutting)" value="cutting"></el-option>
+          <el-option label="磨边 (edging)" value="edging"></el-option>
+          <el-option label="钢化 (tempering)" value="tempering"></el-option>
+          <el-option label="成品 (finishing)" value="finishing"></el-option>
+        </el-select>
+      </el-form-item>
+      <el-form-item label="账号状态">
+        <el-switch v-model="userEditForm.is_active" active-text="启用" inactive-text="禁用"></el-switch>
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="userEditDialogVisible=false">取消</el-button>
+      <el-button type="primary" :loading="userEditLoading" @click="submitUserEdit">保存</el-button>
+    </template>
+  </el-dialog>
+
+  <!-- CREDIT ADJUSTMENT DIALOG -->
+  <el-dialog v-model="creditDialogVisible" title="调整授信额度" width="420px" :close-on-click-modal="false" align-center>
+    <el-descriptions :column="1" border size="small" style="margin-bottom:16px" v-if="creditTarget">
+      <el-descriptions-item label="客户名称">{{ creditTarget.name }}</el-descriptions-item>
+      <el-descriptions-item label="当前授信">¥ {{ formatMoney(creditTarget.credit_limit) }}</el-descriptions-item>
+      <el-descriptions-item label="已用额度">¥ {{ formatMoney(creditTarget.credit_used) }}</el-descriptions-item>
+    </el-descriptions>
+    <el-form label-position="top">
+      <el-form-item label="新授信额度 (元)" required>
+        <el-input-number v-model="newCreditLimit" :min="0" :precision="2" :step="10000" style="width:100%"></el-input-number>
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <el-button @click="creditDialogVisible=false">取消</el-button>
+      <el-button type="primary" :loading="creditLoading" @click="submitCreditAdjust">确认调整</el-button>
+    </template>
+  </el-dialog>
+
+</div><!-- /#app -->
+
+<script>
+const { createApp, ref, computed, onMounted, nextTick, watch } = Vue;
+
+const app = createApp({
+  setup() {
+    // Register icons
+    for (const [k, c] of Object.entries(ElementPlusIconsVue)) { app.component(k, c); }
+
+    // ── AUTH ──
+    const token = ref(localStorage.getItem('gf_admin_token') || '');
+    const currentUser = ref(JSON.parse(localStorage.getItem('gf_admin_user') || 'null'));
+    const loginVisible = ref(!token.value);
+    const loginForm = ref({ account: '', password: '' });
+    const loginLoading = ref(false);
+    const createIdempotencyKey = () => (
+      crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36)
+    );
+
+    // ── API CLIENT ──
+    const api = async (url, opts = {}) => {
+      const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+      if (token.value) headers['Authorization'] = 'Bearer ' + token.value;
+      const res = await fetch(url, { ...opts, headers });
+      if (res.status === 401) {
+        localStorage.removeItem('gf_admin_token');
+        localStorage.removeItem('gf_admin_user');
+        token.value = '';
+        currentUser.value = null;
+        loginVisible.value = true;
+        throw new Error('未授权，请重新登录');
+      }
+      if (!res.ok) { const txt = await res.text(); throw new Error(txt); }
+      const envelope = await res.json();
+      // All API responses are wrapped: { data: ..., request_id: ..., timestamp: ... }
+      return ('data' in envelope) ? envelope.data : envelope;
+    };
+
+    const login = async () => {
+      loginLoading.value = true;
+      try {
+        const idempotencyKey = createIdempotencyKey();
+        const envelope = await fetch('/v1/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
+          body: JSON.stringify({ username: loginForm.value.account, password: loginForm.value.password }),
+        }).then(async r => { if (!r.ok) throw new Error(await r.text()); return r.json(); });
+        const data = ('data' in envelope) ? envelope.data : envelope;
+        token.value = data.access_token;
+        currentUser.value = data.user;
+        localStorage.setItem('gf_admin_token', data.access_token);
+        localStorage.setItem('gf_admin_refresh', data.refresh_token || '');
+        localStorage.setItem('gf_admin_user', JSON.stringify(data.user));
+        loginVisible.value = false;
+        await loadAllData();
+      } catch (e) {
+        ElementPlus.ElMessage.error('登录失败，请检查账号和密码');
+      } finally {
+        loginLoading.value = false;
+      }
+    };
+
+    const logout = async () => {
+      try { await api('/v1/auth/logout', { method: 'POST' }); } catch {}
+      token.value = '';
+      currentUser.value = null;
+      localStorage.removeItem('gf_admin_token');
+      localStorage.removeItem('gf_admin_refresh');
+      localStorage.removeItem('gf_admin_user');
+      loginVisible.value = true;
+    };
+
+    const onDropdownCmd = (cmd) => { if (cmd === 'logout') logout(); };
+
+    // ── UI STATE ──
+    const sideCollapsed = ref(false);
+    const activeMenu = ref('dashboard');
+    const trendRange = ref('30d');
+    const orderDetailVisible = ref(false);
+    const selectedOrder = ref(null);
+    const locale = ref(localStorage.getItem('gf_admin_locale') || 'zh-CN');
+    watch(locale, (value) => {
+      localStorage.setItem('gf_admin_locale', value);
+      document.documentElement.lang = value === 'en-US' ? 'en' : 'zh-CN';
+    }, { immediate: true });
+
+    const activePanels = [
+      'dashboard','order-list','order-timeout','order-pickup','prod-kanban','prod-qc',
+      'prod-schedule','inv-stock','inv-alert','inv-logs',
+      'fin-receivable','fin-invoice','cus-list','cus-credit',
+      'sys-users','sys-roles','ops-health','ops-audit'
+    ];
+
+    const menuLabels = {
+      'dashboard':'经营大屏','order-list':'订单管理 / 全部订单',
+      'order-timeout':'订单管理 / 超时预警','order-pickup':'订单管理 / 提货签收','prod-kanban':'生产管理 / 工单排产',
+      'prod-schedule':'生产管理 / 产线配置','prod-qc':'生产管理 / 质检追踪',
+      'inv-stock':'库存中心 / 实时库存','inv-alert':'库存中心 / 安全预警',
+      'inv-logs':'库存中心 / 出入库记录','fin-receivable':'财务结算 / 应收账单',
+      'fin-invoice':'财务结算 / 发票管理','cus-list':'客户管理 / 客户档案',
+      'cus-credit':'客户管理 / 信用管理','sys-users':'系统权限 / 用户管理',
+      'sys-roles':'系统权限 / 角色权限','ops-health':'运维监控 / 服务健康',
+      'ops-audit':'运维监控 / 审计日志'
+    };
+
+    const breadcrumb = computed(() => menuLabels[activeMenu.value] || '');
+    const todayStr = computed(() => new Date().toLocaleDateString(locale.value, { year:'numeric', month:'long', day:'numeric' }));
+    const nowTime = ref(new Date().toLocaleTimeString(locale.value));
+    setInterval(() => {
+      nowTime.value = new Date().toLocaleTimeString(locale.value);
+    }, 60000);
+
+    // ── DASHBOARD DATA ──
+    const dashStats = ref({ todayOrders: '—', prodLoad: '—', activeWorkOrders: '—', monthRevenue: '—', pendingAlerts: '—' });
+    const alertCount = ref(0);
+    const alerts = ref([]);
+    const prodLines = ref([]);
+
+    // ── ORDERS ──
+    const allOrders = ref([]);
+    const orderSearch = ref('');
+    const orderStatusFilter = ref('');
+    const orderDateRange = ref([]);
+    const pickupSearch = ref('');
+    const pickupStatusFilter = ref('');
+
+    const filteredOrders = computed(() => {
+      return allOrders.value.filter(o => {
+        const matchText = !orderSearch.value || o.order_no.includes(orderSearch.value) || (o.customer_name || '').includes(orderSearch.value);
+        const matchStatus = !orderStatusFilter.value || o.status === orderStatusFilter.value;
+        return matchText && matchStatus;
+      });
+    });
+
+    const recentOrders = computed(() => allOrders.value.slice(0, 5));
+
+    const timeoutOrders = computed(() => {
+      const now = Date.now();
+      return allOrders.value
+        .filter(o => {
+          if (['completed','delivered','cancelled','picked_up'].includes(o.status)) return false;
+          const ts = new Date(o.expected_delivery_date || o.delivery_date).getTime();
+          return ts < now;
+        })
+        .map(o => {
+          const ts = new Date(o.expected_delivery_date || o.delivery_date).getTime();
+          return { ...o, overdue_days: Math.floor((now - ts) / 86400000) };
+        });
+    });
+    const pickupOrders = computed(() => allOrders.value.filter((order) => ['completed', 'ready_for_pickup', 'picked_up'].includes(order.status)));
+    const filteredPickupOrders = computed(() => pickupOrders.value.filter((order) => {
+      const query = (pickupSearch.value || '').trim().toLowerCase();
+      const matchText = !query || [order.order_no, order.customer_name, order.customer_phone, order.customer_email]
+        .some((value) => String(value || '').toLowerCase().includes(query));
+      const matchStatus = !pickupStatusFilter.value || order.status === pickupStatusFilter.value;
+      return matchText && matchStatus;
+    }));
+
+    const orderStatuses = [
+      { label:'待确认', value:'pending' },
+      { label:'已确认', value:'confirmed' },
+      { label:'已录入', value:'entered' },
+      { label:'生产中', value:'in_production' },
+      { label:'已完工', value:'completed' },
+      { label:'配送中', value:'shipping' },
+      { label:'已交付', value:'delivered' },
+      { label:'待提货', value:'ready_for_pickup' },
+      { label:'已提货', value:'picked_up' },
+      { label:'已取消', value:'cancelled' },
+    ];
+
+    // ── KANBAN ──
+    const kanbanLine = ref('');
+    const kanbanCols = ref([
+      { status:'pending',     label:'🕐 待处理',  cards:[] },
+      { status:'in_progress', label:'⚙️ 加工中',  cards:[] },
+      { status:'done',        label:'✅ 已完工',  cards:[] },
+      { status:'cancelled',   label:'❌ 已取消',  cards:[] },
+    ]);
+
+    // ── QC (no API endpoint, kept as empty placeholder) ──
+    const qcResultFilter = ref('');
+    const qcDate = ref(null);
+    const qcRecords = ref([]);
+
+    // ── INVENTORY ──
+    const invSearch = ref('');
+    const invType = ref('');
+    const invAlertOnly = ref(false);
+    const inventoryItems = ref([]);
+
+    // ── FINANCE ──
+    const finStats = ref([
+      { label:'应收总额',  value:'加载中…', color:'#303133' },
+      { label:'已收款',   value:'—', color:'#22c55e' },
+      { label:'待收款',   value:'—', color:'#e6a23c' },
+      { label:'逾期未收', value:'—', color:'#f56c6c' },
+    ]);
+    const finStatus = ref('');
+    const finSearch = ref('');
+    const receivables = ref([]);
+
+    // ── CUSTOMERS ──
+    const cusSearch = ref('');
+    const cusTier = ref('');
+    const customers = ref([]);
+
+    // ── USERS ──
+    const userSearch = ref('');
+    const userRoleFilter = ref('');
+    const roles = [
+      { label:'管理员', value:'admin' },
+      { label:'经理',   value:'manager' },
+      { label:'操作员', value:'operator' },
+      { label:'质检员', value:'inspector' },
+      { label:'财务',   value:'finance' },
+      { label:'客户',   value:'customer' },
+    ];
+    const systemUsers = ref([]);
+
+    // ── OPS ──
+    const services = ref([]);
+    const workers = ref([
+      { name:'event-pipeline-worker',         online:true, uptime:'运行中', processed:'—', failed:0, memory:'—' },
+      { name:'inventory-sync-worker',          online:true, uptime:'运行中', processed:'—', failed:0, memory:'—' },
+      { name:'notification-dispatch-worker',   online:true, uptime:'运行中', processed:'—', failed:0, memory:'—' },
+      { name:'order-timeout-worker',           online:true, uptime:'运行中', processed:'—', failed:0, memory:'—' },
+      { name:'production-scheduler-worker',    online:true, uptime:'运行中', processed:'—', failed:0, memory:'—' },
+    ]);
+
+    // ── AUDIT ──
+    const auditSearch = ref('');
+    const auditModule = ref('');
+    const auditDateRange = ref([]);
+    const auditLogs = ref([]);
+
+    // ── PRODUCTION LINES FULL DATA ──
+    const schedLines = ref([]);
+
+    // ── INV LOGS ──
+    const invLogs = ref([]);
+
+    // ── INVOICES ──
+    const invoices = ref([]);
+
+    // ── ROLE DEFINITIONS (static) ──
+    const roleDefinitions = [
+      { role:'admin',          label:'管理员',   canonical:'admin',           scopes:['admin:write','workspace:full','finance:write'], desc:'系统最高权限，可管理所有用户和配置' },
+      { role:'manager',        label:'经理',     canonical:'manager',         scopes:['workspace:full','finance:write','orders:write'], desc:'业务经理，可访问所有业务功能' },
+      { role:'supervisor',     label:'主管',     canonical:'manager',         scopes:['workspace:full','orders:write'], desc:'操作主管，等效 manager canonical role' },
+      { role:'operator',       label:'操作员',   canonical:'operator',        scopes:['orders:write','inventory:read'], desc:'前台录单员（无 stage）或专属工序工人（有 stage）' },
+      { role:'office',         label:'前台',     canonical:'operator',        scopes:['orders:write'], desc:'前台录单，等效 operator 无 stage' },
+      { role:'worker',         label:'工人',     canonical:'operator',        scopes:['orders:write'], desc:'车间工人，等效 operator 有 stage' },
+      { role:'customer',       label:'客户',     canonical:'customer',        scopes:['app:orders:write','app:read'], desc:'外部客户账号，只能访问客户门户' },
+      { role:'customer_viewer',label:'客户只读', canonical:'customer_viewer', scopes:['app:read'], desc:'客户只读账号，不可提交订单' },
+    ];
+
+    // ── DIALOGS: PAYMENT ──
+    const paymentDialogVisible = ref(false);
+    const paymentTarget = ref(null);
+    const paymentAmount = ref(0);
+    const paymentLoading = ref(false);
+
+    // ── DIALOGS: USER EDIT ──
+    const userEditDialogVisible = ref(false);
+    const userEditForm = ref(null);
+    const userEditLoading = ref(false);
+
+    // ── DIALOGS: CREDIT ──
+    const creditDialogVisible = ref(false);
+    const creditTarget = ref(null);
+    const newCreditLimit = ref(0);
+    const creditLoading = ref(false);
+
+    // ── COMPUTED: ALERT INVENTORY ──
+    const alertInventoryItems = computed(() => inventoryItems.value.filter(i => i.qty_available <= i.safety_stock));
+
+    // ── HELPERS ──
+    const statusLabel = (s) => {
+      const m = locale.value === 'en-US'
+        ? {
+            pending:'Pending', confirmed:'Confirmed', entered:'Entered', in_production:'In Production',
+            completed:'Completed', shipping:'Shipping', delivered:'Delivered',
+            ready_for_pickup:'Ready for Pickup', picked_up:'Picked Up', cancelled:'Cancelled',
+            unpaid:'Unpaid', partial:'Partially Paid', paid:'Paid', overdue:'Overdue'
+          }
+        : {
+            pending:'待确认', confirmed:'已确认', entered:'已录入', in_production:'生产中',
+            completed:'已完工', shipping:'配送中', delivered:'已交付',
+            ready_for_pickup:'待提货', picked_up:'已提货', cancelled:'已取消',
+            unpaid:'待收款', partial:'部分付款', paid:'已结清', overdue:'已逾期'
+          };
+      return m[s] || s;
+    };
+    const formatMoney = (v) => {
+      if (v === undefined || v === null) return '—';
+      const n = Number(v);
+      return n >= 10000 ? (n / 10000).toFixed(2) + '万' : n.toLocaleString(locale.value);
+    };
+    const formatMoneyStr = (v) => {
+      if (!v && v !== 0) return '—';
+      return v >= 10000000 ? (v / 10000000).toFixed(2) + '千万'
+           : v >= 10000   ? (v / 10000).toFixed(1) + '万'
+           : v.toString();
+    };
+    const roleTagType = (r) => {
+      const m = { admin:'warning', manager:'', operator:'success', inspector:'info', finance:'' };
+      return m[r] || '';
+    };
+
+    // ── DATA LOADERS ──
+    let customerMap = {};
+
+    const loadCustomers = async () => {
+      try {
+        const data = await api('/v1/customers');
+        const list = Array.isArray(data) ? data : (data.items || []);
+        customerMap = Object.fromEntries(list.map(c => [c.id, c]));
+        customers.value = list.map(c => ({
+          id: c.id,
+          code: c.customer_code,
+          name: c.company_name,
+          contact_name: c.contact_name || '—',
+          contact_phone: c.phone || '—',
+          tier: 'standard',
+          credit_limit: Number(c.credit_limit),
+          credit_used: Number(c.credit_used),
+        }));
+      } catch (e) { console.error('loadCustomers', e); }
+    };
+
+    const _mapOrder = (o) => {
+      const cust = customerMap[o.customer_id];
+      return {
+        ...o,
+        customer_name: cust ? cust.company_name : o.customer_id,
+        customer_phone: cust ? cust.phone : '',
+        customer_email: cust ? cust.email : '',
+        product_summary: o.items && o.items.length ? o.items.map(i => i.glass_type).join(' + ') : '—',
+        total_area: Number(o.total_area_sqm).toFixed(1),
+        amount: Number(o.total_amount),
+        delivery_date: (o.expected_delivery_date || '').slice(0, 10),
+        created_at: (o.created_at || '').slice(0, 16).replace('T', ' '),
+      };
+    };
+
+    const loadOrders = async () => {
+      try {
+        const data = await api('/v1/orders');
+        const list = Array.isArray(data) ? data : (data.items || []);
+        allOrders.value = list.map(_mapOrder);
+      } catch (e) { console.error('loadOrders', e); }
+    };
+
+    const loadDashboard = async () => {
+      try {
+        const [ov, sales] = await Promise.all([
+          api('/v1/admin/analytics/overview'),
+          api('/v1/admin/analytics/sales?days=30'),
+        ]);
+        dashStats.value = {
+          todayOrders:      ov.kpis.orders_today,
+          activeWorkOrders: ov.kpis.active_work_orders,
+          monthRevenue:     formatMoneyStr(Number(sales.total_sales || 0)),
+          pendingAlerts:    ov.kpis.pending_orders,
+        };
+      } catch (e) { console.error('loadDashboard', e); }
+    };
+
+    const loadAlerts = async () => {
+      try {
+        const data = await api('/v1/admin/runtime/alerts');
+        const items = data.items || [];
+        alertCount.value = items.length;
+        alerts.value = items.slice(0, 8).map(a => ({
+          id: a.id,
+          level: a.status === 'dead_letter' ? 'danger' : 'warn',
+          title: (a.topic || '') + (a.event_key ? (' / ' + a.event_key) : ''),
+          msg: a.last_error || ('失败次数: ' + a.attempt_count + ' / ' + a.max_attempts),
+        }));
+      } catch (e) { console.error('loadAlerts', e); }
+    };
+
+    const loadProdLines = async () => {
+      try {
+        const data = await api('/v1/admin/production/lines');
+        const list = data.items || [];
+        prodLines.value = list.map(l => {
+          const cap  = Number(l.daily_capacity_sqm) || 0;
+          const wo   = l.active_work_orders || 0;
+          const load = cap > 0 ? Math.min(100, Math.round(wo / cap * 100)) : Math.min(100, wo * 5);
+          return { id: l.id, name: l.line_name || l.line_code, load, is_active: l.is_active };
+        });
+        dashStats.value = {
+          ...dashStats.value,
+          prodLoad: prodLines.value.length
+            ? Math.round(prodLines.value.reduce((sum, line) => sum + line.load, 0) / prodLines.value.length)
+            : 0,
+        };
+        schedLines.value = list.map(l => {
+          const cap  = Number(l.daily_capacity_sqm) || 0;
+          const wo   = l.active_work_orders || 0;
+          const load = cap > 0 ? Math.min(100, Math.round(wo / cap * 100)) : Math.min(100, wo * 5);
+          return {
+            id: l.id,
+            line_code: l.line_code,
+            name: l.line_name || l.line_code,
+            daily_capacity_sqm: cap > 0 ? cap.toFixed(1) : '—',
+            supported_processes: l.supported_processes || [],
+            supported_glass_types: l.supported_glass_types || [],
+            is_active: l.is_active,
+            load,
+            active_work_orders: wo,
+          };
+        });
+      } catch (e) { console.error('loadProdLines', e); }
+    };
+
+    const loadKanban = async () => {
+      try {
+        const data = await api('/v1/production/work-orders');
+        const list = Array.isArray(data) ? data : (data.items || []);
+        const grouped = { pending:[], in_progress:[], done:[], cancelled:[] };
+        for (const wo of list) {
+          const bucket = grouped[wo.status] || grouped.pending;
+          bucket.push({
+            id: wo.id,
+            work_order_no: wo.work_order_no,
+            order_no: wo.order_id,
+            product_name: (wo.glass_type || '') + ' ' + (wo.specification || ''),
+            line: wo.process_step_key || '—',
+            deadline: wo.scheduled_date || '—',
+            progress: wo.quantity > 0 ? Math.round((wo.completed_qty / wo.quantity) * 100) : 0,
+          });
+        }
+        kanbanCols.value = [
+          { status:'pending',     label:'🕐 待处理', cards: grouped.pending },
+          { status:'in_progress', label:'⚙️ 加工中', cards: grouped.in_progress },
+          { status:'done',        label:'✅ 已完工', cards: grouped.done },
+          { status:'cancelled',   label:'❌ 已取消', cards: grouped.cancelled },
+        ];
+      } catch (e) { console.error('loadKanban', e); }
+    };
+
+    const loadInventory = async () => {
+      try {
+        const data = await api('/v1/inventory');
+        const list = Array.isArray(data) ? data : (data.items || []);
+        inventoryItems.value = list.map(i => ({
+          sku_code:      i.product_id,
+          name:          i.product_id,
+          type_label:    '物料',
+          unit:          '件',
+          qty_available: i.available_qty,
+          qty_reserved:  i.reserved_qty,
+          qty_on_order:  0,
+          safety_stock:  i.safety_stock,
+          updated_at:    '—',
+        }));
+      } catch (e) { console.error('loadInventory', e); }
+    };
+
+    const loadFinance = async () => {
+      try {
+        const data = await api('/v1/finance/receivables');
+        const list = Array.isArray(data) ? data : (data.items || []);
+        const today = new Date().toISOString().slice(0, 10);
+        let total = 0, paid = 0, unpaid = 0, overdue = 0;
+        for (const r of list) {
+          const amt = Number(r.amount);
+          const paidAmt = Number(r.paid_amount);
+          total += amt;
+          paid += paidAmt;
+          const remaining = amt - paidAmt;
+          if (r.status === 'paid') { /* already paid */ }
+          else if (r.due_date < today && remaining > 0) overdue += remaining;
+          else unpaid += remaining;
+        }
+        finStats.value = [
+          { label:'应收总额',  value: formatMoneyStr(total),  color:'#303133' },
+          { label:'已收款',   value: formatMoneyStr(paid),   color:'#22c55e' },
+          { label:'待收款',   value: formatMoneyStr(unpaid), color:'#e6a23c' },
+          { label:'逾期未收', value: formatMoneyStr(overdue),color:'#f56c6c' },
+        ];
+        receivables.value = list.map(r => {
+          const cust  = customerMap[r.customer_id];
+          const order = allOrders.value.find(o => o.id === r.order_id);
+          const isOverdue = r.status !== 'paid' && r.due_date < today;
+          return {
+            id:            r.id,
+            bill_no:       r.id,
+            order_no:      order ? order.order_no : r.order_id,
+            customer_name: cust  ? cust.company_name : r.customer_id,
+            amount:        Number(r.amount),
+            paid_amount:   Number(r.paid_amount),
+            status:        isOverdue ? 'overdue' : r.status,
+            status_label:  isOverdue ? '已逾期' : statusLabel(r.status),
+            due_date:      r.due_date,
+          };
+        });
+      } catch (e) { console.error('loadFinance', e); }
+    };
+
+    const loadUsers = async () => {
+      try {
+        const data = await api('/v1/admin/users?limit=200');
+        const roleLabels = {
+          admin:'管理员', manager:'经理', operator:'操作员',
+          inspector:'质检员', finance:'财务', customer:'客户'
+        };
+        systemUsers.value = (data.items || []).map(u => ({
+          ...u,
+          role_label: roleLabels[u.role] || u.role,
+          last_login: (u.updated_at || '').slice(0, 16).replace('T', ' '),
+          created_at: (u.created_at || '').slice(0, 10),
+        }));
+      } catch (e) { console.error('loadUsers', e); }
+    };
+
+    const loadHealth = async () => {
+      try {
+        const data = await api('/v1/admin/runtime/health');
+        services.value = [
+          {
+            name: 'PostgreSQL (主库)',
+            status: data.checks?.database ? 'ok' : 'err',
+            metrics: [{ key:'状态', val: data.checks?.database ? '正常' : '异常', alert: !data.checks?.database }],
+          },
+          {
+            name: 'Redis',
+            status: data.checks?.redis ? 'ok' : 'err',
+            metrics: [{ key:'状态', val: data.checks?.redis ? '正常' : '异常', alert: !data.checks?.redis }],
+          },
+          {
+            name: 'Kafka',
+            status: data.checks?.kafka ? 'ok' : 'warn',
+            metrics: [{ key:'状态', val: data.checks?.kafka ? '正常' : '降级', alert: !data.checks?.kafka }],
+          },
+          {
+            name: '整体服务',
+            status: data.status === 'ok' ? 'ok' : 'warn',
+            metrics: [{ key:'综合状态', val: data.status === 'ok' ? '健康' : '降级' }],
+          },
+        ];
+      } catch (e) { console.error('loadHealth', e); }
+    };
+
+    const loadAuditLogs = async () => {
+      try {
+        const data = await api('/v1/admin/audit/logs?limit=100');
+        auditLogs.value = (data.items || []).map(a => ({
+          operator: (a.headers && (a.headers.user_email || a.headers.sub)) || '系统',
+          module:   (a.topic || '').split('.')[0] || 'system',
+          action:   a.event_key || '—',
+          target:   (a.payload && (a.payload.order_no || a.payload.order_id || a.payload.entity_id || a.payload.id)) || '—',
+          detail:   a.last_error || (a.payload ? JSON.stringify(a.payload).slice(0, 100) : '—'),
+          ip:       (a.headers && a.headers.client_ip) || '—',
+          ts:       (a.occurred_at || a.created_at || '').slice(0, 19).replace('T', ' '),
+        }));
+      } catch (e) { console.error('loadAuditLogs', e); }
+    };
+
+    const loadInvLogs = async () => {
+      try {
+        const data = await api('/v1/admin/audit/logs?limit=100');
+        invLogs.value = (data.items || [])
+          .filter(a => (a.topic || '').startsWith('inventory'))
+          .map(a => {
+            const payload = a.payload || {};
+            const qty = payload.quantity !== undefined
+              ? Number(payload.quantity)
+              : payload.reserved_qty !== undefined
+              ? Number(payload.reserved_qty)
+              : 0;
+            const releaseKey = ['reserve_released','reservation_released','restore'];
+            const sign = (a.event_key && releaseKey.some(k => a.event_key.includes(k))) ? 1 : -1;
+            return {
+              event_key: a.event_key || a.topic || '—',
+              product_id: payload.product_id || payload.sku_code || payload.order_id || '—',
+              qty_delta: qty !== 0 ? sign * qty : 0,
+              status: a.status,
+              ts: (a.occurred_at || a.created_at || '').slice(0, 19).replace('T', ' '),
+            };
+          });
+      } catch (e) { console.error('loadInvLogs', e); }
+    };
+
+    const loadInvoices = async () => {
+      try {
+        const data = await api('/v1/finance/invoices?limit=200');
+        const list = Array.isArray(data) ? data : (data.items || []);
+        const today = new Date().toISOString().slice(0, 10);
+        invoices.value = list.map(inv => {
+          const cust  = customerMap[inv.customer_id];
+          const order = allOrders.value.find(o => o.id === inv.order_id);
+          const isOverdue = inv.status !== 'paid' && inv.due_date < today;
+          return {
+            ...inv,
+            invoice_no:    inv.invoice_no || '—',
+            customer_name: cust  ? cust.company_name : inv.customer_id,
+            order_no:      order ? order.order_no : inv.order_id,
+            amount:        Number(inv.amount),
+            paid_amount:   Number(inv.paid_amount),
+            status:        isOverdue ? 'overdue' : inv.status,
+            due_date:      inv.due_date,
+            created_at:    (inv.created_at || '').slice(0, 10),
+          };
+        });
+      } catch (e) { console.error('loadInvoices', e); }
+    };
+
+    const loadQC = async () => {
+      try {
+        const data = await api('/v1/production/work-orders?limit=100');
+        const list = Array.isArray(data) ? data : (data.items || []);
+        qcRecords.value = list
+          .filter(wo => wo.status === 'done' || (wo.completed_qty > 0))
+          .map(wo => ({
+            work_order_no: wo.work_order_no,
+            product_name:  (wo.glass_type || '') + (wo.specification ? ' ' + wo.specification : ''),
+            batch_qty:     wo.quantity,
+            pass_qty:      wo.completed_qty || wo.quantity,
+            yield_rate:    wo.quantity > 0 ? Math.round(((wo.completed_qty || wo.quantity) / wo.quantity) * 100) : 100,
+            result:        'pass',
+            result_label:  '合格',
+            defect_type:   '—',
+            inspector:     '—',
+            checked_at:    (wo.updated_at || '').slice(0, 16).replace('T', ' '),
+          }));
+      } catch (e) { console.error('loadQC', e); }
+    };
+
+    const loadAllData = async () => {
+      await loadCustomers();
+      await Promise.all([loadOrders(), loadDashboard(), loadAlerts(), loadProdLines()]);
+      nextTick(() => initCharts());
+    };
+
+    // ── ACTIONS ──
+    const viewOrder = (row) => { selectedOrder.value = row; orderDetailVisible.value = true; };
+
+    const loadSchedLines = async () => { await loadProdLines(); };
+
+    const toggleLineActive = async (row) => {
+      try {
+        await api('/v1/admin/production/lines/' + row.id, {
+          method: 'PUT',
+          body: JSON.stringify({ is_active: !row.is_active }),
+        });
+        row.is_active = !row.is_active;
+        const pl = prodLines.value.find(l => l.id === row.id);
+        if (pl) pl.is_active = row.is_active;
+        ElementPlus.ElMessage.success(row.is_active ? '产线已启用' : '产线已停用');
+      } catch (e) {
+        ElementPlus.ElMessage.error('操作失败：' + (e.message || ''));
+      }
+    };
+
+    const openPaymentDialog = (row) => {
+      paymentTarget.value = row;
+      paymentAmount.value = Number((row.amount - row.paid_amount).toFixed(2));
+      paymentDialogVisible.value = true;
+    };
+
+    const submitPayment = async () => {
+      if (!paymentTarget.value || !paymentAmount.value) return;
+      paymentLoading.value = true;
+      try {
+        const idKey = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36);
+        await api('/v1/workspace/receivables/' + paymentTarget.value.id + '/payments', {
+          method: 'POST',
+          headers: { 'Idempotency-Key': idKey },
+          body: JSON.stringify({ amount: paymentAmount.value }),
+        });
+        ElementPlus.ElMessage.success('收款记录已提交');
+        paymentDialogVisible.value = false;
+        await loadFinance();
+      } catch (e) {
+        ElementPlus.ElMessage.error('收款失败：' + (e.message || ''));
+      } finally {
+        paymentLoading.value = false;
+      }
+    };
+
+    const editUser = (row) => {
+      userEditForm.value = { ...row };
+      userEditDialogVisible.value = true;
+    };
+
+    const submitUserEdit = async () => {
+      if (!userEditForm.value) return;
+      userEditLoading.value = true;
+      try {
+        const updated = await api('/v1/admin/users/' + userEditForm.value.id, {
+          method: 'PUT',
+          body: JSON.stringify({
+            display_name: userEditForm.value.display_name,
+            role: userEditForm.value.role,
+            stage: userEditForm.value.stage || null,
+            is_active: userEditForm.value.is_active,
+          }),
+        });
+        const roleLabels = { admin:'管理员', manager:'经理', operator:'操作员', inspector:'质检员', finance:'财务', customer:'客户' };
+        const idx = systemUsers.value.findIndex(u => u.id === userEditForm.value.id);
+        if (idx >= 0) {
+          systemUsers.value[idx] = {
+            ...updated,
+            role_label: roleLabels[updated.role] || updated.role,
+            last_login: (updated.updated_at || '').slice(0, 16).replace('T', ' '),
+            created_at: (updated.created_at || '').slice(0, 10),
+          };
+        }
+        ElementPlus.ElMessage.success('用户已更新');
+        userEditDialogVisible.value = false;
+      } catch (e) {
+        ElementPlus.ElMessage.error('保存失败：' + (e.message || ''));
+      } finally {
+        userEditLoading.value = false;
+      }
+    };
+
+    const openCreditDialog = (row) => {
+      creditTarget.value = row;
+      newCreditLimit.value = Number(row.credit_limit) || 0;
+      creditDialogVisible.value = true;
+    };
+
+    const submitCreditAdjust = async () => {
+      if (!creditTarget.value) return;
+      creditLoading.value = true;
+      try {
+        const idKey = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36);
+        await api('/v1/workspace/customers/' + creditTarget.value.id, {
+          method: 'PATCH',
+          headers: { 'Idempotency-Key': idKey },
+          body: JSON.stringify({ creditLimit: newCreditLimit.value }),
+        });
+        creditTarget.value.credit_limit = newCreditLimit.value;
+        ElementPlus.ElMessage.success('授信额度已更新');
+        creditDialogVisible.value = false;
+        await loadCustomers();
+      } catch (e) {
+        ElementPlus.ElMessage.error('调整失败：' + (e.message || ''));
+      } finally {
+        creditLoading.value = false;
+      }
+    };
+
+    const confirmOrder = async (row) => {
+      try {
+        const updated = await api('/v1/orders/' + row.id + '/confirm', { method: 'PUT' });
+        const idx = allOrders.value.findIndex(o => o.id === row.id);
+        if (idx >= 0) allOrders.value[idx] = _mapOrder(updated);
+        orderDetailVisible.value = false;
+        ElementPlus.ElMessage.success('订单已确认：' + row.order_no);
+      } catch (e) {
+        ElementPlus.ElMessage.error('确认失败：' + (e.message || ''));
+      }
+    };
+
+    const approvePickup = async (row) => {
+      try {
+        await api('/v1/workspace/orders/' + row.id + '/pickup/approve', {
+          method: 'POST',
+          headers: { 'Idempotency-Key': createIdempotencyKey() },
+          body: JSON.stringify({}),
+        });
+        ElementPlus.ElMessage.success('提货审批成功：' + row.order_no);
+        await loadOrders();
+      } catch (e) {
+        ElementPlus.ElMessage.error('提货审批失败：' + (e.message || ''));
+      }
+    };
+    const sendPickupEmail = async (row) => {
+      try {
+        await api('/v1/workspace/orders/' + row.id + '/pickup/send-email', {
+          method: 'POST',
+          headers: { 'Idempotency-Key': createIdempotencyKey() },
+          body: JSON.stringify({}),
+        });
+        ElementPlus.ElMessage.success('提货通知已发送：' + row.order_no);
+      } catch (e) {
+        ElementPlus.ElMessage.error('发送失败：' + (e.message || ''));
+      }
+    };
+    const buildTextSignatureDataUrl = (text) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 560;
+      canvas.height = 180;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return 'data:image/png;base64,iVBORw0KGgo=';
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#111827';
+      ctx.font = 'bold 42px PingFang SC, Microsoft YaHei, sans-serif';
+      ctx.fillText(text.trim() || '签收', 36, 108);
+      ctx.font = '14px PingFang SC, Microsoft YaHei, sans-serif';
+      ctx.fillStyle = '#64748b';
+      ctx.fillText(new Date().toLocaleString(locale.value), 36, 144);
+      return canvas.toDataURL('image/png');
+    };
+    const submitPickupSignature = async (row) => {
+      try {
+        const { value } = await ElementPlus.ElMessageBox.prompt('请输入签收人姓名', `登记提货签收 ${row.order_no}`, { inputPlaceholder: '签收人' });
+        const signerName = (value || '').trim();
+        if (!signerName) {
+          ElementPlus.ElMessage.warning('签收人姓名不能为空');
+          return;
+        }
+        await api('/v1/workspace/orders/' + row.id + '/pickup/signature', {
+          method: 'POST',
+          headers: { 'Idempotency-Key': createIdempotencyKey() },
+          body: JSON.stringify({
+            signerName,
+            signatureDataUrl: buildTextSignatureDataUrl(signerName),
+          }),
+        });
+        ElementPlus.ElMessage.success('提货签收已登记：' + row.order_no);
+        await loadOrders();
+      } catch (e) {
+        if (e === 'cancel' || e?.action === 'cancel') return;
+        ElementPlus.ElMessage.error('登记失败：' + (e.message || ''));
+      }
+    };
+    const downloadOrderDocument = async (row, documentType) => {
+      try {
+        const response = await fetch(`/v1/workspace/orders/${row.id}/export?document=${encodeURIComponent(documentType)}`, {
+          headers: { Authorization: `Bearer ${token.value}` },
+        });
+        if (!response.ok) throw new Error('download-failed');
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = objectUrl;
+        anchor.download = `${row.order_no}-${documentType}.pdf`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(objectUrl);
+      } catch {
+        ElementPlus.ElMessage.error('导出失败');
+      }
+    };
+
+    const cancelOrder = async (row) => {
+      try {
+        await ElementPlus.ElMessageBox.confirm(
+          '确定要取消订单 ' + row.order_no + '？',
+          '取消确认',
+          { type: 'warning', confirmButtonText:'确定取消', cancelButtonText:'返回' }
+        );
+        const updated = await api('/v1/orders/' + row.id + '/cancel', {
+          method: 'PUT',
+          body: JSON.stringify({ reason: '管理员操作取消' }),
+        });
+        const idx = allOrders.value.findIndex(o => o.id === row.id);
+        if (idx >= 0) allOrders.value[idx] = { ...allOrders.value[idx], status: updated.status };
+        ElementPlus.ElMessage.success('订单已取消');
+      } catch (e) {
+        if (e !== 'cancel' && e?.action !== 'cancel') ElementPlus.ElMessage.error('操作失败');
+      }
+    };
+
+    const toggleUserActive = async (user) => {
+      const newState = !user.is_active;
+      try {
+        await api('/v1/admin/users/' + user.id, {
+          method: 'PUT',
+          body: JSON.stringify({ is_active: newState }),
+        });
+        user.is_active = newState;
+        ElementPlus.ElMessage.success(newState ? '用户已启用' : '用户已禁用');
+      } catch (e) {
+        ElementPlus.ElMessage.error('操作失败：' + (e.message || ''));
+      }
+    };
+
+    // ── MENU SELECT ──
+    const onMenuSelect = async (key) => {
+      activeMenu.value = key;
+      if (key === 'dashboard') {
+        await loadDashboard();
+        nextTick(() => initCharts());
+      } else if (key === 'order-list' || key === 'order-timeout' || key === 'order-pickup') {
+        await loadCustomers();
+        await loadOrders();
+      } else if (key === 'prod-kanban') {
+        await Promise.all([loadProdLines(), loadKanban()]);
+      } else if (key === 'prod-schedule') {
+        await loadSchedLines();
+      } else if (key === 'prod-qc') {
+        await loadQC();
+      } else if (key === 'sys-users') {
+        await loadUsers();
+      } else if (key === 'ops-health') {
+        await loadHealth();
+      } else if (key === 'ops-audit') {
+        await loadAuditLogs();
+      } else if (key === 'inv-stock') {
+        await loadInventory();
+      } else if (key === 'inv-alert') {
+        await loadInventory();
+      } else if (key === 'inv-logs') {
+        await loadInvLogs();
+      } else if (key === 'cus-list' || key === 'cus-credit') {
+        await loadCustomers();
+      } else if (key === 'fin-receivable') {
+        await loadCustomers();
+        await Promise.all([loadOrders(), loadFinance()]);
+      } else if (key === 'fin-invoice') {
+        await loadCustomers();
+        await Promise.all([loadOrders(), loadInvoices()]);
+      } else if (key === 'sys-roles') {
+        // static, no API call needed
+      }
+    };
+
+    // ── CHARTS ──
+    let trendInstance = null, pieInstance = null;
+
+    const initCharts = () => {
+      nextTick(() => {
+        const tEl = document.getElementById('trendChart');
+        const pEl = document.getElementById('pieChart');
+        if (!tEl || !pEl) return;
+        if (!trendInstance) trendInstance = echarts.init(tEl);
+        if (!pieInstance)   pieInstance   = echarts.init(pEl);
+
+        const days = Array.from({ length: 30 }, (_, i) => {
+          const d = new Date(); d.setDate(d.getDate() - 29 + i);
+          return (d.getMonth() + 1) + '/' + d.getDate();
+        });
+        const ordersData = days.map(() => Math.floor(28 + Math.random() * 20));
+        const doneData   = ordersData.map(v => Math.floor(v * 0.88 + Math.random() * 4));
+        const shipData   = doneData.map(v => Math.floor(v * 0.9 + Math.random() * 3));
+
+        trendInstance.setOption({
+          grid:{ left:40, right:20, top:20, bottom:40 },
+          tooltip:{ trigger:'axis' },
+          legend:{ bottom:4, data:['新增下单','完工数量','发货数量'], textStyle:{fontSize:12} },
+          xAxis:{ type:'category', data:days, axisLabel:{fontSize:11, interval:4} },
+          yAxis:{ type:'value', axisLabel:{fontSize:11} },
+          series:[
+            { name:'新增下单', type:'line', data:ordersData, smooth:true, itemStyle:{color:'#4f8ef7'}, areaStyle:{color:'rgba(79,142,247,.1)'} },
+            { name:'完工数量', type:'line', data:doneData,   smooth:true, itemStyle:{color:'#67c23a'}, areaStyle:{color:'rgba(103,194,58,.08)'} },
+            { name:'发货数量', type:'line', data:shipData,   smooth:true, itemStyle:{color:'#e6a23c'} },
+          ],
+        });
+
+        const statusColors = {
+          pending:'#e6a23c', confirmed:'#409eff', entered:'#85c1e9',
+          in_production:'#67c23a', completed:'#19be6b', shipping:'#36cfc9',
+          delivered:'#909399', ready_for_pickup:'#b37feb', picked_up:'#c0c4cc', cancelled:'#f56c6c',
+        };
+        const statusCounts = {};
+        for (const o of allOrders.value) {
+          statusCounts[o.status] = (statusCounts[o.status] || 0) + 1;
+        }
+        const pieData = Object.entries(statusCounts).map(([s, v]) => ({
+          value: v, name: statusLabel(s), itemStyle: { color: statusColors[s] || '#909399' },
+        }));
+
+        pieInstance.setOption({
+          tooltip:{ trigger:'item', formatter:'{b}: {c} ({d}%)' },
+          legend:{ orient:'vertical', right:10, top:'center', textStyle:{fontSize:12} },
+          series:[{
+            type:'pie', radius:['42%','68%'], center:['40%','50%'],
+            data: pieData.length ? pieData : [{ value:1, name:'暂无数据', itemStyle:{color:'#e4e7ed'} }],
+            label:{show:false}, emphasis:{itemStyle:{shadowBlur:10,shadowOffsetX:0,shadowColor:'rgba(0,0,0,.5)'}}
+          }],
+        });
+      });
+    };
+
+    onMounted(async () => {
+      if ('serviceWorker' in navigator) {
+        try { await navigator.serviceWorker.register('/sw.js'); } catch {}
+      }
+      if (token.value) {
+        await loadAllData();
+      }
+    });
+
+    watch(trendRange, () => { if (activeMenu.value === 'dashboard') initCharts(); });
+    window.addEventListener('resize', () => {
+      trendInstance && trendInstance.resize();
+      pieInstance   && pieInstance.resize();
+    });
+
+    return {
+      // auth
+      token, currentUser, loginVisible, loginForm, loginLoading, login, logout, onDropdownCmd,
+      // ui
+      sideCollapsed, activeMenu, breadcrumb, trendRange, todayStr, nowTime, locale, alertCount,
+      // data
+      dashStats, alerts, prodLines, schedLines,
+      allOrders, recentOrders, filteredOrders, timeoutOrders, filteredPickupOrders,
+      orderSearch, orderStatusFilter, orderDateRange, orderStatuses,
+      pickupSearch, pickupStatusFilter,
+      kanbanLine, kanbanCols,
+      qcResultFilter, qcDate, qcRecords,
+      invSearch, invType, invAlertOnly, inventoryItems, alertInventoryItems, invLogs,
+      finStats, finStatus, finSearch, receivables, invoices,
+      cusSearch, cusTier, customers,
+      userSearch, userRoleFilter, roles, systemUsers, roleDefinitions,
+      services, workers,
+      auditSearch, auditModule, auditDateRange, auditLogs,
+      activePanels, orderDetailVisible, selectedOrder,
+      // payment dialog
+      paymentDialogVisible, paymentTarget, paymentAmount, paymentLoading,
+      // user edit dialog
+      userEditDialogVisible, userEditForm, userEditLoading,
+      // credit dialog
+      creditDialogVisible, creditTarget, newCreditLimit, creditLoading,
+      // helpers / actions
+      statusLabel, formatMoney, roleTagType,
+      viewOrder, confirmOrder, cancelOrder, toggleUserActive, onMenuSelect,
+      loadOrders, approvePickup, sendPickupEmail, submitPickupSignature, downloadOrderDocument,
+      loadSchedLines, toggleLineActive,
+      openPaymentDialog, submitPayment,
+      editUser, submitUserEdit,
+      openCreditDialog, submitCreditAdjust,
+      loadInvLogs, loadInvoices,
+    };
+  }
+});
+
+for (const [k, c] of Object.entries(ElementPlusIconsVue)) { app.component(k, c); }
+app.use(ElementPlus);
+app.mount('#app');
+</script>
+</body>
 </html>

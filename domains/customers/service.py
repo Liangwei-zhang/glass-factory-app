@@ -90,7 +90,7 @@ class CustomersService:
         customer_id: str,
         payload: UpdateCustomerRequest,
     ) -> CustomerProfile:
-        update_data: dict[str, str | None] = {}
+        update_data: dict = {}
         if "company_name" in payload.model_fields_set:
             update_data["company_name"] = _normalize_company_name(payload.company_name)
         if "contact_name" in payload.model_fields_set:
@@ -101,6 +101,14 @@ class CustomersService:
             update_data["email"] = _normalize_optional_text(payload.email)
         if "address" in payload.model_fields_set:
             update_data["address"] = _normalize_optional_text(payload.address)
+        if "credit_limit" in payload.model_fields_set and payload.credit_limit is not None:
+            if payload.credit_limit < 0:
+                raise AppError(
+                    code=ErrorCode.VALIDATION_ERROR,
+                    message="授信额度不能为负数。",
+                    status_code=400,
+                )
+            update_data["credit_limit"] = payload.credit_limit
 
         normalized_payload = payload.model_copy(update=update_data)
         row = await self.repository.update_customer(session, customer_id, normalized_payload)

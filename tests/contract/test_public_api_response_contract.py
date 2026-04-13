@@ -155,10 +155,16 @@ def _drive_order_to_ready_for_pickup(
     _assert_success_envelope(entered_response, status_code=200)
 
     for step_key in ["cutting", "edging", "tempering", "finishing"]:
-        current_user["value"] = make_auth_user(
-            scopes=["orders:read", "production:write"],
-            stage=step_key,
-        )
+        if step_key == "tempering":
+            current_user["value"] = make_auth_user(
+                role="manager",
+                scopes=["orders:read", "orders:write", "production:write"],
+            )
+        else:
+            current_user["value"] = make_auth_user(
+                scopes=["orders:read", "production:write"],
+                stage=step_key,
+            )
         step_response = client.post(
             f"/v1/orders/{order_id}/steps/{step_key}",
             headers={"Idempotency-Key": f"contract-direct-{step_key}-{uuid4()}"},
@@ -1290,10 +1296,16 @@ def test_orders_confirm_entered_step_and_pickup_approve_response_contracts(monke
             assert first_step_payload["updated_work_order_ids"]
 
             for step_key in ["edging", "tempering", "finishing"]:
-                current_user["value"] = make_auth_user(
-                    scopes=["orders:read", "production:write"],
-                    stage=step_key,
-                )
+                if step_key == "tempering":
+                    current_user["value"] = make_auth_user(
+                        role="manager",
+                        scopes=["orders:read", "orders:write", "production:write"],
+                    )
+                else:
+                    current_user["value"] = make_auth_user(
+                        scopes=["orders:read", "production:write"],
+                        stage=step_key,
+                    )
                 step_response = client.post(
                     f"/v1/orders/{order_id}/steps/{step_key}",
                     headers={"Idempotency-Key": f"contract-order-step-{step_key}-{uuid4()}"},
@@ -1473,7 +1485,10 @@ def test_workspace_orders_entered_step_and_pickup_approve_response_contracts(mon
             assert first_step_payload["order"]["status"] == "in_production"
 
             for step_key in ["edging", "tempering", "finishing"]:
-                current_user["value"] = make_auth_user(stage=step_key)
+                if step_key == "tempering":
+                    current_user["value"] = make_auth_user(role="manager")
+                else:
+                    current_user["value"] = make_auth_user(stage=step_key)
                 step_response = client.post(
                     f"/v1/workspace/orders/{order_id}/steps/{step_key}",
                     headers={"Idempotency-Key": f"contract-workspace-step-{step_key}-{uuid4()}"},
@@ -2328,7 +2343,7 @@ def test_production_response_contracts(monkeypatch) -> None:
         assert limit == 10
         assert step_key == "cutting"
         assert assignee_user_id == "user-1"
-        assert include_unassigned is True
+        assert include_unassigned is False
         return [work_order]
 
     async def fake_get_work_order(_session, *, work_order_id: str):
@@ -2351,7 +2366,7 @@ def test_production_response_contracts(monkeypatch) -> None:
         assert limit == 10
         assert step_key == "cutting"
         assert assignee_user_id == "user-1"
-        assert include_unassigned is True
+        assert include_unassigned is False
         return [work_order]
 
     monkeypatch.setattr(production_router.service, "list_work_orders", fake_list_work_orders)

@@ -182,6 +182,9 @@ class MemoryInventoryRepository:
     async def get_inventory(self, _session, product_id: str) -> InventoryModel | None:
         return self.inventory_rows.get(product_id)
 
+    async def get_inventory_for_update(self, _session, product_id: str) -> InventoryModel | None:
+        return self.inventory_rows.get(product_id)
+
 
 class MemoryOrdersRepository:
     def __init__(self) -> None:

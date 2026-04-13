@@ -393,6 +393,73 @@ class InventoryService:
             raise inventory_not_found(product_id)
         return InventorySnapshot.model_validate(row)
 
+    async def adjust_stock(
+        self,
+        session: AsyncSession,
+        *,
+        product_id: str,
+        direction: str,
+        quantity: int,
+        actor_user_id: str,
+        reason: str = "",
+        reference_no: str | None = None,
+    ) -> InventorySnapshot:
+        normalized_direction = str(direction or "").strip().lower()
+        if normalized_direction not in {"in", "out"}:
+            raise AppError(
+                code=ErrorCode.VALIDATION_ERROR,
+                message="direction 必须是 in 或 out。",
+                status_code=400,
+            )
+
+        if quantity <= 0:
+            raise AppError(
+                code=ErrorCode.VALIDATION_ERROR,
+                message="数量必须大于 0。",
+                status_code=400,
+            )
+
+        row = await self.repository.get_inventory_for_update(session, product_id)
+        if row is None:
+            raise inventory_not_found(product_id)
+
+        if normalized_direction == "out" and row.available_qty < quantity:
+            raise AppError(
+                code=ErrorCode.INVENTORY_SHORTAGE,
+                message="库存不足，无法出库。",
+                status_code=409,
+                details={
+                    "product_id": product_id,
+                    "available_qty": row.available_qty,
+                    "required_qty": quantity,
+                },
+            )
+
+        row.available_qty = row.available_qty + quantity if normalized_direction == "in" else row.available_qty - quantity
+        row.total_qty = row.available_qty + row.reserved_qty
+        row.version += 1
+        await session.flush()
+
+        outbox = OutboxPublisher(session)
+        await outbox.publish_after_commit(
+            topic=Topics.OPS_AUDIT_LOGGED,
+            key=product_id,
+            payload={
+                "event": "inventory.manual_adjusted",
+                "product_id": product_id,
+                "direction": normalized_direction,
+                "quantity": quantity,
+                "reason": reason.strip(),
+                "reference_no": reference_no or "",
+                "actor_user_id": actor_user_id,
+                "available_qty": row.available_qty,
+                "reserved_qty": row.reserved_qty,
+                "total_qty": row.total_qty,
+            },
+        )
+
+        return InventorySnapshot.model_validate(row)
+
     def _build_restore_hook(
         self,
         *,

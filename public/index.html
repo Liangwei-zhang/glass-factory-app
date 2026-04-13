@@ -1,41 +1,118 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-CN">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#102a43" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="description" content="钢化玻璃工厂三端入口：客户端、业务操作端、管理端。" />
-    <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/styles.css" />
-    <title>Glass Factory Entrypoints</title>
-  </head>
-  <body>
-    <div class="ambient ambient-a"></div>
-    <div class="ambient ambient-b"></div>
-    <div class="grid-sheen"></div>
-    <main class="auth-shell">
-      <section class="auth-panel">
-        <p class="eyebrow">Glass Factory</p>
-        <h1>选择系统入口</h1>
-        <p class="lead-copy">按 sj.md 的三端结构进入对应工作区。</p>
-        <div class="credential-grid">
-          <a class="credential-card" href="/app">
-            <strong>/app</strong>
-            <span>客户端</span>
-          </a>
-          <a class="credential-card" href="/platform">
-            <strong>/platform</strong>
-            <span>业务操作端</span>
-          </a>
-          <a class="credential-card" href="/admin">
-            <strong>/admin</strong>
-            <span>管理端</span>
-          </a>
-        </div>
-      </section>
-    </main>
-  </body>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Glass Factory Pro — 系统入口</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: #0a0e1a; font-family: -apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif; }
+.bg {
+  min-height: 100vh;
+  background: radial-gradient(ellipse at 20% 40%, rgba(37,99,235,.25) 0%, transparent 50%),
+              radial-gradient(ellipse at 80% 60%, rgba(14,165,233,.18) 0%, transparent 50%),
+              #0a0e1a;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 40px 20px;
+}
+.brand { text-align: center; margin-bottom: 48px; }
+.brand-logo {
+  width: 72px; height: 72px; margin: 0 auto 16px;
+  background: linear-gradient(135deg, #2563eb 0%, #0ea5e9 100%);
+  border-radius: 20px; display: flex; align-items: center; justify-content: center;
+  font-size: 36px; font-weight: 900; color: #fff;
+  box-shadow: 0 8px 32px rgba(37,99,235,.4);
+}
+.brand h1 { font-size: 32px; font-weight: 800; color: #fff; letter-spacing: 1px; }
+.brand p { font-size: 15px; color: #64748b; margin-top: 6px; }
+.cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; max-width: 900px; width: 100%; }
+.entry-card {
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 16px; padding: 32px 28px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all .2s;
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+}
+.entry-card:hover {
+  background: rgba(255,255,255,.08);
+  border-color: rgba(255,255,255,.18);
+  transform: translateY(-4px);
+  box-shadow: 0 16px 40px rgba(0,0,0,.4);
+}
+.card-icon {
+  width: 60px; height: 60px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px; margin-bottom: 16px;
+}
+.card-icon.admin { background: linear-gradient(135deg, #7c3aed 0%, #2563eb 100%); }
+.card-icon.platform { background: linear-gradient(135deg, #0ea5e9 0%, #16a34a 100%); }
+.card-icon.app { background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%); }
+.card-label { font-size: 18px; font-weight: 700; color: #f1f5f9; margin-bottom: 6px; }
+.card-desc { font-size: 13px; color: #64748b; line-height: 1.6; }
+.card-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; justify-content: center; }
+.tag { font-size: 11px; padding: 2px 8px; border-radius: 8px; background: rgba(255,255,255,.07); color: #94a3b8; }
+.card-btn {
+  margin-top: 20px; padding: 9px 24px; border-radius: 8px;
+  font-size: 13px; font-weight: 600; border: none; cursor: pointer;
+  transition: all .15s;
+}
+.card-btn.admin { background: rgba(124,58,237,.2); color: #a78bfa; border: 1px solid rgba(124,58,237,.3); }
+.card-btn.platform { background: rgba(14,165,233,.2); color: #38bdf8; border: 1px solid rgba(14,165,233,.3); }
+.card-btn.app { background: rgba(245,158,11,.2); color: #fbbf24; border: 1px solid rgba(245,158,11,.3); }
+.entry-card:hover .card-btn { opacity: 1; }
+.footer { margin-top: 40px; font-size: 12px; color: #334155; }
+@media (max-width: 768px) { .cards { grid-template-columns: 1fr; max-width: 400px; } }
+</style>
+</head>
+<body>
+<div class="bg">
+  <div class="brand">
+    <div class="brand-logo">G</div>
+    <h1>Glass Factory Pro</h1>
+    <p>玻璃工厂生产管理系统 · 请选择您的入口</p>
+  </div>
+
+  <div class="cards">
+    <a href="/admin.html" class="entry-card">
+      <div class="card-icon admin">🛡️</div>
+      <div class="card-label">管理控制台</div>
+      <div class="card-desc">经营大屏、订单总览、生产调度、财务结算、用户权限及运维监控</div>
+      <div class="card-tags">
+        <span class="tag">管理员</span>
+        <span class="tag">厂长</span>
+        <span class="tag">财务</span>
+      </div>
+      <button class="card-btn admin">进入管理端 →</button>
+    </a>
+
+    <a href="/platform.html" class="entry-card">
+      <div class="card-icon platform">⚙️</div>
+      <div class="card-label">业务操作台</div>
+      <div class="card-desc">订单确认与录入、生产排产看板、库存管理、质检录入及发货安排</div>
+      <div class="card-tags">
+        <span class="tag">操作员</span>
+        <span class="tag">检验员</span>
+        <span class="tag">仓管</span>
+      </div>
+      <button class="card-btn platform">进入操作台 →</button>
+    </a>
+
+    <a href="/app.html" class="entry-card">
+      <div class="card-icon app">📦</div>
+      <div class="card-label">客户采购平台</div>
+      <div class="card-desc">在线下单、订单进度追踪、物流查询、财务账单及个人资料管理</div>
+      <div class="card-tags">
+        <span class="tag">采购客户</span>
+        <span class="tag">B2B</span>
+        <span class="tag">自助服务</span>
+      </div>
+      <button class="card-btn app">进入客户端 →</button>
+    </a>
+  </div>
+
+  <div class="footer">Glass Factory Pro · Demo Environment · v2.0.0</div>
+</div>
+</body>
 </html>

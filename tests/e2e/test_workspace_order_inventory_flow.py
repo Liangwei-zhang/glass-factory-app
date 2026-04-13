@@ -80,7 +80,10 @@ def _drive_workspace_order_to_ready_for_pickup(
     assert entered_response.status_code == 200
 
     for step_key in ["cutting", "edging", "tempering", "finishing"]:
-        current_user["value"] = make_auth_user(stage=step_key)
+        if step_key == "tempering":
+            current_user["value"] = make_auth_user(role="manager")
+        else:
+            current_user["value"] = make_auth_user(stage=step_key)
         step_response = client.post(
             f"/v1/workspace/orders/{order_id}/steps/{step_key}",
             headers={"Idempotency-Key": f"workspace-e2e-ship-finance-{step_key}"},
@@ -364,7 +367,10 @@ def test_workspace_orders_api_full_lifecycle_reaches_picked_up(
             assert harness.inventory_row.reserved_qty == 0
 
             for step_key in ["cutting", "edging", "tempering", "finishing"]:
-                current_user["value"] = make_auth_user(stage=step_key)
+                if step_key == "tempering":
+                    current_user["value"] = make_auth_user(role="manager")
+                else:
+                    current_user["value"] = make_auth_user(stage=step_key)
                 step_response = client.post(
                     f"/v1/workspace/orders/{order_id}/steps/{step_key}",
                     headers={"Idempotency-Key": f"workspace-e2e-full-lifecycle-{step_key}"},
@@ -597,5 +603,102 @@ def test_workspace_orders_api_shipping_and_finance_flow(monkeypatch) -> None:
             assert final_refund_payload["paid_amount"] in {"0", "0.00"}
             assert str(harness.session.receivables[0].paid_amount) in {"0", "0.00"}
             assert harness.session.receivables[0].status == "unpaid"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_workspace_inventory_manual_adjustment_updates_stock(monkeypatch) -> None:
+    harness = build_order_inventory_harness(available_qty=10)
+    _patch_workspace_route(monkeypatch, harness)
+    monkeypatch.setattr(workspace_router, "inventory_service", harness.inventory_service)
+
+    async def override_session() -> AsyncGenerator:
+        yield harness.session
+
+    async def override_current_user():
+        return make_auth_user()
+
+    async def fake_get_redis():
+        return harness.redis
+
+    monkeypatch.setattr("infra.security.idempotency.get_redis", fake_get_redis)
+    app.dependency_overrides[get_db_session] = override_session
+    app.dependency_overrides[get_current_user] = override_current_user
+
+    try:
+        with TestClient(app) as client:
+            inbound_response = client.post(
+                "/v1/workspace/inventory/adjustments",
+                headers={"Idempotency-Key": "workspace-e2e-inventory-inbound"},
+                json={
+                    "productId": "product-1",
+                    "direction": "in",
+                    "quantity": 6,
+                    "referenceNo": "PO-6001",
+                    "reason": "manual inbound",
+                },
+            )
+
+            assert inbound_response.status_code == 200
+            inbound_payload = inbound_response.json()["data"]["inventory"]
+            assert inbound_payload["available_qty"] == 16
+            assert inbound_payload["reserved_qty"] == 0
+            assert inbound_payload["total_qty"] == 16
+
+            outbound_response = client.post(
+                "/v1/workspace/inventory/adjustments",
+                headers={"Idempotency-Key": "workspace-e2e-inventory-outbound"},
+                json={
+                    "productId": "product-1",
+                    "direction": "out",
+                    "quantity": 5,
+                    "referenceNo": "SO-5002",
+                    "reason": "manual outbound",
+                },
+            )
+
+            assert outbound_response.status_code == 200
+            outbound_payload = outbound_response.json()["data"]["inventory"]
+            assert outbound_payload["available_qty"] == 11
+            assert outbound_payload["reserved_qty"] == 0
+            assert outbound_payload["total_qty"] == 11
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_workspace_inventory_manual_adjustment_rejects_shortage(monkeypatch) -> None:
+    harness = build_order_inventory_harness(available_qty=10)
+    _patch_workspace_route(monkeypatch, harness)
+    monkeypatch.setattr(workspace_router, "inventory_service", harness.inventory_service)
+
+    async def override_session() -> AsyncGenerator:
+        yield harness.session
+
+    async def override_current_user():
+        return make_auth_user()
+
+    async def fake_get_redis():
+        return harness.redis
+
+    monkeypatch.setattr("infra.security.idempotency.get_redis", fake_get_redis)
+    app.dependency_overrides[get_db_session] = override_session
+    app.dependency_overrides[get_current_user] = override_current_user
+
+    try:
+        with TestClient(app) as client:
+            response = client.post(
+                "/v1/workspace/inventory/adjustments",
+                headers={"Idempotency-Key": "workspace-e2e-inventory-shortage"},
+                json={
+                    "productId": "product-1",
+                    "direction": "out",
+                    "quantity": 99,
+                    "referenceNo": "SO-9999",
+                    "reason": "manual outbound",
+                },
+            )
+
+            assert response.status_code == 409
+            assert response.json()["error"]["message"] == "库存不足，无法出库。"
     finally:
         app.dependency_overrides.clear()

@@ -5,6 +5,7 @@ from types import SimpleNamespace
 import pytest
 
 from domains.workspace import orders_support
+from infra.core.errors import AppError
 
 
 def test_order_matches_filters_uses_customer_contact_fields() -> None:
@@ -29,6 +30,53 @@ def test_order_matches_filters_uses_customer_contact_fields() -> None:
 
 def test_normalize_piece_numbers_keeps_only_numeric_entries() -> None:
     assert orders_support.normalize_piece_numbers([1, "2", "x", None, "03"]) == [1, 2, 3]
+
+
+def test_parse_workspace_items_json_supports_multiple_rows() -> None:
+    rows = orders_support._parse_workspace_order_item_rows(
+        items_json=(
+            '[{"glassType":"RAIN","thickness":"8mm","quantity":2,'
+            '"widthMm":1200,"heightMm":800},'
+            '{"glass_type":"FROSTED","specification":"6mm","quantity":1}]'
+        ),
+        glass_type=None,
+        thickness=None,
+        quantity=None,
+        special_instructions="priority hold",
+    )
+
+    assert rows == [
+        {
+            "glass_type": "RAIN",
+            "specification": "8mm",
+            "quantity": 2,
+            "width_mm": 1200,
+            "height_mm": 800,
+            "process_requirements": "priority hold",
+        },
+        {
+            "glass_type": "FROSTED",
+            "specification": "6mm",
+            "quantity": 1,
+            "width_mm": 1000,
+            "height_mm": 1000,
+            "process_requirements": "priority hold",
+        },
+    ]
+
+
+def test_parse_workspace_items_json_rejects_empty_rows() -> None:
+    with pytest.raises(AppError) as exc:
+        orders_support._parse_workspace_order_item_rows(
+            items_json="[]",
+            glass_type=None,
+            thickness=None,
+            quantity=None,
+            special_instructions="",
+        )
+
+    assert exc.value.message == "itemsJson 至少要包含一条明细。"
+    assert exc.value.status_code == 400
 
 
 class _FakeScalarResult:

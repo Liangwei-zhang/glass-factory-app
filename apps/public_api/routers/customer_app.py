@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import json
 from decimal import Decimal
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile
+from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -118,6 +120,80 @@ def _serialize_customer_user(
     }
 
 
+def _parse_customer_order_item_rows(
+    *,
+    items_json: str | None,
+    glass_type: str | None,
+    thickness: str | None,
+    quantity: int | None,
+    special_instructions: str,
+) -> list[dict[str, Any]]:
+    if items_json:
+        try:
+            raw_rows = json.loads(items_json)
+        except json.JSONDecodeError as exc:
+            raise HTTPException(status_code=400, detail="itemsJson 不是合法 JSON。") from exc
+
+        if not isinstance(raw_rows, list) or not raw_rows:
+            raise HTTPException(status_code=400, detail="itemsJson 至少要包含一条明细。")
+
+        normalized_rows: list[dict[str, Any]] = []
+        for index, raw in enumerate(raw_rows, start=1):
+            if not isinstance(raw, dict):
+                raise HTTPException(status_code=400, detail=f"itemsJson 第 {index} 行格式错误。")
+
+            row_glass_type = str(raw.get("glass_type") or raw.get("glassType") or "").strip()
+            row_specification = str(
+                raw.get("thickness") or raw.get("specification") or ""
+            ).strip()
+
+            try:
+                row_quantity = int(raw.get("quantity") or 0)
+                row_width_mm = int(raw.get("width_mm") or raw.get("widthMm") or 1000)
+                row_height_mm = int(raw.get("height_mm") or raw.get("heightMm") or 1000)
+            except (TypeError, ValueError) as exc:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"itemsJson 第 {index} 行数量和尺寸必须是数字。",
+                ) from exc
+
+            if row_quantity <= 0:
+                raise HTTPException(status_code=400, detail=f"itemsJson 第 {index} 行数量必须大于 0。")
+            if row_width_mm <= 0 or row_height_mm <= 0:
+                raise HTTPException(status_code=400, detail=f"itemsJson 第 {index} 行宽高必须大于 0。")
+
+            normalized_rows.append(
+                {
+                    "glass_type": row_glass_type or "Clear",
+                    "specification": row_specification or "6mm",
+                    "quantity": row_quantity,
+                    "width_mm": row_width_mm,
+                    "height_mm": row_height_mm,
+                    "process_requirements": str(
+                        raw.get("process_requirements")
+                        or raw.get("processRequirements")
+                        or special_instructions
+                    ).strip(),
+                }
+            )
+
+        return normalized_rows
+
+    if quantity is None or quantity <= 0:
+        raise HTTPException(status_code=400, detail="数量必须大于 0。")
+
+    return [
+        {
+            "glass_type": (glass_type or "").strip() or "Clear",
+            "specification": (thickness or "").strip() or "6mm",
+            "quantity": int(quantity),
+            "width_mm": 1000,
+            "height_mm": 1000,
+            "process_requirements": special_instructions,
+        }
+    ]
+
+
 @router.get("/bootstrap")
 async def customer_bootstrap(
     auth_user: AuthUser = Depends(customer_guard),
@@ -226,6 +302,31 @@ async def customer_order_detail(
     }
 
 
+@router.get("/orders/{order_id}/export")
+async def customer_order_export(
+    order_id: str,
+    document: str = "order",
+    auth_user: AuthUser = Depends(customer_guard),
+    session: AsyncSession = Depends(get_db_session),
+) -> Response:
+    _, customer = await _load_customer_context(session, auth_user)
+    result = await session.execute(
+        select(OrderModel.id)
+        .where(OrderModel.id == order_id, OrderModel.customer_id == customer.id)
+        .limit(1)
+    )
+    if result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=404, detail="订单不存在。")
+
+    payload = await orders_service.export_document_pdf(session, order_id=order_id, document=document)
+    filename = f"{order_id}-{document}.pdf"
+    return Response(
+        content=payload,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @router.get("/notifications")
 async def customer_notifications(
     auth_user: AuthUser = Depends(customer_guard),
@@ -237,12 +338,13 @@ async def customer_notifications(
 
 @router.post("/orders")
 async def customer_create_order(
-    glassType: str = Form(...),
-    thickness: str = Form(...),
-    quantity: int = Form(...),
+    glassType: str | None = Form(default=None),
+    thickness: str | None = Form(default=None),
+    quantity: int | None = Form(default=None),
     priority: str = Form("normal"),
     estimatedCompletionDate: str | None = Form(None),
     specialInstructions: str = Form(""),
+    itemsJson: str | None = Form(default=None),
     drawing: UploadFile | None = File(default=None),
     auth_user: AuthUser = Depends(customer_writer_guard),
     session: AsyncSession = Depends(get_db_session),
@@ -251,10 +353,36 @@ async def customer_create_order(
     user_model, customer = await _load_customer_context(session, auth_user)
     effective_idempotency_key = await enforce_idempotency_key("app:orders:create", idempotency_key)
 
-    if quantity <= 0:
-        raise HTTPException(status_code=400, detail="数量必须大于 0。")
+    item_rows = _parse_customer_order_item_rows(
+        items_json=itemsJson,
+        glass_type=glassType,
+        thickness=thickness,
+        quantity=quantity,
+        special_instructions=specialInstructions,
+    )
 
-    product = await workspace_ui.ensure_product_inventory(session, glassType, thickness, quantity)
+    create_items: list[CreateOrderItem] = []
+    for row in item_rows:
+        product = await workspace_ui.ensure_product_inventory(
+            session,
+            row["glass_type"],
+            row["specification"],
+            row["quantity"],
+        )
+        create_items.append(
+            CreateOrderItem(
+                product_id=product.id,
+                product_name=product.product_name,
+                glass_type=row["glass_type"],
+                specification=row["specification"],
+                width_mm=row["width_mm"],
+                height_mm=row["height_mm"],
+                quantity=row["quantity"],
+                unit_price=Decimal("1.00"),
+                process_requirements=row["process_requirements"],
+            )
+        )
+
     request_payload = CreateOrderRequest(
         customer_id=customer.id,
         delivery_address=customer.address or "factory-pickup",
@@ -262,19 +390,7 @@ async def customer_create_order(
         priority=priority,
         remark=specialInstructions,
         idempotency_key=effective_idempotency_key,
-        items=[
-            CreateOrderItem(
-                product_id=product.id,
-                product_name=product.product_name,
-                glass_type=glassType.strip() or "Clear",
-                specification=thickness.strip() or "6mm",
-                width_mm=1000,
-                height_mm=1000,
-                quantity=quantity,
-                unit_price=Decimal("1.00"),
-                process_requirements=specialInstructions,
-            )
-        ],
+        items=create_items,
     )
 
     try:

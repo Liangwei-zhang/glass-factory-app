@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from domains.customers.schema import UpdateCustomerRequest
 from domains.customers.service import CustomersService
+from domains.inventory.service import InventoryService
 from domains.notifications.service import NotificationsService
 from domains.orders.schema import PickupSignatureRequest
 from domains.workspace import finance_support as workspace_finance
@@ -28,6 +29,7 @@ router = APIRouter(prefix="/workspace", tags=["workspace"])
 workspace_guard = require_roles(["operator", "manager", "admin"])
 customers_service = CustomersService()
 notifications_service = NotificationsService()
+inventory_service = InventoryService()
 
 
 def _assert_workspace_office_or_manager(
@@ -76,6 +78,9 @@ def _workspace_customer_update_request(payload: dict[str, Any]) -> UpdateCustome
         mapped_payload["email"] = payload.get("email")
     if "notes" in payload:
         mapped_payload["address"] = payload.get("notes")
+    if "creditLimit" in payload and payload.get("creditLimit") is not None:
+        from decimal import Decimal as _Decimal
+        mapped_payload["credit_limit"] = _Decimal(str(payload["creditLimit"]))
     return UpdateCustomerRequest(**mapped_payload)
 
 
@@ -242,12 +247,13 @@ async def workspace_export_order(
 @router.post("/orders")
 async def workspace_create_order(
     customerId: str = Form(...),
-    glassType: str = Form(...),
-    thickness: str = Form(...),
-    quantity: int = Form(...),
+    glassType: str | None = Form(default=None),
+    thickness: str | None = Form(default=None),
+    quantity: int | None = Form(default=None),
     priority: str = Form("normal"),
     estimatedCompletionDate: str | None = Form(None),
     specialInstructions: str = Form(""),
+    itemsJson: str | None = Form(default=None),
     drawing: UploadFile | None = File(default=None),
     auth_user: AuthUser = Depends(workspace_guard),
     session: AsyncSession = Depends(get_db_session),
@@ -269,6 +275,7 @@ async def workspace_create_order(
             priority=priority,
             estimated_completion_date=estimatedCompletionDate,
             special_instructions=specialInstructions,
+            items_json=itemsJson,
             drawing=drawing,
             idempotency_key=effective_idempotency_key,
         )
@@ -733,3 +740,43 @@ async def workspace_email_logs(
 ) -> dict[str, Any]:
     _assert_workspace_office_or_manager(auth_user)
     return {"logs": await workspace_settings.list_email_logs(session, limit=limit)}
+
+
+@router.post("/inventory/adjustments")
+async def workspace_adjust_inventory(
+    payload: dict[str, Any] = Body(default_factory=dict),
+    auth_user: AuthUser = Depends(workspace_guard),
+    session: AsyncSession = Depends(get_db_session),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+) -> dict[str, Any]:
+    _assert_workspace_office_or_manager(auth_user, detail="当前角色无权执行库存调整。")
+    await _enforce_workspace_idempotency("inventory:adjustments", idempotency_key)
+
+    raw_quantity = payload.get("quantity")
+    try:
+        quantity = int(raw_quantity)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="数量必须是正整数。") from None
+
+    product_id = str(payload.get("productId") or payload.get("sku") or "").strip()
+    direction = str(payload.get("direction") or "").strip().lower()
+    reason = str(payload.get("reason") or payload.get("remark") or "")
+    reference_no = str(payload.get("referenceNo") or payload.get("refNo") or "") or None
+
+    if not product_id:
+        raise HTTPException(status_code=400, detail="请选择需要调整的物料。")
+
+    try:
+        snapshot = await inventory_service.adjust_stock(
+            session,
+            product_id=product_id,
+            direction=direction,
+            quantity=quantity,
+            actor_user_id=auth_user.user_id,
+            reason=reason,
+            reference_no=reference_no,
+        )
+    except AppError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
+
+    return {"inventory": snapshot.model_dump(mode="json")}

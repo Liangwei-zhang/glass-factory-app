@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -29,6 +30,109 @@ WORKSPACE_DEFAULT_CREDIT_LIMIT = DEFAULT_CUSTOMER_CREDIT_LIMIT
 
 def normalize_piece_numbers(raw_pieces: Any) -> list[int]:
     return [int(item) for item in (raw_pieces or []) if str(item).isdigit()]
+
+
+def _parse_workspace_order_item_rows(
+    *,
+    items_json: str | None,
+    glass_type: str | None,
+    thickness: str | None,
+    quantity: int | None,
+    special_instructions: str,
+) -> list[dict[str, Any]]:
+    if items_json:
+        try:
+            raw_rows = json.loads(items_json)
+        except json.JSONDecodeError as exc:
+            raise AppError(
+                code=ErrorCode.VALIDATION_ERROR,
+                message="itemsJson 不是合法 JSON。",
+                status_code=400,
+            ) from exc
+
+        if not isinstance(raw_rows, list) or not raw_rows:
+            raise AppError(
+                code=ErrorCode.VALIDATION_ERROR,
+                message="itemsJson 至少要包含一条明细。",
+                status_code=400,
+            )
+
+        normalized_rows: list[dict[str, Any]] = []
+        for index, raw in enumerate(raw_rows, start=1):
+            if not isinstance(raw, dict):
+                raise AppError(
+                    code=ErrorCode.VALIDATION_ERROR,
+                    message="itemsJson 明细格式错误。",
+                    status_code=400,
+                    details={"row": index},
+                )
+
+            row_glass_type = str(raw.get("glass_type") or raw.get("glassType") or "").strip()
+            row_specification = str(
+                raw.get("thickness") or raw.get("specification") or ""
+            ).strip()
+
+            try:
+                row_quantity = int(raw.get("quantity") or 0)
+                row_width_mm = int(raw.get("width_mm") or raw.get("widthMm") or 1000)
+                row_height_mm = int(raw.get("height_mm") or raw.get("heightMm") or 1000)
+            except (TypeError, ValueError) as exc:
+                raise AppError(
+                    code=ErrorCode.VALIDATION_ERROR,
+                    message="明细数量和尺寸必须是数字。",
+                    status_code=400,
+                    details={"row": index},
+                ) from exc
+
+            if row_quantity <= 0:
+                raise AppError(
+                    code=ErrorCode.VALIDATION_ERROR,
+                    message="数量必须大于 0。",
+                    status_code=400,
+                    details={"row": index},
+                )
+            if row_width_mm <= 0 or row_height_mm <= 0:
+                raise AppError(
+                    code=ErrorCode.VALIDATION_ERROR,
+                    message="宽高必须大于 0。",
+                    status_code=400,
+                    details={"row": index},
+                )
+
+            normalized_rows.append(
+                {
+                    "glass_type": row_glass_type or "Clear",
+                    "specification": row_specification or "6mm",
+                    "quantity": row_quantity,
+                    "width_mm": row_width_mm,
+                    "height_mm": row_height_mm,
+                    "process_requirements": str(
+                        raw.get("process_requirements")
+                        or raw.get("processRequirements")
+                        or special_instructions
+                    ).strip(),
+                }
+            )
+
+        return normalized_rows
+
+    if quantity is None or quantity <= 0:
+        raise AppError(
+            code=ErrorCode.VALIDATION_ERROR,
+            message="数量必须大于 0。",
+            status_code=400,
+        )
+
+    return [
+        {
+            "glass_type": (glass_type or "").strip() or "Clear",
+            "specification": (thickness or "").strip() or "6mm",
+            "quantity": int(quantity),
+            "width_mm": 1000,
+            "height_mm": 1000,
+            "process_requirements": special_instructions,
+        }
+    ]
 
 
 def order_matches_filters(
@@ -175,13 +279,14 @@ async def create_workspace_order(
     session: AsyncSession,
     *,
     customer_id: str,
-    glass_type: str,
-    thickness: str,
-    quantity: int,
+    glass_type: str | None,
+    thickness: str | None,
+    quantity: int | None,
     priority: str,
     estimated_completion_date: str | None,
     special_instructions: str,
     drawing: UploadFile | None,
+    items_json: str | None = None,
     idempotency_key: str | None = None,
 ) -> dict[str, Any]:
     customer = await session.get(CustomerModel, customer_id)
@@ -196,14 +301,36 @@ async def create_workspace_order(
     if ensure_workspace_customer_credit_limit(customer):
         await session.flush()
 
-    if quantity <= 0:
-        raise AppError(
-            code=ErrorCode.VALIDATION_ERROR,
-            message="数量必须大于 0。",
-            status_code=400,
+    item_rows = _parse_workspace_order_item_rows(
+        items_json=items_json,
+        glass_type=glass_type,
+        thickness=thickness,
+        quantity=quantity,
+        special_instructions=special_instructions,
+    )
+
+    create_items: list[CreateOrderItem] = []
+    for row in item_rows:
+        product = await ui_support.ensure_product_inventory(
+            session,
+            row["glass_type"],
+            row["specification"],
+            row["quantity"],
+        )
+        create_items.append(
+            CreateOrderItem(
+                product_id=product.id,
+                product_name=product.product_name,
+                glass_type=row["glass_type"],
+                specification=row["specification"],
+                width_mm=row["width_mm"],
+                height_mm=row["height_mm"],
+                quantity=row["quantity"],
+                unit_price=Decimal("1.00"),
+                process_requirements=row["process_requirements"],
+            )
         )
 
-    product = await ui_support.ensure_product_inventory(session, glass_type, thickness, quantity)
     request_payload = CreateOrderRequest(
         customer_id=customer.id,
         delivery_address=customer.address or "factory-pickup",
@@ -211,19 +338,7 @@ async def create_workspace_order(
         priority=priority,
         remark=special_instructions,
         idempotency_key=idempotency_key,
-        items=[
-            CreateOrderItem(
-                product_id=product.id,
-                product_name=product.product_name,
-                glass_type=glass_type.strip() or "Clear",
-                specification=thickness.strip() or "6mm",
-                width_mm=1000,
-                height_mm=1000,
-                quantity=quantity,
-                unit_price=Decimal("1.00"),
-                process_requirements=special_instructions,
-            )
-        ],
+        items=create_items,
     )
     order_view = await orders_service.create_order(session, request_payload)
 

@@ -10,6 +10,7 @@ from infra.db.models.notifications import NotificationModel
 from infra.db.models.users import UserModel
 from infra.db.session import build_session_factory
 from infra.events.topics import Topics
+from infra.security.identity import resolve_canonical_role
 
 HANDLED_TOPICS = {
     Topics.ORDER_CREATED,
@@ -21,7 +22,10 @@ HANDLED_TOPICS = {
     Topics.ORDER_PICKED_UP,
     Topics.ORDER_CANCELLED,
     Topics.PRODUCTION_SCHEDULED,
+    Topics.PRODUCTION_STARTED,
     Topics.PRODUCTION_COMPLETED,
+    Topics.PRODUCTION_REWORK_REQUESTED,
+    Topics.PRODUCTION_REWORK_ACKNOWLEDGED,
     Topics.LOGISTICS_SHIPPED,
     Topics.LOGISTICS_DELIVERED,
     Topics.INVENTORY_LOW_STOCK,
@@ -54,8 +58,14 @@ def _build_notification(event: EventOutboxModel) -> tuple[str, str, str]:
         line_id = str(payload.get("line_id") or "")
         line_suffix = f" on line {line_id}" if line_id else ""
         return "Production scheduled", f"Work order {order_no} is scheduled{line_suffix}.", "info"
+    if event.topic == Topics.PRODUCTION_STARTED:
+        return "Production started", f"Work order {order_no} has started.", "info"
     if event.topic == Topics.PRODUCTION_COMPLETED:
         return "Production completed", f"Work order {order_no} is completed.", "success"
+    if event.topic == Topics.PRODUCTION_REWORK_REQUESTED:
+        return "Rework requested", f"Work order {order_no} requested rework.", "warning"
+    if event.topic == Topics.PRODUCTION_REWORK_ACKNOWLEDGED:
+        return "Rework acknowledged", f"Work order {order_no} rework was acknowledged.", "info"
     if event.topic == Topics.LOGISTICS_SHIPPED:
         return "Shipment dispatched", f"Order {order_no} is in transit.", "info"
     if event.topic == Topics.LOGISTICS_DELIVERED:
@@ -71,12 +81,60 @@ def _build_notification(event: EventOutboxModel) -> tuple[str, str, str]:
     return "System event", f"Event {event.topic} received.", "info"
 
 
-def _resolve_target_user_ids(event: EventOutboxModel, active_user_ids: set[str]) -> list[str]:
+def _resolve_target_user_ids(event: EventOutboxModel, active_users: list[UserModel]) -> list[str]:
     payload = event.payload or {}
+    active_user_ids = {str(user.id) for user in active_users}
     requested_ids = payload.get("notify_user_ids")
     if isinstance(requested_ids, list):
         return [str(user_id) for user_id in requested_ids if str(user_id) in active_user_ids]
-    return sorted(active_user_ids)
+
+    manager_like_ids = {
+        str(user.id)
+        for user in active_users
+        if resolve_canonical_role(user.role) in {"manager", "admin", "super_admin"}
+    }
+    office_ids = {
+        str(user.id)
+        for user in active_users
+        if resolve_canonical_role(user.role) == "operator" and not user.stage
+    }
+
+    internal_ops_topics = {
+        Topics.ORDER_CREATED,
+        Topics.ORDER_CONFIRMED,
+        Topics.ORDER_ENTERED,
+        Topics.ORDER_PRODUCING,
+        Topics.ORDER_COMPLETED,
+        Topics.ORDER_READY_FOR_PICKUP,
+        Topics.ORDER_PICKED_UP,
+        Topics.ORDER_CANCELLED,
+        Topics.LOGISTICS_SHIPPED,
+        Topics.LOGISTICS_DELIVERED,
+        Topics.INVENTORY_LOW_STOCK,
+    }
+
+    if event.topic in internal_ops_topics:
+        return sorted(manager_like_ids | office_ids)
+
+    if event.topic in {
+        Topics.PRODUCTION_SCHEDULED,
+        Topics.PRODUCTION_STARTED,
+        Topics.PRODUCTION_COMPLETED,
+        Topics.PRODUCTION_REWORK_REQUESTED,
+        Topics.PRODUCTION_REWORK_ACKNOWLEDGED,
+    }:
+        target_stage = str(payload.get("step_key") or payload.get("process_step_key") or "").strip()
+        if event.topic == Topics.PRODUCTION_REWORK_REQUESTED:
+            target_stage = "cutting"
+        stage_operator_ids = {
+            str(user.id)
+            for user in active_users
+            if resolve_canonical_role(user.role) == "operator"
+            and (user.stage or "").strip().lower() == target_stage.lower()
+        }
+        return sorted((manager_like_ids | stage_operator_ids) or manager_like_ids)
+
+    return sorted(manager_like_ids or active_user_ids)
 
 
 async def run_once(batch_size: int = 200) -> int:
@@ -100,16 +158,16 @@ async def run_once(batch_size: int = 200) -> int:
             return 0
 
         user_result = await session.execute(
-            select(UserModel.id).where(UserModel.is_active.is_(True))
+            select(UserModel).where(UserModel.is_active.is_(True))
         )
-        active_user_ids = {str(user_id) for user_id in user_result.scalars().all()}
+        active_users = list(user_result.scalars().all())
 
         sent_count = 0
         dispatch_time = datetime.now(timezone.utc).isoformat()
         for event in pending_rows:
             title, message, severity = _build_notification(event)
             order_id = event.payload.get("order_id") if isinstance(event.payload, dict) else None
-            target_user_ids = _resolve_target_user_ids(event, active_user_ids)
+            target_user_ids = _resolve_target_user_ids(event, active_users)
 
             for user_id in target_user_ids:
                 session.add(

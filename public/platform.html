@@ -1,22 +1,2392 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-CN">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#102a43" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="description" content="钢化玻璃工厂业务操作端。" />
-    <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/styles.css" />
-    <title>Glass Factory Platform</title>
-  </head>
-  <body data-shell="platform">
-    <div class="ambient ambient-a"></div>
-    <div class="ambient ambient-b"></div>
-    <div class="grid-sheen"></div>
-    <div id="app"></div>
-    <script type="module" src="/app.js"></script>
-  </body>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Glass Factory — 生产业务操作端</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<script src="https://unpkg.com/element-plus/dist/index.full.js"></script>
+<script src="https://unpkg.com/@element-plus/icons-vue/dist/index.iife.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+[v-cloak] { display: none; }
+:root {
+  --primary: #1e40af;
+  --primary-v: #2563eb;
+  --accent: #0ea5e9;
+  --success: #16a34a;
+  --warn: #d97706;
+  --danger: #dc2626;
+  --border: #e2e8f0;
+  --sidebar-bg: #0f172a;
+  --sidebar-w: 200px;
+  --header-h: 56px;
+  --text: #1e293b;
+  --text-2: #64748b;
+  --bg: #f1f5f9;
+}
+html, body { height: 100%; background: var(--bg); font-family: -apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif; color: var(--text); }
+[v-cloak] { display: none; }
+
+/* ── LAYOUT ── */
+.layout { display: flex; height: 100vh; overflow: hidden; }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width: var(--sidebar-w); background: var(--sidebar-bg);
+  display: flex; flex-direction: column;
+  flex-shrink: 0; overflow: hidden;
+  transition: width .2s;
+}
+.sidebar.collapsed { width: 60px; }
+.sidebar-logo {
+  height: var(--header-h);
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 16px; border-bottom: 1px solid #1e2d4a;
+  cursor: pointer; flex-shrink: 0;
+}
+.logo-badge {
+  width: 30px; height: 30px; background: linear-gradient(135deg, var(--accent) 0%, var(--primary-v) 100%);
+  border-radius: 8px; display: flex; align-items: center; justify-content: center;
+  color: #fff; font-weight: 800; font-size: 15px; flex-shrink: 0;
+}
+.logo-text { color: #e2e8f0; font-size: 14px; font-weight: 600; white-space: nowrap; }
+.sidebar-nav { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 8px 0; }
+.sidebar-nav::-webkit-scrollbar { width: 3px; }
+.sidebar-nav::-webkit-scrollbar-thumb { background: #1e2d4a; }
+.nav-group-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: #475569; padding: 14px 16px 4px; white-space: nowrap; overflow: hidden; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px; cursor: pointer; border-radius: 0;
+  transition: all .15s; white-space: nowrap; overflow: hidden;
+  font-size: 14px; color: #94a3b8;
+  border-left: 3px solid transparent;
+}
+.nav-item:hover { color: #e2e8f0; background: #1e2d4a; }
+.nav-item.active { color: #fff; background: #1e3a5f; border-left-color: var(--accent); }
+.nav-icon { font-size: 18px; flex-shrink: 0; }
+.sidebar-bottom { padding: 12px 12px; border-top: 1px solid #1e2d4a; flex-shrink: 0; }
+.user-chip { display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 8px; background: #1e2d4a; cursor: pointer; }
+.user-ava { width: 28px; height: 28px; border-radius: 50%; background: var(--primary-v); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 11px; font-weight: 600; flex-shrink: 0; }
+.user-info { overflow: hidden; }
+.user-name { font-size: 12px; font-weight: 600; color: #e2e8f0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.user-role { font-size: 10px; color: #64748b; }
+
+/* ── MAIN ── */
+.main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.topbar {
+  height: var(--header-h); background: #fff; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 20px; flex-shrink: 0;
+}
+.page-title { font-size: 16px; font-weight: 700; color: var(--text); }
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+.content { flex: 1; overflow-y: auto; padding: 20px; }
+
+/* ── CARDS ── */
+.card { background: #fff; border-radius: 10px; border: 1px solid var(--border); }
+.card-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border); }
+.card-title { font-size: 15px; font-weight: 600; color: var(--text); }
+.card-body { padding: 16px 18px; }
+
+/* ── STATUS BADGES ── */
+.badge { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 500; }
+.badge.pending   { background: #fdf6ec; color: #d97706; }
+.badge.confirmed { background: #eff6ff; color: #2563eb; }
+.badge.producing { background: #f0fdf4; color: #16a34a; }
+.badge.produced  { background: #ecfdf5; color: #059669; }
+.badge.shipping  { background: #f0fdfa; color: #0d9488; }
+.badge.completed { background: #f8fafc; color: #64748b; }
+.badge.cancelled { background: #fef2f2; color: #dc2626; }
+.badge.received  { background: #fdf6ec; color: #d97706; }
+.badge.entered   { background: #eff6ff; color: #2563eb; }
+.badge.in_production { background: #f0fdf4; color: #16a34a; }
+.badge.ready_for_pickup { background: #eef2ff; color: #4f46e5; }
+.badge.picked_up { background: #ecfdf5; color: #16a34a; }
+.badge.pass      { background: #f0fdf4; color: #16a34a; }
+.badge.fail      { background: #fef2f2; color: #dc2626; }
+.badge.queued    { background: #f1f5f9; color: #475569; }
+.badge.active    { background: #eff6ff; color: #2563eb; }
+
+/* ── ORDER CONFIRM ── */
+.order-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+.order-panel { background: #fff; border-radius: 10px; border: 1px solid var(--border); overflow: hidden; transition: box-shadow .15s; }
+.order-panel:hover { box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+.order-panel-head { padding: 12px 16px; background: #f8fafc; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+.order-num { font-size: 13px; font-weight: 700; color: var(--primary-v); }
+.order-panel-body { padding: 12px 16px; }
+.order-row { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; }
+.order-row span { color: var(--text-2); }
+.order-row strong { color: var(--text); }
+.order-actions { padding: 10px 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
+
+/* ── KANBAN ── */
+.kanban-wrap { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.kanban-col { background: #f8fafc; border-radius: 10px; padding: 12px; border: 1px solid var(--border); min-height: 320px; }
+.kanban-col-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 13px; font-weight: 600; color: var(--text-2); }
+.wo-card { background: #fff; border-radius: 8px; padding: 12px; margin-bottom: 8px; border: 1px solid var(--border); border-left: 3px solid transparent; cursor: pointer; transition: all .15s; }
+.wo-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.08); transform: translateY(-1px); }
+.wo-card.active { border-left-color: var(--accent); }
+.wo-card.warn { border-left-color: var(--warn); }
+.wo-card.done { border-left-color: var(--success); opacity: .85; }
+.wo-no { font-size: 12px; font-weight: 700; color: var(--primary-v); }
+.wo-product { font-size: 13px; color: var(--text); margin: 3px 0; font-weight: 500; }
+.wo-meta { font-size: 11px; color: var(--text-2); display: flex; justify-content: space-between; }
+.wo-prog-bar { height: 4px; background: #e2e8f0; border-radius: 2px; margin-top: 8px; }
+.wo-prog { height: 4px; border-radius: 2px; }
+
+/* ── INVENTORY TABLE ── */
+.inv-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+.inv-mini { background: #fff; border-radius: 8px; border: 1px solid var(--border); padding: 14px; }
+.inv-mini-num { font-size: 20px; font-weight: 700; }
+.inv-mini-label { font-size: 12px; color: var(--text-2); margin-top: 3px; }
+
+/* ── QC FORM ── */
+.qc-form-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.qc-section { background: #fff; border-radius: 10px; border: 1px solid var(--border); }
+.qc-recent th { background: #f8fafc; }
+
+/* ── SHIPPING ── */
+.ship-tabs { display: flex; gap: 0; margin-bottom: 16px; background: #fff; border-radius: 8px; border: 1px solid var(--border); overflow: hidden; }
+.ship-tab { flex: 1; padding: 10px; text-align: center; cursor: pointer; font-size: 13px; font-weight: 500; color: var(--text-2); transition: all .15s; }
+.ship-tab.active { background: var(--primary-v); color: #fff; }
+
+/* ── CUSTOMER ── */
+.cus-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+.cus-card { background: #fff; border-radius: 10px; border: 1px solid var(--border); padding: 16px; }
+.cus-name { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+.cus-row { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; }
+.cus-row span { color: var(--text-2); }
+.cus-row strong { color: var(--text); }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 1100px) { .order-grid { grid-template-columns: 1fr; } .kanban-wrap { grid-template-columns: repeat(2,1fr); } }
+@media (max-width: 800px)  { .inv-summary { grid-template-columns: repeat(2,1fr); } .cus-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div id="app" v-cloak>
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar" :class="{collapsed: sideCollapsed}">
+    <div class="sidebar-logo" @click="sideCollapsed=!sideCollapsed">
+      <div class="logo-badge">G</div>
+      <span class="logo-text" v-show="!sideCollapsed">业务操作台</span>
+    </div>
+    <div class="sidebar-nav">
+      <div class="nav-group-label" v-show="!sideCollapsed">订单业务</div>
+      <div class="nav-item" :class="{active: page==='order-confirm'}" @click="page='order-confirm'">
+        <el-icon class="nav-icon"><document-checked></document-checked></el-icon>
+        <span v-show="!sideCollapsed">订单确认</span>
+      </div>
+      <div class="nav-item" :class="{active: page==='order-entry'}" @click="page='order-entry'">
+        <el-icon class="nav-icon"><document-add></document-add></el-icon>
+        <span v-show="!sideCollapsed">订单录入</span>
+      </div>
+
+      <div class="nav-group-label" v-show="!sideCollapsed">生产管理</div>
+      <div class="nav-item" :class="{active: page==='prod-kanban'}" @click="page='prod-kanban'">
+        <el-icon class="nav-icon"><grid></grid></el-icon>
+        <span v-show="!sideCollapsed">排产看板</span>
+      </div>
+      <div class="nav-item" :class="{active: page==='qc'}" @click="page='qc'">
+        <el-icon class="nav-icon"><finished></finished></el-icon>
+        <span v-show="!sideCollapsed">质检录入</span>
+      </div>
+
+      <div class="nav-group-label" v-show="!sideCollapsed">仓储物流</div>
+      <div class="nav-item" :class="{active: page==='inventory'}" @click="page='inventory'">
+        <el-icon class="nav-icon"><box></box></el-icon>
+        <span v-show="!sideCollapsed">库存管理</span>
+      </div>
+      <div class="nav-item" :class="{active: page==='shipping'}" @click="page='shipping'">
+        <el-icon class="nav-icon"><van></van></el-icon>
+        <span v-show="!sideCollapsed">发货管理</span>
+      </div>
+      <div class="nav-item" :class="{active: page==='pickup'}" @click="page='pickup'">
+        <el-icon class="nav-icon"><edit-pen></edit-pen></el-icon>
+        <span v-show="!sideCollapsed">提货签字</span>
+      </div>
+
+      <div class="nav-group-label" v-show="!sideCollapsed">客户</div>
+      <div class="nav-item" :class="{active: page==='customers'}" @click="page='customers'">
+        <el-icon class="nav-icon"><user-filled></user-filled></el-icon>
+        <span v-show="!sideCollapsed">客户管理</span>
+      </div>
+
+      <div class="nav-group-label" v-show="!sideCollapsed">配置</div>
+      <div class="nav-item" :class="{active: page==='settings'}" @click="page='settings'">
+        <el-icon class="nav-icon"><setting></setting></el-icon>
+        <span v-show="!sideCollapsed">业务配置</span>
+      </div>
+    </div>
+    <div class="sidebar-bottom" v-show="!sideCollapsed">
+      <div class="user-chip">
+        <div class="user-ava">{{ userInitial }}</div>
+        <div class="user-info">
+          <div class="user-name">{{ displayUserName }}</div>
+          <div class="user-role">{{ displayRoleText }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <el-button :icon="sideCollapsed ? 'Expand' : 'Fold'" text circle @click="sideCollapsed=!sideCollapsed"></el-button>
+        <div class="page-title">{{ pageTitles[page] }}</div>
+      </div>
+      <div class="topbar-right">
+        <el-select v-model="locale" size="small" style="width:110px">
+          <el-option label="中文" value="zh-CN"></el-option>
+          <el-option label="English" value="en-US"></el-option>
+        </el-select>
+        <el-tag type="info" size="small">
+          <el-icon><clock></clock></el-icon> {{ currentTime }}
+        </el-tag>
+        <el-badge :value="alertBadge" :hidden="alertBadge===0">
+          <el-button :icon="'Bell'" text circle @click="markNotificationsRead"></el-button>
+        </el-badge>
+        <el-button text @click="logout">退出</el-button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ===== ORDER CONFIRM ===== -->
+      <div v-show="page==='order-confirm'">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+          <div>
+            <el-badge :value="pendingOrders.length" type="warning">
+              <span style="font-size:15px;font-weight:600;color:var(--text)">待确认订单</span>
+            </el-badge>
+          </div>
+          <el-button type="primary" size="small" :icon="'Refresh'" @click="loadAllData">刷新</el-button>
+        </div>
+        <div class="order-grid">
+          <div class="order-panel" v-for="o in pendingOrders" :key="o.id">
+            <div class="order-panel-head">
+              <div>
+                <div class="order-num">{{ o.order_no }}</div>
+                <div style="font-size:11px;color:var(--text-2);margin-top:1px">下单时间：{{ o.created_at }}</div>
+              </div>
+              <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+                <span :class="'badge ' + o.status">{{ statusLabel(o.status) }}</span>
+                <el-tag v-if="o.is_modified" type="warning" size="small">修改</el-tag>
+                <el-tag v-if="o.is_stale" type="danger" size="small">超时 {{ o.stale_days }} 天</el-tag>
+                <el-tag v-if="o.rework_open" type="danger" size="small">返工</el-tag>
+              </div>
+            </div>
+            <div class="order-panel-body">
+              <div class="order-row"><span>客户</span><strong>{{ o.customer_name }}</strong></div>
+              <div class="order-row"><span>产品概况</span><strong>{{ o.product_summary }}</strong></div>
+              <div class="order-row"><span>总面积</span><strong>{{ o.total_area }} ㎡</strong></div>
+              <div class="order-row"><span>金额</span><strong>¥ {{ formatMoney(o.amount) }}</strong></div>
+              <div class="order-row"><span>期望交货</span><strong style="color:var(--warn)">{{ o.delivery_date }}</strong></div>
+              <div class="order-row"><span>收货地址</span><strong style="font-size:12px">{{ o.delivery_address }}</strong></div>
+              <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+                <div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:6px">明细行</div>
+                <div v-for="it in o.items" :key="it.glass_type+it.width_mm" style="font-size:12px;color:var(--text);padding:2px 0;display:flex;justify-content:space-between">
+                  <span>{{ it.glass_type }} {{it.width_mm}}×{{it.height_mm}}mm</span>
+                  <span style="color:var(--text-2)">× {{ it.quantity }} 件 · {{ ((it.width_mm*it.height_mm*it.quantity)/1e6).toFixed(2) }}㎡</span>
+                </div>
+              </div>
+            </div>
+            <div class="order-actions">
+              <el-button type="success" size="small" :icon="'Check'" @click="confirmOrd(o)" style="flex:1">确认订单</el-button>
+              <el-button type="warning" size="small" :icon="'EditPen'" @click="openAdjustDlg(o)" plain>编辑订单</el-button>
+              <el-button type="danger" size="small" :icon="'Close'" plain @click="rejectOrd(o)">拒绝</el-button>
+            </div>
+          </div>
+        </div>
+        <div v-show="pendingOrders.length===0" style="text-align:center;padding:60px">
+          <el-empty description="所有订单已处理完毕" :image-size="80"></el-empty>
+        </div>
+      </div>
+
+      <!-- ===== ORDER ENTRY ===== -->
+      <div v-show="page==='order-entry'">
+        <div class="card" style="margin-bottom:18px">
+          <div class="card-header">
+            <span class="card-title">录入新订单</span>
+          </div>
+          <div class="card-body">
+            <el-form :model="entryOrder" label-width="100px" size="default">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 24px">
+                <el-form-item label="选择客户">
+                  <el-select v-model="entryOrder.customer_id" placeholder="选择客户" filterable style="width:100%">
+                    <el-option v-for="c in customerList" :key="c.id" :label="c.name" :value="c.id"></el-option>
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="交货日期">
+                  <el-date-picker v-model="entryOrder.delivery_date" type="date" placeholder="期望交货日期" style="width:100%"></el-date-picker>
+                </el-form-item>
+                <el-form-item label="优先级">
+                  <el-select v-model="entryOrder.priority" placeholder="选择优先级" style="width:100%">
+                    <el-option v-for="p in priorityOptions" :key="p.value" :label="p.label" :value="p.value"></el-option>
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="收货地址" style="grid-column:1/-1">
+                  <el-input v-model="entryOrder.delivery_address" placeholder="详细地址" clearable></el-input>
+                </el-form-item>
+                <el-form-item label="联系人">
+                  <el-input v-model="entryOrder.contact_name" placeholder="收货联系人" clearable></el-input>
+                </el-form-item>
+                <el-form-item label="联系电话">
+                  <el-input v-model="entryOrder.contact_phone" placeholder="联系电话" clearable></el-input>
+                </el-form-item>
+                <el-form-item label="备注" style="grid-column:1/-1">
+                  <el-input v-model="entryOrder.remark" type="textarea" :rows="2" placeholder="工艺要求或备注"></el-input>
+                </el-form-item>
+                <el-form-item label="图纸文件" style="grid-column:1/-1">
+                  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;width:100%">
+                    <input
+                      ref="entryDrawingInput"
+                      type="file"
+                      accept=".pdf,image/*"
+                      @change="handleEntryDrawingChange"
+                      style="max-width:320px"
+                    />
+                    <span style="font-size:12px;color:var(--text-2)">{{ entryDrawingFileName || '未选择文件（支持 PDF / 图片）' }}</span>
+                    <el-button size="small" plain :disabled="!entryDrawingFileName" @click="clearEntryDrawing">清除</el-button>
+                  </div>
+                </el-form-item>
+              </div>
+              <div style="margin-top:4px">
+                <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px">产品明细</div>
+                <table style="width:100%;border-collapse:collapse">
+                  <thead>
+                    <tr style="background:#f8fafc">
+                      <th style="padding:8px 10px;text-align:left;font-size:12px;font-weight:600;color:var(--text-2);border-bottom:1px solid var(--border)">玻璃种类</th>
+                      <th style="padding:8px 10px;text-align:left;font-size:12px;font-weight:600;color:var(--text-2);border-bottom:1px solid var(--border)">厚度</th>
+                      <th style="padding:8px 10px;text-align:left;font-size:12px;font-weight:600;color:var(--text-2);border-bottom:1px solid var(--border);">宽(mm)</th>
+                      <th style="padding:8px 10px;text-align:left;font-size:12px;font-weight:600;color:var(--text-2);border-bottom:1px solid var(--border)">高(mm)</th>
+                      <th style="padding:8px 10px;text-align:left;font-size:12px;font-weight:600;color:var(--text-2);border-bottom:1px solid var(--border)">数量</th>
+                      <th style="padding:8px 10px;text-align:left;font-size:12px;font-weight:600;color:var(--text-2);border-bottom:1px solid var(--border)">工艺要求</th>
+                      <th style="padding:8px 10px;border-bottom:1px solid var(--border)"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(it,i) in entryOrder.items" :key="i" style="border-bottom:1px solid #f1f5f9">
+                      <td style="padding:5px 8px">
+                        <el-select v-model="it.glass_type" size="small" style="width:130px">
+                          <el-option v-for="t in glassTypes" :key="t" :label="t" :value="t"></el-option>
+                        </el-select>
+                      </td>
+                      <td style="padding:5px 8px">
+                        <el-select v-model="it.thickness" size="small" style="width:80px">
+                          <el-option v-for="t in thicknesses" :key="t" :label="thicknessLabel(t)" :value="t"></el-option>
+                        </el-select>
+                      </td>
+                      <td style="padding:5px 8px"><el-input-number v-model="it.width_mm" :min="100" :max="5000" size="small" style="width:100px" controls-position="right"></el-input-number></td>
+                      <td style="padding:5px 8px"><el-input-number v-model="it.height_mm" :min="100" :max="5000" size="small" style="width:100px" controls-position="right"></el-input-number></td>
+                      <td style="padding:5px 8px"><el-input-number v-model="it.quantity" :min="1" size="small" style="width:80px" controls-position="right"></el-input-number></td>
+                      <td style="padding:5px 8px"><el-input v-model="it.process_requirements" size="small" style="width:180px" placeholder="磨边/钢化/均质…"></el-input></td>
+                      <td style="padding:5px 8px"><el-button :icon="'Delete'" circle size="small" type="danger" text :disabled="entryOrder.items.length===1" @click="entryOrder.items.splice(i,1)"></el-button></td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div style="text-align:center;padding:8px;border-top:1px dashed var(--border);cursor:pointer;color:var(--primary-v);font-size:13px" @click="addEntryItem">
+                  <el-icon><plus></plus></el-icon> 添加行
+                </div>
+              </div>
+            </el-form>
+          </div>
+          <div style="padding:14px 18px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px">
+            <el-button size="default" @click="resetEntry">清空</el-button>
+            <el-button size="default" type="primary" :icon="'DocumentAdd'" @click="submitEntry">提交订单</el-button>
+          </div>
+        </div>
+
+        <!-- Recent Orders Table -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">今日录入记录</span>
+          </div>
+          <div class="card-body" style="padding:0">
+            <el-table :data="todayEntries" stripe size="small">
+              <el-table-column prop="order_no" label="订单编号" width="175"></el-table-column>
+              <el-table-column prop="customer_name" label="客户" width="140"></el-table-column>
+              <el-table-column prop="product_summary" label="产品" min-width="120"></el-table-column>
+              <el-table-column prop="total_area" label="面积(㎡)" width="90" align="right"></el-table-column>
+              <el-table-column label="状态" width="90">
+                <template #default="{ row }">
+                  <span :class="'badge ' + row.status">{{ statusLabel(row.status) }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="created_at" label="录入时间" width="115"></el-table-column>
+            </el-table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== PROD KANBAN ===== -->
+      <div v-show="page==='prod-kanban'">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+          <div style="font-size:14px;color:var(--text-2)">今日排产 — {{ todayStr }} · 在产工单 <strong style="color:var(--text)">{{ totalActiveWO }}</strong> 个</div>
+          <div style="display:flex;gap:8px">
+            <el-select v-model="productionViewMode" placeholder="展示方式" style="width:150px" size="small">
+              <el-option label="工序看板" value="status"></el-option>
+              <el-option label="规格分组" value="classified"></el-option>
+            </el-select>
+            <el-select v-model="kanbanLine" placeholder="筛选工序" clearable style="width:150px" size="small">
+              <el-option v-for="l in prodLines" :key="l.id" :label="l.name" :value="l.id"></el-option>
+            </el-select>
+            <el-button type="primary" size="small" :icon="'Refresh'" @click="loadWorkOrders">刷新工序</el-button>
+          </div>
+        </div>
+        <div class="kanban-wrap" v-if="productionViewMode==='status'">
+          <div class="kanban-col" v-for="col in kanbanCols" :key="col.status">
+            <div class="kanban-col-head">
+              <span>{{ col.label }}</span>
+              <el-badge :value="col.cards.length" type="info"></el-badge>
+            </div>
+            <div class="wo-card" :class="{active: ['cutting','processing'].includes(c.statusKey), warn: isOverdue(c), done: c.statusKey==='qc'}" v-for="c in col.cards" :key="c.id" @click="openWODetail(c)">
+              <div class="wo-no">{{ c.work_order_no }}</div>
+              <div class="wo-product">{{ c.product_name }}</div>
+              <div style="font-size:12px;color:var(--text-2);margin-top:2px">{{ c.order_no }}</div>
+              <div v-if="c.reworkUnread" style="margin-top:6px;font-size:12px;color:#dc2626;font-weight:600">
+                返工通知：{{ c.reworkPieceSummary || `共 ${c.reworkCount || 0} 片` }}
+              </div>
+              <div class="wo-meta">
+                <span>{{ c.line }}</span>
+                <span :style="{color: isOverdue(c)?'#dc2626':''}">截止 {{ c.deadline }}</span>
+              </div>
+              <div v-if="c.progress!==undefined" class="wo-prog-bar">
+                <div class="wo-prog" :style="{width:c.progress+'%', background: c.progress===100?'#16a34a': isOverdue(c)?'#dc2626':'#2563eb'}"></div>
+              </div>
+              <div style="display:flex;justify-content:flex-end;margin-top:6px;gap:4px">
+                <el-button v-if="c.step_key==='cutting' && c.reworkUnread && canOperateWorkOrder(c)" size="small" type="warning" @click.stop="acknowledgeRework(c)" plain>返工已读</el-button>
+                <el-button v-if="c.statusKey==='queued' && canOperateWorkOrder(c)" size="small" type="primary" @click.stop="startWO(c)" plain>开工</el-button>
+                <el-button v-if="['cutting','processing'].includes(c.statusKey) && canOperateWorkOrder(c)" size="small" type="success" @click.stop="completeWO(c)" plain>完工</el-button>
+                <el-button v-if="c.statusKey==='qc'" size="small" type="warning" @click.stop="sendToQC(c)" plain>质检</el-button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card" v-else>
+          <div class="card-header">
+            <span class="card-title">工人视角：按日期 / 玻璃类型 / 厚度分类</span>
+          </div>
+          <div class="card-body" style="padding:0">
+            <el-table :data="workerClassifiedRows" stripe size="small">
+              <el-table-column prop="date" label="日期" width="120"></el-table-column>
+              <el-table-column prop="glass_type" label="玻璃类型" min-width="140"></el-table-column>
+              <el-table-column prop="specification" label="厚度" width="110"></el-table-column>
+              <el-table-column prop="work_order_count" label="工单数" width="90" align="right"></el-table-column>
+              <el-table-column prop="total_qty" label="总数量" width="90" align="right"></el-table-column>
+              <el-table-column prop="sample_orders" label="订单样例" min-width="200"></el-table-column>
+            </el-table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== QC ===== -->
+      <div v-show="page==='qc'">
+        <div class="qc-form-wrap">
+          <div class="card">
+            <div class="card-header"><span class="card-title">录入质检结果</span></div>
+            <div class="card-body">
+              <el-form :model="qcForm" label-width="100px" size="default">
+                <el-form-item label="工单号">
+                  <el-select v-model="qcForm.wo_id" placeholder="选择工单" filterable style="width:100%">
+                    <el-option v-for="w in qcableWOs" :key="w.id" :label="w.work_order_no + ' — ' + w.product_name" :value="w.id"></el-option>
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="批次数量">
+                  <el-input-number v-model="qcForm.batch_qty" :min="1" style="width:100%" controls-position="right"></el-input-number>
+                </el-form-item>
+                <el-form-item label="合格数量">
+                  <el-input-number v-model="qcForm.pass_qty" :min="0" :max="qcForm.batch_qty" style="width:100%" controls-position="right"></el-input-number>
+                </el-form-item>
+                <el-form-item label="良率">
+                  <el-input-number :model-value="qcYieldRate" :disabled="true" style="width:100%"></el-input-number>
+                </el-form-item>
+                <el-form-item label="质检结果">
+                  <el-radio-group v-model="qcForm.result">
+                    <el-radio label="pass">合格</el-radio>
+                    <el-radio label="fail">不合格</el-radio>
+                    <el-radio label="concession">让步接收</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+                <el-form-item label="缺陷类型" v-if="qcForm.result !== 'pass'">
+                  <el-checkbox-group v-model="qcForm.defects">
+                    <el-checkbox label="划伤">划伤</el-checkbox>
+                    <el-checkbox label="崩边">崩边</el-checkbox>
+                    <el-checkbox label="气泡">气泡</el-checkbox>
+                    <el-checkbox label="尺寸偏差">尺寸偏差</el-checkbox>
+                    <el-checkbox label="钢化不均">钢化不均</el-checkbox>
+                    <el-checkbox label="镀膜脱落">镀膜脱落</el-checkbox>
+                  </el-checkbox-group>
+                </el-form-item>
+                <el-form-item label="返工片号" v-if="qcForm.result==='fail' && selectedQcTarget && selectedQcTarget.step_key !== 'cutting'">
+                  <el-select v-model="qcForm.piece_numbers" multiple collapse-tags collapse-tags-tooltip placeholder="选择返工片号" style="width:100%">
+                    <el-option v-for="piece in qcReworkPieceOptions" :key="piece" :label="`第 ${piece} 片`" :value="piece"></el-option>
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="备注">
+                  <el-input v-model="qcForm.remark" type="textarea" :rows="2" placeholder="检验说明、处置建议…"></el-input>
+                </el-form-item>
+                <el-form-item>
+                  <el-button type="primary" :icon="'Check'" @click="submitQC">提交质检</el-button>
+                  <el-button @click="resetQC">清空</el-button>
+                </el-form-item>
+              </el-form>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">今日质检记录</span></div>
+            <div class="card-body" style="padding:0">
+              <el-table :data="qcRecords" stripe size="small">
+                <el-table-column prop="work_order_no" label="工单号" width="140"></el-table-column>
+                <el-table-column prop="product_name" label="产品" min-width="120"></el-table-column>
+                <el-table-column prop="yield_rate" label="良率" width="70" align="right">
+                  <template #default="{ row }">
+                    <span :style="{color:row.yield_rate<95?'#dc2626':row.yield_rate<98?'#d97706':'#16a34a', fontWeight:'600'}">{{ row.yield_rate }}%</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="结果" width="80">
+                  <template #default="{ row }">
+                    <span :class="'badge ' + row.result">{{ row.result_label }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="inspector" label="检验员" width="80"></el-table-column>
+                <el-table-column prop="checked_at" label="时间" width="90"></el-table-column>
+              </el-table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== INVENTORY ===== -->
+      <div v-show="page==='inventory'">
+        <div class="inv-summary">
+          <div class="inv-mini"><div class="inv-mini-num" style="color:#2563eb">{{ invStats.totalSKUs }}</div><div class="inv-mini-label">活跃SKU数</div></div>
+          <div class="inv-mini"><div class="inv-mini-num" style="color:#dc2626">{{ invStats.alertCount }}</div><div class="inv-mini-label">库存预警</div></div>
+          <div class="inv-mini"><div class="inv-mini-num" style="color:#16a34a">{{ invStats.todayIn }}</div><div class="inv-mini-label">可用库存件数</div></div>
+          <div class="inv-mini"><div class="inv-mini-num" style="color:#d97706">{{ invStats.todayOut }}</div><div class="inv-mini-label">预占库存件数</div></div>
+        </div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-header">
+            <span class="card-title">当前库存</span>
+            <div style="display:flex;gap:8px">
+              <el-button size="small" type="success" :icon="'Plus'" @click="openInventoryAdjust('in')">入库登记</el-button>
+              <el-button size="small" type="warning" :icon="'Minus'" @click="openInventoryAdjust('out')">出库登记</el-button>
+            </div>
+          </div>
+          <div class="card-body" style="padding:0">
+            <el-table :data="inventoryItems" stripe size="small">
+              <el-table-column prop="sku_code" label="SKU" width="130"></el-table-column>
+              <el-table-column prop="name" label="物料名称" min-width="160"></el-table-column>
+              <el-table-column prop="unit" label="单位" width="55" align="center"></el-table-column>
+              <el-table-column prop="qty_available" label="可用库存" width="90" align="right">
+                <template #default="{ row }">
+                  <span :style="{color:row.qty_available<=row.safety_stock?'#dc2626':'', fontWeight:row.qty_available<=row.safety_stock?'700':'400'}">{{ row.qty_available }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="qty_reserved" label="预占" width="70" align="right"></el-table-column>
+              <el-table-column prop="safety_stock" label="安全值" width="80" align="right"></el-table-column>
+              <el-table-column label="状态" width="90">
+                <template #default="{ row }">
+                  <el-tag v-if="row.qty_available<=row.safety_stock" type="danger" size="small">预警</el-tag>
+                  <el-tag v-else type="success" size="small">正常</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="updated_at" label="更新" width="90"></el-table-column>
+              <el-table-column label="操作" width="80">
+                <template #default>
+                  <el-button size="small" text type="primary">明细</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== SHIPPING ===== -->
+      <div v-show="page==='shipping'">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+          <!-- Create shipment -->
+          <div class="card">
+            <div class="card-header"><span class="card-title">新建发货计划</span></div>
+            <div class="card-body">
+              <el-form :model="shipForm" label-width="90px" size="default">
+                <el-form-item label="关联订单">
+                    <el-select v-model="shipForm.order_id" placeholder="选择待发货订单" filterable style="width:100%">
+                      <el-option v-for="o in shipableOrders" :key="o.id" :label="o.order_no + ' — ' + o.customer_name" :value="o.id"></el-option>
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="承运商">
+                  <el-input v-model="shipForm.carrier" placeholder="承运公司名称" clearable></el-input>
+                </el-form-item>
+                <el-form-item label="车牌号">
+                  <el-input v-model="shipForm.vehicle_no" placeholder="如：粤B·88888" clearable></el-input>
+                </el-form-item>
+                <el-form-item label="司机电话">
+                  <el-input v-model="shipForm.driver_phone" placeholder="司机联系电话" clearable></el-input>
+                </el-form-item>
+                <el-form-item label="计划发货">
+                  <el-date-picker v-model="shipForm.planned_date" type="datetime" placeholder="计划发货时间" style="width:100%"></el-date-picker>
+                </el-form-item>
+                <el-form-item label="备注">
+                  <el-input v-model="shipForm.remark" type="textarea" :rows="2" placeholder="特殊运输需求…"></el-input>
+                </el-form-item>
+                <el-form-item>
+                  <el-button type="primary" :icon="'Van'" @click="createShipment">创建发货单</el-button>
+                </el-form-item>
+              </el-form>
+            </div>
+          </div>
+          <!-- Shipment list -->
+          <div class="card">
+            <div class="card-header"><span class="card-title">发货记录</span></div>
+            <div class="card-body" style="padding:0">
+              <el-table :data="shipments" stripe size="small">
+                <el-table-column prop="tracking_no" label="运单号" width="130"></el-table-column>
+                <el-table-column prop="order_no" label="订单" width="160"></el-table-column>
+                <el-table-column prop="carrier" label="承运商" min-width="100"></el-table-column>
+                <el-table-column label="状态" width="90">
+                  <template #default="{ row }">
+                    <span :class="'badge ' + row.status">{{ statusLabel(row.status) }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="操作" width="120">
+                  <template #default="{ row }">
+                    <el-button v-if="row.status==='shipping'" size="small" type="success" text @click="markDelivered(row)">确认送达</el-button>
+                    <el-button v-else size="small" type="info" text>详情</el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== PICKUP ===== -->
+      <div v-show="page==='pickup'">
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+            <span class="card-title">提货审批与电子签字</span>
+            <div style="display:flex;gap:8px;align-items:center">
+              <el-input v-model="pickupSearch" placeholder="订单号 / 客户 / 手机 / 邮箱" clearable style="width:260px" :prefix-icon="'Search'"></el-input>
+              <el-button type="primary" size="small" :icon="'Refresh'" @click="loadAllData">刷新</el-button>
+            </div>
+          </div>
+          <div class="card-body" style="padding:0">
+            <el-table :data="filteredPickupOrders" stripe size="small">
+              <el-table-column prop="order_no" label="订单号" width="170"></el-table-column>
+              <el-table-column prop="customer_name" label="客户" width="140"></el-table-column>
+              <el-table-column label="状态" width="120">
+                <template #default="{ row }">
+                  <span :class="'badge ' + row.detail_status">{{ statusLabel(row.detail_status) }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="修改提醒" width="95" align="center">
+                <template #default="{ row }">
+                  <el-tag v-if="row.is_modified" type="warning" size="small">已修改</el-tag>
+                  <span v-else>—</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="超时" width="110" align="center">
+                <template #default="{ row }">
+                  <el-tag v-if="row.is_stale" type="danger" size="small">{{ row.stale_days }} 天</el-tag>
+                  <span v-else>—</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="待提货天数" width="110" align="center">
+                <template #default="{ row }">{{ row.pickup_waiting_days || 0 }}</template>
+              </el-table-column>
+              <el-table-column label="操作" min-width="330">
+                <template #default="{ row }">
+                  <div style="display:flex;gap:6px;flex-wrap:wrap">
+                    <el-button v-if="row.detail_status==='completed' && isManagerLike" size="small" type="success" plain @click="approvePickup(row)">审批提货</el-button>
+                    <el-button v-if="['ready_for_pickup','picked_up'].includes(row.detail_status) && canOfficeManage" size="small" type="primary" plain @click="sendPickupEmail(row)">发送通知</el-button>
+                    <el-button v-if="row.detail_status==='ready_for_pickup' && canOfficeManage" size="small" type="warning" plain @click="openPickupSignature(row)">现场签字</el-button>
+                    <el-button v-if="['ready_for_pickup','picked_up'].includes(row.detail_status)" size="small" type="info" plain @click="downloadOrderDocument(row, 'pickup')">提货单PDF</el-button>
+                    <el-button size="small" plain @click="downloadOrderDocument(row, 'order')">订单PDF</el-button>
+                  </div>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== CUSTOMERS ===== -->
+      <div v-show="page==='customers'">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <el-input v-model="cusSearch" placeholder="搜索客户名称 / 联系人" clearable style="width:260px" :prefix-icon="'Search'"></el-input>
+            <el-radio-group v-model="customerGroupMode" size="small">
+              <el-radio-button label="company">按公司</el-radio-button>
+              <el-radio-button label="date">按日期</el-radio-button>
+            </el-radio-group>
+          </div>
+          <el-button type="primary" size="small" :disabled="!canOfficeManage" @click="openCustomerCreate">新增客户</el-button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="card" v-for="section in customerSections" :key="section.key">
+            <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+              <span class="card-title">{{ section.label }}</span>
+              <el-tag type="info" size="small">{{ section.customers.length }} 家客户</el-tag>
+            </div>
+            <div class="card-body">
+              <div class="cus-grid">
+                <div class="cus-card" :style="{borderColor: c.hasActiveOrders ? '#16a34a' : 'var(--border)', boxShadow: c.hasActiveOrders ? '0 0 0 1px rgba(22,163,74,.15)' : 'none'}" v-for="c in section.customers" :key="c.id">
+                  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+                    <div class="cus-name">{{ c.name }}</div>
+                    <div style="display:flex;gap:6px;align-items:center">
+                      <el-tag :type="c.hasActiveOrders ? 'success' : 'info'" size="small">{{ c.hasActiveOrders ? '进行中' : '空闲' }}</el-tag>
+                      <el-tag :type="c.tier==='svip'?'danger':c.tier==='vip'?'warning':''" size="small">{{ c.tier.toUpperCase() }}</el-tag>
+                    </div>
+                  </div>
+                  <div class="cus-row"><span>客户编码</span><strong>{{ c.code }}</strong></div>
+                  <div class="cus-row"><span>联系人</span><strong>{{ c.contact_name }}</strong></div>
+                  <div class="cus-row"><span>电话</span><strong>{{ c.contact_phone }}</strong></div>
+                  <div class="cus-row"><span>最近下单</span><strong>{{ c.last_order_date || '无订单' }}</strong></div>
+                  <div class="cus-row"><span>在制订单</span><strong :style="{color: c.hasActiveOrders ? '#16a34a' : '#64748b'}">{{ c.active_orders }}</strong></div>
+                  <div class="cus-row"><span>授信额度</span><strong>¥ {{ formatMoney(c.credit_limit) }}</strong></div>
+                  <div class="cus-row"><span>已用额度</span><strong :style="{color:c.credit_usage_percent>90?'#dc2626':''}">¥ {{ formatMoney(c.credit_used) }}</strong></div>
+                  <div style="margin-top:10px">
+                    <el-progress :percentage="c.credit_usage_percent" :color="c.credit_usage_percent>90?'#dc2626':c.credit_usage_percent>70?'#d97706':'#16a34a'" :stroke-width="6"></el-progress>
+                  </div>
+                  <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;gap:8px">
+                    <el-button size="small" plain type="primary" @click="viewCustomerOrders(c)">查看订单</el-button>
+                    <el-button size="small" plain type="info" :disabled="!canOfficeManage" @click="openCustomerEdit(c)">编辑资料</el-button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== SETTINGS ===== -->
+      <div v-show="page==='settings'">
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+            <span class="card-title">玻璃类型字典</span>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <el-input v-model="newGlassTypeName" placeholder="新增玻璃类型" style="width:220px" clearable :disabled="!canOfficeManage"></el-input>
+              <el-button type="primary" size="small" :disabled="!canOfficeManage" @click="createGlassType">新增类型</el-button>
+            </div>
+          </div>
+          <div class="card-body" style="padding:0">
+            <el-table :data="settingsGlassTypes" stripe size="small">
+              <el-table-column prop="name" label="类型名称" min-width="220"></el-table-column>
+              <el-table-column label="状态" width="120" align="center">
+                <template #default="{ row }">
+                  <el-tag :type="row.isActive ? 'success' : 'info'" size="small">{{ row.isActive ? '启用' : '停用' }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="updatedAt" label="更新时间" width="180">
+                <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
+              </el-table-column>
+              <el-table-column label="操作" width="220">
+                <template #default="{ row }">
+                  <div style="display:flex;gap:6px;flex-wrap:wrap">
+                    <el-button size="small" text type="primary" :disabled="!canOfficeManage" @click="renameGlassType(row)">重命名</el-button>
+                    <el-button size="small" text :type="row.isActive ? 'warning' : 'success'" :disabled="!canOfficeManage" @click="toggleGlassType(row)">
+                      {{ row.isActive ? '停用' : '启用' }}
+                    </el-button>
+                  </div>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+            <span class="card-title">提货邮件模板</span>
+            <el-button type="primary" size="small" :loading="templateSaving" :disabled="!canOfficeManage" @click="savePickupTemplate">保存模板</el-button>
+          </div>
+          <div class="card-body">
+            <div style="font-size:12px;color:var(--text-2);margin-bottom:10px">
+              可用变量：
+              <el-tag v-for="variable in pickupTemplate.availableVariables" :key="variable" size="small" style="margin-right:6px">{{ `{{${variable}}}` }}</el-tag>
+            </div>
+            <el-form :model="pickupTemplate" label-width="90px" size="default">
+              <el-form-item label="邮件标题">
+                <el-input v-model="pickupTemplate.subjectTemplate" :disabled="!canOfficeManage"></el-input>
+              </el-form-item>
+              <el-form-item label="邮件正文">
+                <el-input
+                  v-model="pickupTemplate.bodyTemplate"
+                  type="textarea"
+                  :rows="8"
+                  :disabled="!canOfficeManage"
+                  placeholder="请输入提货邮件正文模板"
+                ></el-input>
+              </el-form-item>
+            </el-form>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+            <span class="card-title">邮件发送日志</span>
+            <el-button type="primary" plain size="small" :disabled="!canOfficeManage" @click="loadSettings">刷新日志</el-button>
+          </div>
+          <div class="card-body" style="padding:0">
+            <el-table :data="emailLogs" stripe size="small">
+              <el-table-column prop="orderNo" label="订单号" width="170"></el-table-column>
+              <el-table-column prop="customerEmail" label="收件邮箱" min-width="220"></el-table-column>
+              <el-table-column prop="status" label="状态" width="90" align="center">
+                <template #default="{ row }">
+                  <el-tag :type="row.status === 'sent' ? 'success' : 'danger'" size="small">{{ row.status === 'sent' ? '成功' : '失败' }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="createdAt" label="创建时间" width="170">
+                <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
+              </el-table-column>
+              <el-table-column prop="errorMessage" label="失败原因" min-width="220"></el-table-column>
+            </el-table>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /layout -->
+
+<el-dialog v-model="loginVisible" title="Glass Factory — 生产业务操作端" width="420px" :close-on-click-modal="false" :show-close="false" :close-on-press-escape="false" align-center>
+  <div style="padding:8px 0 0">
+    <el-form label-position="top" @submit.prevent="login">
+      <el-form-item label="账号（邮箱/手机号/WhatsApp/微信号）">
+        <el-input v-model="loginForm.account" placeholder="office@glass.local" size="large" autocomplete="username"></el-input>
+      </el-form-item>
+      <el-form-item label="密码">
+        <el-input v-model="loginForm.password" placeholder="••••••••" type="password" size="large" autocomplete="current-password" @keyup.enter="login"></el-input>
+      </el-form-item>
+    </el-form>
+    <div style="font-size:12px;color:var(--text-2);line-height:1.6;margin-top:8px">
+      开发环境可使用 office@glass.local 或车间工人账号登录。
+    </div>
+  </div>
+  <template #footer>
+    <el-button type="primary" size="large" style="width:100%" :loading="loginLoading" @click="login">登 录</el-button>
+  </template>
+</el-dialog>
+
+<!-- DIALOGS -->
+<el-dialog v-model="newWOVisible" title="新建工单" width="480px">
+  <el-form :model="newWOForm" label-width="90px" size="default">
+    <el-form-item label="关联订单">
+      <el-select v-model="newWOForm.order_no" placeholder="选择订单" filterable style="width:100%">
+        <el-option v-for="o in allConfirmedOrders" :key="o.order_no" :label="o.order_no" :value="o.order_no"></el-option>
+      </el-select>
+    </el-form-item>
+    <el-form-item label="产品明细">
+      <el-input v-model="newWOForm.product_name" placeholder="玻璃品种 + 规格" clearable></el-input>
+    </el-form-item>
+    <el-form-item label="分配产线">
+      <el-select v-model="newWOForm.line_id" placeholder="选择产线" style="width:100%">
+        <el-option v-for="l in prodLines" :key="l.id" :label="l.name" :value="l.id"></el-option>
+      </el-select>
+    </el-form-item>
+    <el-form-item label="计划完工">
+      <el-date-picker v-model="newWOForm.deadline" type="date" style="width:100%"></el-date-picker>
+    </el-form-item>
+  </el-form>
+  <template #footer>
+    <el-button @click="newWOVisible=false">取消</el-button>
+    <el-button type="primary" @click="createWO">创建工单</el-button>
+  </template>
+</el-dialog>
+
+<el-dialog v-model="editOrderVisible" :title="`编辑订单 ${editOrderForm.orderNo || ''}`" width="520px">
+  <el-form :model="editOrderForm" label-width="100px" size="default">
+    <el-form-item label="订单数量">
+      <el-input-number v-model="editOrderForm.quantity" :min="1" style="width:100%" controls-position="right"></el-input-number>
+    </el-form-item>
+    <el-form-item label="优先级">
+      <el-select v-model="editOrderForm.priority" style="width:100%">
+        <el-option v-for="p in priorityOptions" :key="p.value" :label="p.label" :value="p.value"></el-option>
+      </el-select>
+    </el-form-item>
+    <el-form-item label="交付日期">
+      <el-date-picker v-model="editOrderForm.estimatedCompletionDate" type="date" style="width:100%"></el-date-picker>
+    </el-form-item>
+    <el-form-item label="备注">
+      <el-input v-model="editOrderForm.specialInstructions" type="textarea" :rows="3" placeholder="补充交付或工艺说明"></el-input>
+    </el-form-item>
+    <el-form-item label="更新图纸">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;width:100%">
+        <input
+          ref="editOrderDrawingInput"
+          type="file"
+          accept=".pdf,image/*"
+          @change="handleEditOrderDrawingChange"
+          style="max-width:300px"
+        />
+        <span style="font-size:12px;color:var(--text-2)">{{ editOrderForm.drawingFileName || editOrderForm.drawingOriginalName || '未选择新图纸' }}</span>
+        <el-button size="small" plain :disabled="!editOrderForm.drawingFile" @click="clearEditOrderDrawing">清除</el-button>
+      </div>
+    </el-form-item>
+  </el-form>
+  <template #footer>
+    <el-button @click="editOrderVisible=false">取消</el-button>
+    <el-button type="primary" @click="submitOrderEdit">保存修改</el-button>
+  </template>
+</el-dialog>
+
+<el-dialog v-model="adjVisible" :title="adjType==='in'?'入库登记':'出库登记'" width="400px">
+  <el-form :model="adjForm" label-width="90px" size="default">
+    <el-form-item label="物料">
+      <el-select v-model="adjForm.sku" placeholder="选择物料" filterable style="width:100%">
+        <el-option v-for="it in inventoryItems" :key="it.sku_code" :label="it.name" :value="it.sku_code"></el-option>
+      </el-select>
+    </el-form-item>
+    <el-form-item label="数量">
+      <el-input-number v-model="adjForm.quantity" :min="1" style="width:100%" controls-position="right"></el-input-number>
+    </el-form-item>
+    <el-form-item label="关联单据">
+      <el-input v-model="adjForm.ref_no" placeholder="订单号 / 采购单号" clearable></el-input>
+    </el-form-item>
+    <el-form-item label="备注">
+      <el-input v-model="adjForm.remark" placeholder="原因说明" type="textarea" :rows="2"></el-input>
+    </el-form-item>
+  </el-form>
+  <template #footer>
+    <el-button @click="adjVisible=false">取消</el-button>
+    <el-button :type="adjType==='in'?'success':'warning'" @click="submitAdj">{{ adjType==='in'?'确认入库':'确认出库' }}</el-button>
+  </template>
+</el-dialog>
+
+<el-dialog v-model="woDetailVisible" title="工单详情" width="420px">
+  <div v-if="selectedWO">
+    <el-descriptions :column="1" border size="small">
+      <el-descriptions-item label="工单号">{{ selectedWO.work_order_no }}</el-descriptions-item>
+      <el-descriptions-item label="关联订单">{{ selectedWO.order_no }}</el-descriptions-item>
+      <el-descriptions-item label="产品">{{ selectedWO.product_name }}</el-descriptions-item>
+      <el-descriptions-item label="产线">{{ selectedWO.line }}</el-descriptions-item>
+      <el-descriptions-item label="截止日期">{{ selectedWO.deadline }}</el-descriptions-item>
+      <el-descriptions-item label="完成进度">
+        <el-progress :percentage="selectedWO.progress || 0"></el-progress>
+      </el-descriptions-item>
+    </el-descriptions>
+  </div>
+  <template #footer>
+    <el-button @click="woDetailVisible=false">关闭</el-button>
+    <el-button type="primary" v-if="selectedWO && ['cutting','processing'].includes(selectedWO.statusKey)" @click="completeWO(selectedWO); woDetailVisible=false">标记完工</el-button>
+  </template>
+</el-dialog>
+
+<el-dialog v-model="pickupSignatureVisible" title="Pickup 电子签字" width="620px" :close-on-click-modal="false">
+  <el-form label-width="90px" size="default">
+    <el-form-item label="订单号">
+      <el-input :model-value="pickupSignatureTarget?.order_no || ''" disabled></el-input>
+    </el-form-item>
+    <el-form-item label="签字人">
+      <el-input v-model="pickupSignerName" placeholder="请输入签字姓名"></el-input>
+    </el-form-item>
+    <el-form-item label="电子签名">
+      <div style="width:100%">
+        <canvas
+          ref="pickupSignatureCanvas"
+          @pointerdown="startPickupSignature"
+          @pointermove="movePickupSignature"
+          @pointerup="endPickupSignature"
+          @pointerleave="endPickupSignature"
+          style="width:100%;height:180px;border:1px dashed var(--border);border-radius:8px;background:#fff;touch-action:none"
+        ></canvas>
+        <div style="display:flex;justify-content:flex-end;margin-top:8px">
+          <el-button size="small" @click="clearPickupSignature">清空签名</el-button>
+        </div>
+      </div>
+    </el-form-item>
+  </el-form>
+  <template #footer>
+    <el-button @click="pickupSignatureVisible=false">取消</el-button>
+    <el-button type="primary" @click="submitPickupSignature">提交签字</el-button>
+  </template>
+</el-dialog>
+
+<el-dialog v-model="customerDialogVisible" :title="customerDialogModeLabel" width="460px">
+  <el-form :model="customerForm" label-width="90px" size="default">
+    <el-form-item label="公司名称">
+      <el-input v-model="customerForm.companyName" placeholder="客户公司名称"></el-input>
+    </el-form-item>
+    <el-form-item label="联系人">
+      <el-input v-model="customerForm.contactName" placeholder="联系人"></el-input>
+    </el-form-item>
+    <el-form-item label="电话">
+      <el-input v-model="customerForm.phone" placeholder="联系电话"></el-input>
+    </el-form-item>
+    <el-form-item label="邮箱">
+      <el-input v-model="customerForm.email" placeholder="联系邮箱"></el-input>
+    </el-form-item>
+    <el-form-item label="地址">
+      <el-input v-model="customerForm.notes" type="textarea" :rows="2" placeholder="联系地址"></el-input>
+    </el-form-item>
+    <el-form-item label="授信额度">
+      <el-input-number v-model="customerForm.creditLimit" :min="0" :step="10000" :precision="2" style="width:100%"></el-input-number>
+    </el-form-item>
+  </el-form>
+  <template #footer>
+    <el-button @click="customerDialogVisible=false">取消</el-button>
+    <el-button type="primary" :loading="customerLoading" @click="submitCustomer">保存</el-button>
+  </template>
+</el-dialog>
+
+</div>
+<script>
+const { createApp, ref, computed, onMounted, nextTick, watch } = Vue;
+
+const app = createApp({
+  setup() {
+    for (const [k, c] of Object.entries(ElementPlusIconsVue)) { app.component(k, c); }
+
+    const defaultGlassTypes = ['钢化玻璃', '超白钢化', '夹层玻璃', '中空玻璃', 'Low-E 中空', '浮法玻璃'];
+    const defaultThicknesses = [4, 5, 6, 8, 10, 12];
+    const defaultProductionSteps = [
+      { key: 'cutting', label: '切玻璃' },
+      { key: 'edging', label: '开切口' },
+      { key: 'tempering', label: '钢化' },
+      { key: 'finishing', label: '完成钢化' },
+    ];
+    const roleLabels = {
+      admin: '管理员',
+      super_admin: '管理员',
+      manager: '经理',
+      operator: '操作员',
+      customer: '客户',
+      customer_viewer: '客户只读',
+    };
+    const defaultPickupTemplate = {
+      templateKey: 'ready_for_pickup',
+      name: 'Ready for Pickup 邮件',
+      subjectTemplate: '订单 {{orderNo}} 已可取货',
+      bodyTemplate: '您好 {{customerName}}，\n\n订单 {{orderNo}} 已可取货。\n玻璃类型：{{glassType}}\n规格：{{specification}}\n数量：{{quantity}}\n\n请安排到厂取货。\n',
+      availableVariables: ['customerName', 'orderNo', 'glassType', 'specification', 'quantity'],
+      updatedAt: null,
+      updatedByName: '',
+    };
+    const buildEntryItem = () => ({
+      glass_type: defaultGlassTypes[0],
+      thickness: 6,
+      width_mm: 1500,
+      height_mm: 2100,
+      quantity: 1,
+      process_requirements: '',
+    });
+    const buildEntryOrder = () => ({
+      customer_id: '',
+      delivery_date: null,
+      delivery_address: '',
+      contact_name: '',
+      contact_phone: '',
+      priority: 'normal',
+      remark: '',
+      items: [buildEntryItem()],
+    });
+    const buildCustomerForm = () => ({
+      id: '',
+      companyName: '',
+      contactName: '',
+      phone: '',
+      email: '',
+      notes: '',
+      creditLimit: 1000000,
+    });
+    const safeJsonParse = (raw, fallback) => {
+      try {
+        return raw ? JSON.parse(raw) : fallback;
+      } catch {
+        return fallback;
+      }
+    };
+    const generateIdempotencyKey = () => (
+      crypto.randomUUID
+        ? crypto.randomUUID()
+        : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+    );
+    const unwrapEnvelope = (payload) => (
+      payload && typeof payload === 'object' && 'data' in payload ? payload.data : payload
+    );
+    const normalizeUser = (user) => ({
+      ...user,
+      name: user?.name || user?.display_name || user?.displayName || user?.username || '',
+      canonicalRole: user?.canonicalRole || user?.canonical_role || user?.role || 'operator',
+      stageLabel: user?.stageLabel || user?.stage_label || '',
+      customerId: user?.customerId || user?.customer_id || null,
+      homePath: user?.homePath || user?.home_path || '/platform',
+    });
+    const toDate = (value) => {
+      if (!value) return null;
+      const date = value instanceof Date ? value : new Date(value);
+      return Number.isNaN(date.getTime()) ? null : date;
+    };
+    const locale = ref(localStorage.getItem('gf_platform_locale') || 'zh-CN');
+    watch(locale, (value) => {
+      localStorage.setItem('gf_platform_locale', value);
+      document.documentElement.lang = value === 'en-US' ? 'en' : 'zh-CN';
+    }, { immediate: true });
+    const formatDate = (value) => {
+      const date = toDate(value);
+      return date ? date.toLocaleDateString(locale.value) : '—';
+    };
+    const formatDateTime = (value) => {
+      const date = toDate(value);
+      return date
+        ? date.toLocaleString(locale.value, { hour12: false, month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+        : '—';
+    };
+    const formatDateInput = (value) => {
+      const date = toDate(value);
+      if (!date) return '';
+      return [date.getFullYear(), `${date.getMonth() + 1}`.padStart(2, '0'), `${date.getDate()}`.padStart(2, '0')].join('-');
+    };
+    const thicknessLabel = (value) => String(value).includes('mm') ? String(value) : `${value}mm`;
+    const normalizeThickness = (value) => String(value).includes('mm') ? String(value) : `${value}mm`;
+    const formatMoney = (value) => {
+      if (value === null || value === undefined || value === '') return '0';
+      const amount = Number(value);
+      if (Number.isNaN(amount)) return '0';
+      if (amount >= 10000) return `${(amount / 10000).toFixed(1)}万`;
+      return amount.toLocaleString(locale.value, { maximumFractionDigits: 2 });
+    };
+    const statusLabel = (status) => {
+      const mapping = locale.value === 'en-US'
+        ? {
+            pending: 'Pending',
+            confirmed: 'Confirmed',
+            received: 'Received',
+            entered: 'Entered',
+            in_production: 'In Production',
+            completed: 'Completed',
+            shipping: 'Shipping',
+            delivered: 'Delivered',
+            ready_for_pickup: 'Ready for Pickup',
+            picked_up: 'Picked Up',
+            cancelled: 'Cancelled',
+            queued: 'Queued',
+            pass: 'Pass',
+            fail: 'Fail',
+          }
+        : {
+            pending: '待确认',
+            confirmed: '已确认',
+            received: '已接单',
+            entered: '已录入',
+            in_production: '生产中',
+            completed: '已完工',
+            shipping: '配送中',
+            delivered: '已交付',
+            ready_for_pickup: '待提货',
+            picked_up: '已提货',
+            cancelled: '已取消',
+            queued: '等待开工',
+            pass: '合格',
+            fail: '不合格',
+          };
+      return mapping[status] || status;
+    };
+    const resetAuth = () => {
+      token.value = '';
+      currentUser.value = null;
+      localStorage.removeItem('gf_platform_token');
+      localStorage.removeItem('gf_platform_user');
+      loginVisible.value = true;
+    };
+
+    const token = ref(localStorage.getItem('gf_platform_token') || '');
+    const currentUser = ref(safeJsonParse(localStorage.getItem('gf_platform_user'), null));
+    const loginVisible = ref(!token.value);
+    const loginForm = ref({ account: '', password: '' });
+    const loginLoading = ref(false);
+
+    const sideCollapsed = ref(false);
+    const page = ref('order-confirm');
+    const pageTitles = {
+      'order-confirm':'订单确认', 'order-entry':'订单录入',
+      'prod-kanban':'排产看板', 'qc':'质检录入',
+      'inventory':'库存管理', 'shipping':'发货管理', 'pickup':'提货签字', 'customers':'客户管理', 'settings':'业务配置'
+    };
+    const todayStr = computed(() => new Date().toLocaleDateString(locale.value,{year:'numeric',month:'long',day:'numeric'}));
+
+    const currentTime = ref(new Date().toLocaleTimeString(locale.value,{hour:'2-digit',minute:'2-digit'}));
+    setInterval(() => { currentTime.value = new Date().toLocaleTimeString(locale.value,{hour:'2-digit',minute:'2-digit'}); }, 60000);
+
+    const options = ref({ glassTypes: [], thicknessOptions: [], orderStatuses: [], productionSteps: [] });
+    const notifications = ref([]);
+    const workspaceOrders = ref([]);
+    const rawOrders = ref([]);
+    const customerRows = ref([]);
+    const workOrders = ref([]);
+    const inventoryRows = ref([]);
+    const shipmentRows = ref([]);
+    const receivableRows = ref([]);
+    const settingsGlassTypes = ref([]);
+    const newGlassTypeName = ref('');
+    const pickupTemplate = ref({ ...defaultPickupTemplate });
+    const emailLogs = ref([]);
+    const templateSaving = ref(false);
+
+    const displayUserName = computed(() => currentUser.value?.name || currentUser.value?.display_name || '业务账号');
+    const userInitial = computed(() => String(displayUserName.value || '工').trim().slice(0, 1));
+    const displayRoleText = computed(() => currentUser.value?.stageLabel || roleLabels[currentUser.value?.canonicalRole || currentUser.value?.role] || '业务操作端');
+    const isManagerLike = computed(() => ['manager', 'admin', 'super_admin'].includes(currentUser.value?.canonicalRole || currentUser.value?.role));
+    const canOfficeManage = computed(() => isManagerLike.value || ((currentUser.value?.canonicalRole || currentUser.value?.role) === 'operator' && !currentUser.value?.stage));
+    const alertBadge = computed(() => notifications.value.filter((item) => !item.isRead).length);
+
+    const api = async (url, opts = {}) => {
+      const headers = { ...(opts.headers || {}) };
+      if (!(opts.body instanceof FormData) && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
+      if (token.value) headers.Authorization = `Bearer ${token.value}`;
+      const response = await fetch(url, { ...opts, headers });
+      if (response.status === 401) {
+        resetAuth();
+        throw new Error('登录已失效，请重新登录');
+      }
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text || '请求失败');
+      }
+      if (response.status === 204) return null;
+      return unwrapEnvelope(await response.json());
+    };
+    const syncLoginUser = (user) => {
+      const normalized = normalizeUser(user);
+      currentUser.value = normalized;
+      localStorage.setItem('gf_platform_user', JSON.stringify(normalized));
+    };
+    const login = async () => {
+      loginLoading.value = true;
+      try {
+        const response = await fetch('/v1/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Idempotency-Key': generateIdempotencyKey() },
+          body: JSON.stringify({ username: loginForm.value.account, password: loginForm.value.password }),
+        });
+        if (!response.ok) throw new Error(await response.text());
+        const data = unwrapEnvelope(await response.json());
+        const normalized = normalizeUser(data.user || {});
+        if (normalized.homePath === '/app') {
+          window.location.href = '/app';
+          return;
+        }
+        token.value = data.access_token;
+        localStorage.setItem('gf_platform_token', data.access_token);
+        syncLoginUser(normalized);
+        loginVisible.value = false;
+        await loadAllData();
+      } catch {
+        ElementPlus.ElMessage.error('登录失败，请检查账号和密码');
+      } finally {
+        loginLoading.value = false;
+      }
+    };
+    const logout = async () => {
+      try {
+        await api('/v1/auth/logout', { method: 'POST', body: JSON.stringify({}) });
+      } catch {}
+      resetAuth();
+    };
+
+    const customerById = computed(() => Object.fromEntries(customerRows.value.map((row) => [row.id, row])));
+    const rawOrderById = computed(() => Object.fromEntries(rawOrders.value.map((row) => [row.id, row])));
+    const productionSteps = computed(() => options.value.productionSteps?.length ? options.value.productionSteps : defaultProductionSteps);
+    const stepLabelByKey = computed(() => Object.fromEntries(productionSteps.value.map((step) => [step.key, step.label])));
+    const orderViews = computed(() => workspaceOrders.value.map((detail) => {
+      const raw = rawOrderById.value[detail.id] || {};
+      const customer = customerById.value[raw.customer_id || detail.customer?.id] || {};
+      const items = Array.isArray(raw.items) ? raw.items : [];
+      return {
+        id: detail.id,
+        order_no: raw.order_no || detail.orderNo,
+        status: raw.status || detail.status,
+        detail_status: detail.status,
+        customer_name: customer.company_name || detail.customer?.companyName || '—',
+        customer_id: customer.id || raw.customer_id || detail.customer?.id || '',
+        customer_phone: customer.phone || detail.customer?.phone || '',
+        customer_email: customer.email || detail.customer?.email || '',
+        product_summary: items.length ? items.map((item) => item.glass_type || item.product_name).slice(0, 2).join(' + ') : `${detail.glassType || '玻璃'} ${detail.thickness || ''}`.trim(),
+        total_area: Number(raw.total_area_sqm || 0).toFixed(1),
+        amount: Number(raw.total_amount || 0),
+        delivery_date: formatDate(raw.expected_delivery_date || detail.estimatedCompletionDate),
+        delivery_address: raw.delivery_address || detail.customer?.notes || '到厂自提',
+        created_at: formatDateTime(raw.created_at || detail.createdAt),
+        created_raw: raw.created_at || detail.createdAt,
+        items: items.map((item) => ({ ...item, glass_type: item.glass_type, width_mm: item.width_mm, height_mm: item.height_mm, quantity: item.quantity })),
+        priority: raw.priority || detail.priority || 'normal',
+        special_instructions: detail.specialInstructions || raw.remark || '',
+        drawing_name: detail.drawingName || '',
+        is_modified: Boolean(detail.isModified),
+        is_stale: Boolean(detail.isStale),
+        stale_days: Number(detail.staleDays || 0),
+        pickup_waiting_days: Number(detail.pickupWaitingDays || 0),
+        rework_open: Boolean(detail.reworkOpen),
+        steps: detail.steps || [],
+        detail,
+      };
+    }));
+    const pendingOrders = computed(() => orderViews.value.filter((order) => order.status === 'pending'));
+    const todayEntries = computed(() => {
+      const todayKey = formatDateInput(new Date());
+      const rows = orderViews.value.filter((order) => formatDateInput(order.created_raw) === todayKey);
+      return (rows.length ? rows : orderViews.value).slice(0, 10);
+    });
+    const allConfirmedOrders = computed(() => orderViews.value.filter((order) => !['pending', 'cancelled'].includes(order.status)));
+    const pickupSearch = ref('');
+    const pickupOrders = computed(() => orderViews.value.filter((order) => ['completed', 'ready_for_pickup', 'picked_up'].includes(order.detail_status || order.status)));
+    const filteredPickupOrders = computed(() => pickupOrders.value.filter((order) => {
+      const query = pickupSearch.value.trim().toLowerCase();
+      if (!query) return true;
+      return [order.order_no, order.customer_name, order.customer_phone, order.customer_email]
+        .some((value) => String(value || '').toLowerCase().includes(query));
+    }));
+
+    const glassTypes = computed(() => options.value.glassTypes?.length ? options.value.glassTypes : defaultGlassTypes);
+    const priorityOptions = computed(() => options.value.priorities?.length ? options.value.priorities : [
+      { value: 'normal', label: '普通' },
+      { value: 'rush', label: '加急' },
+      { value: 'rework', label: '返工' },
+      { value: 'hold', label: 'Hold' },
+    ]);
+    const thicknesses = computed(() => {
+      const source = options.value.thicknessOptions || [];
+      if (!source.length) return defaultThicknesses;
+      return source.map((value) => {
+        const normalized = Number(String(value).replace('mm', ''));
+        return Number.isNaN(normalized) ? value : normalized;
+      });
+    });
+    const customerList = computed(() => customerRows.value.map((customer) => ({ id: customer.id, name: customer.company_name || customer.companyName || '—' })));
+    const entryOrder = ref(buildEntryOrder());
+    const entryDrawingInput = ref(null);
+    const entryDrawingFile = ref(null);
+    const entryDrawingFileName = computed(() => entryDrawingFile.value?.name || '');
+    const addEntryItem = () => entryOrder.value.items.push(buildEntryItem());
+    const clearEntryDrawing = () => {
+      entryDrawingFile.value = null;
+      if (entryDrawingInput.value) entryDrawingInput.value.value = '';
+    };
+    const handleEntryDrawingChange = (event) => {
+      const file = event?.target?.files?.[0] || null;
+      if (!file) {
+        entryDrawingFile.value = null;
+        return;
+      }
+      if (file.size > 20 * 1024 * 1024) {
+        ElementPlus.ElMessage.warning('图纸文件不能超过 20MB');
+        clearEntryDrawing();
+        return;
+      }
+      entryDrawingFile.value = file;
+    };
+    const resetEntry = () => {
+      entryOrder.value = buildEntryOrder();
+      clearEntryDrawing();
+    };
+
+    const kanbanLine = ref('');
+    const productionViewMode = ref('status');
+    const prodLines = computed(() => productionSteps.value.map((step) => ({ id: step.key, name: step.label })));
+    const orderViewById = computed(() => Object.fromEntries(orderViews.value.map((order) => [order.id, order])));
+    const workOrderCards = computed(() => workOrders.value
+      .filter((row) => !kanbanLine.value || row.process_step_key === kanbanLine.value)
+      .map((row) => {
+        const orderDetail = orderViewById.value[row.order_id];
+        const stepDetail = (orderDetail?.steps || []).find((step) => step.key === row.process_step_key) || {};
+        let statusKey = 'queued';
+        if (row.status === 'in_progress') statusKey = row.process_step_key === 'cutting' ? 'cutting' : 'processing';
+        if (row.status === 'completed') statusKey = 'qc';
+        return {
+          id: row.id,
+          work_order_no: row.work_order_no,
+          order_id: row.order_id,
+          order_no: orderDetail?.order_no || row.order_id,
+          product_name: `${row.glass_type || ''} ${row.specification || ''}`.trim(),
+          line: stepLabelByKey.value[row.process_step_key] || row.process_step_key,
+          deadline: formatDate(row.scheduled_date),
+          statusKey,
+          step_key: row.process_step_key,
+          progress: row.status === 'completed' ? 100 : row.quantity > 0 ? Math.max(5, Math.round((Number(row.completed_qty || 0) / Number(row.quantity || 1)) * 100)) : 0,
+          reworkUnread: Boolean(stepDetail.reworkUnread),
+          reworkPieceSummary: stepDetail.reworkPieceSummary || '',
+          reworkCount: Number(stepDetail.reworkRequestCount || 0),
+        };
+      }));
+    const kanbanCols = computed(() => {
+      const grouped = { queued: [], cutting: [], processing: [], qc: [] };
+      for (const card of workOrderCards.value) {
+        if (grouped[card.statusKey]) grouped[card.statusKey].push(card);
+      }
+      return [
+        { status: 'queued', label: '⏳ 等待开工', cards: grouped.queued },
+        { status: 'cutting', label: '⚙️ 工序处理中', cards: [...grouped.cutting, ...grouped.processing] },
+        { status: 'qc', label: '🔍 待质检复核', cards: grouped.qc },
+      ];
+    });
+    const workerClassifiedRows = computed(() => {
+      const grouped = new Map();
+      for (const row of workOrders.value) {
+        if (kanbanLine.value && row.process_step_key !== kanbanLine.value) continue;
+        const date = formatDate(row.scheduled_date || row.created_at || row.updated_at);
+        const glassType = row.glass_type || '—';
+        const specification = row.specification || '—';
+        const key = `${date}|${glassType}|${specification}`;
+        if (!grouped.has(key)) {
+          grouped.set(key, {
+            date,
+            glass_type: glassType,
+            specification,
+            work_order_count: 0,
+            total_qty: 0,
+            sample_orders: [],
+          });
+        }
+        const target = grouped.get(key);
+        target.work_order_count += 1;
+        target.total_qty += Number(row.quantity || 0);
+        const orderNo = orderViews.value.find((order) => order.id === row.order_id)?.order_no || row.order_id;
+        if (target.sample_orders.length < 3) target.sample_orders.push(orderNo);
+      }
+      return Array.from(grouped.values())
+        .map((row) => ({ ...row, sample_orders: row.sample_orders.join(' / ') }))
+        .sort((left, right) => String(right.date).localeCompare(String(left.date)));
+    });
+    const totalActiveWO = computed(() => workOrderCards.value.length);
+    const isOverdue = (card) => {
+      const deadline = toDate(card.deadline);
+      if (!deadline) return false;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return deadline < today && card.statusKey !== 'qc';
+    };
+    const canOperateWorkOrder = (card) => {
+      if (isManagerLike.value) return true;
+      if (isTemperingOperator.value) return false;
+      return currentUser.value?.stage === card.step_key;
+    };
+    const isTemperingOperator = computed(() => (currentUser.value?.stage || '').toLowerCase() === 'tempering');
+    const qcableWOs = computed(() => workOrders.value
+      .filter((row) => row.status === 'completed')
+      .map((row) => ({ id: row.id, order_id: row.order_id, step_key: row.process_step_key, work_order_no: row.work_order_no, product_name: `${row.glass_type || ''} ${row.specification || ''}`.trim() })));
+    const qcForm = ref({ wo_id:'', batch_qty:50, pass_qty:48, result:'pass', defects:[], piece_numbers: [], remark:'' });
+    const qcYieldRate = computed(() => qcForm.value.batch_qty > 0 ? Math.round(qcForm.value.pass_qty/qcForm.value.batch_qty*100*10)/10 : 0);
+    const selectedQcTarget = computed(() => qcableWOs.value.find((row) => row.id === qcForm.value.wo_id) || null);
+    const qcReworkPieceOptions = computed(() => {
+      const total = Math.max(1, Number(qcForm.value.batch_qty || 1));
+      return Array.from({ length: total }, (_, index) => index + 1);
+    });
+    const qcRecords = computed(() => workOrders.value
+      .slice()
+      .sort((left, right) => String(right.completed_at || right.started_at || '').localeCompare(String(left.completed_at || left.started_at || '')))
+      .slice(0, 20)
+      .map((row) => {
+        const yieldRate = row.quantity > 0 ? Math.round(((row.quantity - row.defect_qty) / row.quantity) * 1000) / 10 : 100;
+        const failed = Number(row.defect_qty || 0) > 0;
+        return {
+          work_order_no: row.work_order_no,
+          product_name: `${row.glass_type || ''} ${row.specification || ''}`.trim(),
+          yield_rate: yieldRate,
+          result: failed ? 'fail' : 'pass',
+          result_label: failed ? '不合格' : '合格',
+          inspector: currentUser.value?.name || '系统',
+          checked_at: formatDateTime(row.completed_at || row.started_at),
+        };
+      }));
+
+    const inventoryItems = computed(() => inventoryRows.value.map((row) => ({
+      sku_code: row.product_id,
+      name: row.product_id,
+      unit: '件',
+      qty_available: Number(row.available_qty || 0),
+      qty_reserved: Number(row.reserved_qty || 0),
+      safety_stock: Number(row.safety_stock || 0),
+      updated_at: '实时',
+    })));
+    const invStats = computed(() => ({
+      totalSKUs: inventoryRows.value.length,
+      alertCount: inventoryRows.value.filter((row) => Number(row.available_qty || 0) <= Number(row.safety_stock || 0)).length,
+      todayIn: inventoryRows.value.reduce((sum, row) => sum + Number(row.available_qty || 0), 0),
+      todayOut: inventoryRows.value.reduce((sum, row) => sum + Number(row.reserved_qty || 0), 0),
+    }));
+    const adjVisible = ref(false);
+    const adjType = ref('in');
+    const adjForm = ref({ sku:'', quantity:1, ref_no:'', remark:'' });
+    const editOrderVisible = ref(false);
+    const editOrderDrawingInput = ref(null);
+    const editOrderForm = ref({
+      orderId: '',
+      orderNo: '',
+      quantity: 1,
+      priority: 'normal',
+      estimatedCompletionDate: null,
+      specialInstructions: '',
+      drawingOriginalName: '',
+      drawingFile: null,
+      drawingFileName: '',
+    });
+
+    const shipments = computed(() => shipmentRows.value.map((shipment) => {
+      const order = orderViews.value.find((row) => row.id === shipment.order_id);
+      return {
+        id: shipment.id,
+        tracking_no: shipment.tracking_no || shipment.shipment_no || shipment.id,
+        order_no: order?.order_no || shipment.order_id,
+        carrier: shipment.carrier_name || '—',
+        status: shipment.status,
+      };
+    }));
+    const shipmentByOrderId = computed(() => Object.fromEntries(shipmentRows.value.map((row) => [row.order_id, row])));
+    const shipForm = ref({ order_id:'', carrier:'', vehicle_no:'', driver_phone:'', planned_date:null, remark:'' });
+    const shipableOrders = computed(() => canOfficeManage.value ? orderViews.value.filter((order) => ['completed', 'ready_for_pickup'].includes(order.detail_status || order.status) && !shipmentByOrderId.value[order.id]) : []);
+    const pickupSignatureVisible = ref(false);
+    const pickupSignatureTarget = ref(null);
+    const pickupSignerName = ref('');
+    const pickupSignatureCanvas = ref(null);
+    const pickupSignatureDrawing = ref(false);
+    const pickupSignatureHasInk = ref(false);
+
+    const cusSearch = ref('');
+    const customerLastOrderDateById = computed(() => {
+      const result = {};
+      for (const order of orderViews.value) {
+        if (!order.customer_id) continue;
+        const dateKey = formatDateInput(order.created_raw);
+        if (!dateKey) continue;
+        if (!result[order.customer_id] || dateKey > result[order.customer_id]) {
+          result[order.customer_id] = dateKey;
+        }
+      }
+      return result;
+    });
+    const customerGroupMode = ref('company');
+    const filteredCus = computed(() => customerRows.value
+      .map((customer) => {
+        const creditLimit = Number(customer.credit_limit || 0);
+        const creditUsed = Number(customer.credit_used || 0);
+        let tier = 'standard';
+        if (creditLimit >= 2000000) tier = 'svip';
+        else if (creditLimit >= 1000000) tier = 'vip';
+        return {
+          id: customer.id,
+          code: customer.customer_code,
+          name: customer.company_name,
+          contact_name: customer.contact_name || '—',
+          contact_phone: customer.phone || '—',
+          tier,
+          total_orders: Number(customer.totalOrders || 0),
+          active_orders: Number(customer.activeOrders || 0),
+          hasActiveOrders: Boolean(customer.hasActiveOrders),
+          last_order_date: customerLastOrderDateById.value[customer.id] || '',
+          credit_limit: creditLimit,
+          credit_used: creditUsed,
+          credit_usage_percent: creditLimit > 0 ? Math.round((creditUsed / creditLimit) * 100) : 0,
+          email: customer.email || '',
+          notes: customer.address || '',
+        };
+      })
+      .filter((customer) => !cusSearch.value || customer.name.includes(cusSearch.value) || customer.contact_name.includes(cusSearch.value)));
+    const customerSections = computed(() => {
+      if (customerGroupMode.value === 'company') {
+        return [{
+          key: 'company',
+          label: '按公司分类',
+          customers: filteredCus.value.slice().sort((left, right) => String(left.name).localeCompare(String(right.name))),
+        }];
+      }
+
+      const grouped = new Map();
+      for (const customer of filteredCus.value) {
+        const dateKey = customer.last_order_date || '无订单日期';
+        if (!grouped.has(dateKey)) grouped.set(dateKey, []);
+        grouped.get(dateKey).push(customer);
+      }
+
+      return Array.from(grouped.entries())
+        .sort((left, right) => String(right[0]).localeCompare(String(left[0])))
+        .map(([dateKey, customers]) => ({
+          key: `date:${dateKey}`,
+          label: `按日期分类：${dateKey}`,
+          customers: customers.slice().sort((left, right) => String(left.name).localeCompare(String(right.name))),
+        }));
+    });
+
+    const newWOVisible = ref(false);
+    const newWOForm = ref({ order_no:'', product_name:'', line_id:'', deadline:null });
+    const woDetailVisible = ref(false);
+    const selectedWO = ref(null);
+    const customerDialogVisible = ref(false);
+    const customerDialogMode = ref('create');
+    const customerForm = ref(buildCustomerForm());
+    const customerLoading = ref(false);
+    const customerDialogModeLabel = computed(() => customerDialogMode.value === 'edit' ? '编辑客户资料' : '新增客户');
+
+    const loadBootstrap = async () => {
+      const data = await api('/v1/workspace/bootstrap');
+      if (data.user) syncLoginUser(data.user);
+      options.value = data.options || options.value;
+      workspaceOrders.value = data.data?.orders || [];
+      notifications.value = data.data?.notifications || [];
+    };
+    const loadRawOrders = async () => {
+      const data = await api('/v1/orders?limit=200');
+      rawOrders.value = Array.isArray(data) ? data : [];
+    };
+    const loadCustomers = async () => {
+      const data = await api('/v1/customers?limit=200');
+      customerRows.value = Array.isArray(data) ? data : [];
+    };
+    const loadWorkOrders = async () => {
+      const query = currentUser.value?.stage ? '?limit=200&mine=true' : '?limit=200';
+      const data = await api(`/v1/production/work-orders${query}`);
+      workOrders.value = Array.isArray(data) ? data : [];
+    };
+    const loadInventory = async () => {
+      const data = await api('/v1/inventory');
+      inventoryRows.value = Array.isArray(data) ? data : [];
+    };
+    const loadShipments = async () => {
+      if (!canOfficeManage.value) {
+        shipmentRows.value = [];
+        return;
+      }
+      try {
+        const data = await api('/v1/workspace/shipments?limit=100');
+        shipmentRows.value = data.shipments || [];
+      } catch {
+        shipmentRows.value = [];
+      }
+    };
+    const loadReceivables = async () => {
+      if (!canOfficeManage.value) {
+        receivableRows.value = [];
+        return;
+      }
+      try {
+        const data = await api('/v1/workspace/receivables?limit=100');
+        receivableRows.value = data.receivables || [];
+      } catch {
+        receivableRows.value = [];
+      }
+    };
+    const loadSettings = async () => {
+      if (!canOfficeManage.value) {
+        settingsGlassTypes.value = [];
+        pickupTemplate.value = { ...defaultPickupTemplate };
+        emailLogs.value = [];
+        return;
+      }
+      try {
+        const [glassData, templateData, emailData] = await Promise.all([
+          api('/v1/workspace/settings/glass-types'),
+          api('/v1/workspace/settings/notification-templates/ready_for_pickup'),
+          api('/v1/workspace/email-logs?limit=30'),
+        ]);
+        settingsGlassTypes.value = glassData.glassTypes || [];
+        pickupTemplate.value = { ...defaultPickupTemplate, ...(templateData.template || {}) };
+        emailLogs.value = emailData.logs || [];
+      } catch {
+        settingsGlassTypes.value = [];
+        pickupTemplate.value = { ...defaultPickupTemplate };
+        emailLogs.value = [];
+      }
+    };
+    const loadAllData = async () => {
+      await loadBootstrap();
+      await Promise.all([
+        loadRawOrders(),
+        loadCustomers(),
+        loadWorkOrders(),
+        loadInventory(),
+        loadShipments(),
+        loadReceivables(),
+        loadSettings(),
+      ]);
+    };
+
+    const confirmOrd = async (order) => {
+      try {
+        await api(`/v1/orders/${order.id}/confirm`, { method: 'PUT', headers: { 'Idempotency-Key': generateIdempotencyKey() } });
+        ElementPlus.ElMessage.success(`订单已确认：${order.order_no}`);
+        await loadAllData();
+      } catch {
+        ElementPlus.ElMessage.error('订单确认失败');
+      }
+    };
+    const rejectOrd = async (order) => {
+      try {
+        const { value } = await ElementPlus.ElMessageBox.prompt('请输入拒绝原因', `拒绝订单 ${order.order_no}`, { inputPlaceholder: '例如：交期无法满足' });
+        await api(`/v1/workspace/orders/${order.id}/cancel`, {
+          method: 'POST',
+          headers: { 'Idempotency-Key': generateIdempotencyKey() },
+          body: JSON.stringify({ reason: value || '业务驳回' }),
+        });
+        ElementPlus.ElMessage.success('订单已拒绝');
+        await loadAllData();
+      } catch (error) {
+        if (error === 'cancel') return;
+        ElementPlus.ElMessage.error('订单拒绝失败');
+      }
+    };
+    const clearEditOrderDrawing = () => {
+      editOrderForm.value.drawingFile = null;
+      editOrderForm.value.drawingFileName = '';
+      if (editOrderDrawingInput.value) editOrderDrawingInput.value.value = '';
+    };
+    const openAdjustDlg = (order) => {
+      const firstItem = Array.isArray(order.items) && order.items.length ? order.items[0] : null;
+      editOrderForm.value = {
+        orderId: order.id,
+        orderNo: order.order_no,
+        quantity: Number(firstItem?.quantity || 1),
+        priority: order.priority || 'normal',
+        estimatedCompletionDate: toDate(order.detail?.estimatedCompletionDate || null),
+        specialInstructions: order.special_instructions || '',
+        drawingOriginalName: order.drawing_name || '',
+        drawingFile: null,
+        drawingFileName: '',
+      };
+      clearEditOrderDrawing();
+      editOrderVisible.value = true;
+    };
+    const handleEditOrderDrawingChange = (event) => {
+      const file = event?.target?.files?.[0] || null;
+      if (!file) {
+        clearEditOrderDrawing();
+        return;
+      }
+      if (file.size > 20 * 1024 * 1024) {
+        ElementPlus.ElMessage.warning('图纸文件不能超过 20MB');
+        clearEditOrderDrawing();
+        return;
+      }
+      editOrderForm.value.drawingFile = file;
+      editOrderForm.value.drawingFileName = file.name;
+    };
+    const submitOrderEdit = async () => {
+      if (!editOrderForm.value.orderId) return;
+      if (Number(editOrderForm.value.quantity || 0) <= 0) {
+        ElementPlus.ElMessage.warning('订单数量必须大于 0');
+        return;
+      }
+      try {
+        const formData = new FormData();
+        formData.set('quantity', String(Number(editOrderForm.value.quantity || 0)));
+        formData.set('priority', editOrderForm.value.priority || 'normal');
+        const estimatedCompletionDate = formatDateInput(editOrderForm.value.estimatedCompletionDate);
+        if (estimatedCompletionDate) {
+          formData.set('estimatedCompletionDate', estimatedCompletionDate);
+        }
+        formData.set('specialInstructions', editOrderForm.value.specialInstructions || '');
+        if (editOrderForm.value.drawingFile) {
+          formData.set('drawing', editOrderForm.value.drawingFile, editOrderForm.value.drawingFile.name);
+        }
+        await api(`/v1/workspace/orders/${editOrderForm.value.orderId}`, {
+          method: 'PUT',
+          headers: { 'Idempotency-Key': generateIdempotencyKey() },
+          body: formData,
+        });
+        editOrderVisible.value = false;
+        ElementPlus.ElMessage.success('订单已更新');
+        await loadAllData();
+      } catch {
+        ElementPlus.ElMessage.error('订单更新失败');
+      }
+    };
+    const buildEntryNote = () => [
+      entryOrder.value.delivery_address ? `收货地址：${entryOrder.value.delivery_address}` : '',
+      entryOrder.value.contact_name ? `联系人：${entryOrder.value.contact_name}` : '',
+      entryOrder.value.contact_phone ? `联系电话：${entryOrder.value.contact_phone}` : '',
+      entryOrder.value.remark ? `备注：${entryOrder.value.remark}` : '',
+    ].filter(Boolean).join('\n');
+    const submitEntry = async () => {
+      if (!entryOrder.value.customer_id) {
+        ElementPlus.ElMessage.warning('请选择客户');
+        return;
+      }
+      if (!entryOrder.value.delivery_date) {
+        ElementPlus.ElMessage.warning('请选择交货日期');
+        return;
+      }
+      const normalizedItems = (entryOrder.value.items || []).map((item) => ({
+        glass_type: item.glass_type,
+        thickness: normalizeThickness(item.thickness),
+        width_mm: Number(item.width_mm || 0),
+        height_mm: Number(item.height_mm || 0),
+        quantity: Number(item.quantity || 0),
+        process_requirements: item.process_requirements || '',
+      }));
+      if (!normalizedItems.length || normalizedItems.some((item) => !item.glass_type || item.quantity <= 0 || item.width_mm <= 0 || item.height_mm <= 0)) {
+        ElementPlus.ElMessage.warning('请完善订单规格和数量');
+        return;
+      }
+      try {
+        const formData = new FormData();
+        formData.set('customerId', entryOrder.value.customer_id);
+        formData.set('glassType', normalizedItems[0].glass_type);
+        formData.set('thickness', normalizedItems[0].thickness);
+        formData.set('quantity', String(normalizedItems[0].quantity));
+        formData.set('priority', entryOrder.value.priority || 'normal');
+        formData.set('estimatedCompletionDate', formatDateInput(entryOrder.value.delivery_date));
+        formData.set('specialInstructions', buildEntryNote());
+        formData.set('itemsJson', JSON.stringify(normalizedItems));
+        if (entryDrawingFile.value) {
+          formData.set('drawing', entryDrawingFile.value, entryDrawingFile.value.name);
+        }
+        const data = await api('/v1/workspace/orders', {
+          method: 'POST',
+          headers: { 'Idempotency-Key': generateIdempotencyKey() },
+          body: formData,
+        });
+        ElementPlus.ElMessage.success(`订单录入成功：${data.order?.orderNo || '已创建'}`);
+        resetEntry();
+        await loadAllData();
+      } catch {
+        ElementPlus.ElMessage.error('订单录入失败');
+      }
+    };
+
+    const createWO = () => ElementPlus.ElMessage.info('工单由订单进入生产后自动生成，无需手工创建。');
+    const openWODetail = (card) => { selectedWO.value = card; woDetailVisible.value = true; };
+    const startWO = async (card) => {
+      try {
+        await api(`/v1/workspace/orders/${card.order_id}/steps/${card.step_key}`, {
+          method: 'POST',
+          headers: { 'Idempotency-Key': generateIdempotencyKey() },
+          body: JSON.stringify({ action: 'start' }),
+        });
+        ElementPlus.ElMessage.success(`工单已开工：${card.work_order_no}`);
+        await loadAllData();
+      } catch {
+        ElementPlus.ElMessage.error('工单开工失败');
+      }
+    };
+    const completeWO = async (card) => {
+      try {
+        await api(`/v1/workspace/orders/${card.order_id}/steps/${card.step_key}`, {
+          method: 'POST',
+          headers: { 'Idempotency-Key': generateIdempotencyKey() },
+          body: JSON.stringify({ action: 'complete' }),
+        });
+        ElementPlus.ElMessage.success(`工单已完工：${card.work_order_no}`);
+        await loadAllData();
+      } catch {
+        ElementPlus.ElMessage.error('工单完工失败');
+      }
+    };
+    const acknowledgeRework = async (card) => {
+      try {
+        await api(`/v1/workspace/orders/${card.order_id}/steps/cutting`, {
+          method: 'POST',
+          headers: { 'Idempotency-Key': generateIdempotencyKey() },
+          body: JSON.stringify({ action: 'acknowledge_rework' }),
+        });
+        ElementPlus.ElMessage.success('返工提醒已标记为已读');
+        await loadAllData();
+      } catch {
+        ElementPlus.ElMessage.error('返工提醒更新失败');
+      }
+    };
+    const sendToQC = (card) => {
+      page.value = 'qc';
+      qcForm.value.wo_id = card.id;
+      qcForm.value.batch_qty = 1;
+      qcForm.value.pass_qty = 1;
+      qcForm.value.piece_numbers = [];
+      ElementPlus.ElMessage.info(`已切换到质检页：${card.work_order_no}`);
+    };
+    const submitQC = async () => {
+      const selected = qcableWOs.value.find((row) => row.id === qcForm.value.wo_id);
+      if (!selected) {
+        ElementPlus.ElMessage.warning('请选择待质检工单');
+        return;
+      }
+      if (qcForm.value.result !== 'fail') {
+        ElementPlus.ElMessage.success('当前版本已接入实时质检数据，合格记录由工序完工自动汇总。');
+        qcForm.value = { wo_id:'', batch_qty:50, pass_qty:48, result:'pass', defects:[], piece_numbers: [], remark:'' };
+        return;
+      }
+      if (selected.step_key === 'cutting') {
+        ElementPlus.ElMessage.warning('切玻璃工序不支持直接回切，请在后续工序发起返工。');
+        return;
+      }
+      const defectQty = Math.max(1, Number(qcForm.value.batch_qty || 0) - Number(qcForm.value.pass_qty || 0));
+      const fallbackPieces = Array.from({ length: defectQty }, (_, index) => index + 1);
+      const manualPieces = Array.from(new Set((qcForm.value.piece_numbers || [])
+        .map((piece) => Number(piece))
+        .filter((piece) => Number.isInteger(piece) && piece > 0 && piece <= Number(qcForm.value.batch_qty || 0))))
+        .sort((left, right) => left - right);
+      const pieceNumbers = manualPieces.length ? manualPieces : fallbackPieces;
+      try {
+        await api(`/v1/workspace/orders/${selected.order_id}/steps/${selected.step_key}`, {
+          method: 'POST',
+          headers: { 'Idempotency-Key': generateIdempotencyKey() },
+          body: JSON.stringify({
+            action: 'rework',
+            pieceNumbers,
+            note: [qcForm.value.defects.join('、'), qcForm.value.remark].filter(Boolean).join('；'),
+          }),
+        });
+        ElementPlus.ElMessage.success('返工请求已提交到后端');
+        qcForm.value = { wo_id:'', batch_qty:50, pass_qty:48, result:'pass', defects:[], piece_numbers: [], remark:'' };
+        await loadAllData();
+      } catch {
+        ElementPlus.ElMessage.error('返工请求提交失败');
+      }
+    };
+    const resetQC = () => { qcForm.value = { wo_id:'', batch_qty:50, pass_qty:48, result:'pass', defects:[], piece_numbers: [], remark:'' }; };
+
+    watch(() => [qcForm.value.batch_qty, qcForm.value.result], () => {
+      if (qcForm.value.result !== 'fail') {
+        qcForm.value.piece_numbers = [];
+        return;
+      }
+      const maxPiece = Math.max(1, Number(qcForm.value.batch_qty || 1));
+      qcForm.value.piece_numbers = (qcForm.value.piece_numbers || [])
+        .map((piece) => Number(piece))
+        .filter((piece) => Number.isInteger(piece) && piece > 0 && piece <= maxPiece);
+    });
+
+    const openInventoryAdjust = (direction) => {
+      if (!canOfficeManage.value) {
+        ElementPlus.ElMessage.warning('当前账号无权执行库存调整');
+        return;
+      }
+      adjType.value = direction;
+      adjForm.value = { sku:'', quantity:1, ref_no:'', remark:'' };
+      adjVisible.value = true;
+    };
+    const submitAdj = async () => {
+      if (!adjForm.value.sku) {
+        ElementPlus.ElMessage.warning('请选择物料');
+        return;
+      }
+      if (Number(adjForm.value.quantity || 0) <= 0) {
+        ElementPlus.ElMessage.warning('数量必须大于 0');
+        return;
+      }
+      try {
+        await api('/v1/workspace/inventory/adjustments', {
+          method: 'POST',
+          headers: { 'Idempotency-Key': generateIdempotencyKey() },
+          body: JSON.stringify({
+            productId: adjForm.value.sku,
+            direction: adjType.value,
+            quantity: Number(adjForm.value.quantity || 0),
+            referenceNo: adjForm.value.ref_no || '',
+            reason: adjForm.value.remark || '',
+          }),
+        });
+        adjVisible.value = false;
+        ElementPlus.ElMessage.success(`库存${adjType.value === 'in' ? '入库' : '出库'}已登记`);
+        await loadInventory();
+      } catch (error) {
+        const message = String(error?.message || '库存调整失败');
+        if (message.includes('库存不足')) {
+          ElementPlus.ElMessage.error('库存不足，无法完成出库。');
+          return;
+        }
+        ElementPlus.ElMessage.error('库存调整失败');
+      }
+    };
+
+    const createShipment = async () => {
+      if (!canOfficeManage.value) {
+        ElementPlus.ElMessage.warning('当前账号无权创建发货单');
+        return;
+      }
+      if (!shipForm.value.order_id) {
+        ElementPlus.ElMessage.warning('请选择订单');
+        return;
+      }
+      try {
+        await api(`/v1/workspace/orders/${shipForm.value.order_id}/shipment`, {
+          method: 'POST',
+          headers: { 'Idempotency-Key': generateIdempotencyKey() },
+          body: JSON.stringify({
+            carrierName: shipForm.value.carrier,
+            vehicleNo: shipForm.value.vehicle_no,
+            driverPhone: shipForm.value.driver_phone,
+            shippedAt: toDate(shipForm.value.planned_date)?.toISOString() || null,
+          }),
+        });
+        ElementPlus.ElMessage.success('发货单已创建');
+        shipForm.value = { order_id:'', carrier:'', vehicle_no:'', driver_phone:'', planned_date:null, remark:'' };
+        await loadAllData();
+      } catch {
+        ElementPlus.ElMessage.error('发货单创建失败');
+      }
+    };
+    const markDelivered = async (row) => {
+      try {
+        const { value } = await ElementPlus.ElMessageBox.prompt('请输入签收人姓名', `确认送达 ${row.tracking_no}`, { inputPlaceholder: '收货人' });
+        const shipment = shipmentRows.value.find((item) => item.id === row.id);
+        if (!shipment) throw new Error('shipment-not-found');
+        await api(`/v1/workspace/shipments/${shipment.id}/deliver`, {
+          method: 'POST',
+          headers: { 'Idempotency-Key': generateIdempotencyKey() },
+          body: JSON.stringify({ receiverName: value || '客户签收', deliveredAt: new Date().toISOString() }),
+        });
+        ElementPlus.ElMessage.success(`已确认送达：${row.tracking_no}`);
+        await loadAllData();
+      } catch (error) {
+        if (error === 'cancel') return;
+        ElementPlus.ElMessage.error('送达确认失败');
+      }
+    };
+
+    const approvePickup = async (order) => {
+      try {
+        await api(`/v1/workspace/orders/${order.id}/pickup/approve`, {
+          method: 'POST',
+          headers: { 'Idempotency-Key': generateIdempotencyKey() },
+          body: JSON.stringify({}),
+        });
+        ElementPlus.ElMessage.success(`已审批可提货：${order.order_no}`);
+        await loadAllData();
+      } catch {
+        ElementPlus.ElMessage.error('提货审批失败');
+      }
+    };
+    const sendPickupEmail = async (order) => {
+      try {
+        await api(`/v1/workspace/orders/${order.id}/pickup/send-email`, {
+          method: 'POST',
+          headers: { 'Idempotency-Key': generateIdempotencyKey() },
+          body: JSON.stringify({}),
+        });
+        ElementPlus.ElMessage.success(`已发送提货通知：${order.order_no}`);
+      } catch {
+        ElementPlus.ElMessage.error('提货通知发送失败');
+      }
+    };
+    const openPickupSignature = async (order) => {
+      pickupSignatureTarget.value = order;
+      pickupSignerName.value = '';
+      pickupSignatureVisible.value = true;
+      await nextTick();
+      clearPickupSignature();
+    };
+    const clearPickupSignature = () => {
+      const canvas = pickupSignatureCanvas.value;
+      if (!canvas) return;
+      const ratio = window.devicePixelRatio || 1;
+      const width = Math.max(320, canvas.clientWidth || 560);
+      const height = 180;
+      canvas.width = width * ratio;
+      canvas.height = height * ratio;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      ctx.clearRect(0, 0, width, height);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, width, height);
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      pickupSignatureHasInk.value = false;
+      pickupSignatureDrawing.value = false;
+    };
+    const _pickupSignaturePoint = (event) => {
+      const canvas = pickupSignatureCanvas.value;
+      if (!canvas) return { x: 0, y: 0 };
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+      };
+    };
+    const startPickupSignature = (event) => {
+      const canvas = pickupSignatureCanvas.value;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      const point = _pickupSignaturePoint(event);
+      ctx.beginPath();
+      ctx.moveTo(point.x, point.y);
+      pickupSignatureDrawing.value = true;
+      pickupSignatureHasInk.value = true;
+    };
+    const movePickupSignature = (event) => {
+      if (!pickupSignatureDrawing.value) return;
+      const canvas = pickupSignatureCanvas.value;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      const point = _pickupSignaturePoint(event);
+      ctx.lineTo(point.x, point.y);
+      ctx.stroke();
+    };
+    const endPickupSignature = () => {
+      pickupSignatureDrawing.value = false;
+    };
+    const submitPickupSignature = async () => {
+      if (!pickupSignatureTarget.value) return;
+      if (!pickupSignerName.value.trim()) {
+        ElementPlus.ElMessage.warning('请填写签字人姓名');
+        return;
+      }
+      if (!pickupSignatureHasInk.value || !pickupSignatureCanvas.value) {
+        ElementPlus.ElMessage.warning('请先完成电子签名');
+        return;
+      }
+      try {
+        await api(`/v1/workspace/orders/${pickupSignatureTarget.value.id}/pickup/signature`, {
+          method: 'POST',
+          headers: { 'Idempotency-Key': generateIdempotencyKey() },
+          body: JSON.stringify({
+            signerName: pickupSignerName.value.trim(),
+            signatureDataUrl: pickupSignatureCanvas.value.toDataURL('image/png'),
+          }),
+        });
+        pickupSignatureVisible.value = false;
+        ElementPlus.ElMessage.success(`签字提货完成：${pickupSignatureTarget.value.order_no}`);
+        await loadAllData();
+      } catch {
+        ElementPlus.ElMessage.error('电子签字提交失败');
+      }
+    };
+    const downloadOrderDocument = async (order, documentType) => {
+      try {
+        const response = await fetch(`/v1/workspace/orders/${order.id}/export?document=${encodeURIComponent(documentType)}`, {
+          headers: { Authorization: `Bearer ${token.value}` },
+        });
+        if (!response.ok) throw new Error('download-failed');
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = objectUrl;
+        anchor.download = `${order.order_no}-${documentType}.pdf`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(objectUrl);
+      } catch {
+        ElementPlus.ElMessage.error('PDF 导出失败');
+      }
+    };
+
+    const createGlassType = async () => {
+      if (!canOfficeManage.value) {
+        ElementPlus.ElMessage.warning('当前账号无权修改配置');
+        return;
+      }
+      const name = String(newGlassTypeName.value || '').trim();
+      if (!name) {
+        ElementPlus.ElMessage.warning('请输入玻璃类型名称');
+        return;
+      }
+      try {
+        const data = await api('/v1/workspace/settings/glass-types', {
+          method: 'POST',
+          headers: { 'Idempotency-Key': generateIdempotencyKey() },
+          body: JSON.stringify({ name }),
+        });
+        settingsGlassTypes.value = data.glassTypes || settingsGlassTypes.value;
+        newGlassTypeName.value = '';
+        ElementPlus.ElMessage.success('玻璃类型已新增');
+      } catch {
+        ElementPlus.ElMessage.error('玻璃类型新增失败');
+      }
+    };
+    const renameGlassType = async (row) => {
+      if (!canOfficeManage.value) return;
+      try {
+        const { value } = await ElementPlus.ElMessageBox.prompt('请输入新的玻璃类型名称', `重命名：${row.name}`, {
+          inputValue: row.name,
+          inputPlaceholder: '例如：超白夹层玻璃',
+        });
+        const data = await api(`/v1/workspace/settings/glass-types/${row.id}`, {
+          method: 'PATCH',
+          headers: { 'Idempotency-Key': generateIdempotencyKey() },
+          body: JSON.stringify({ name: value }),
+        });
+        settingsGlassTypes.value = data.glassTypes || settingsGlassTypes.value;
+        await loadAllData();
+        ElementPlus.ElMessage.success('玻璃类型已更新');
+      } catch (error) {
+        if (error === 'cancel') return;
+        ElementPlus.ElMessage.error('玻璃类型更新失败');
+      }
+    };
+    const toggleGlassType = async (row) => {
+      if (!canOfficeManage.value) return;
+      try {
+        const data = await api(`/v1/workspace/settings/glass-types/${row.id}`, {
+          method: 'PATCH',
+          headers: { 'Idempotency-Key': generateIdempotencyKey() },
+          body: JSON.stringify({ isActive: !row.isActive }),
+        });
+        settingsGlassTypes.value = data.glassTypes || settingsGlassTypes.value;
+        ElementPlus.ElMessage.success(`已${row.isActive ? '停用' : '启用'}玻璃类型`);
+      } catch {
+        ElementPlus.ElMessage.error('状态更新失败');
+      }
+    };
+    const savePickupTemplate = async () => {
+      if (!canOfficeManage.value) {
+        ElementPlus.ElMessage.warning('当前账号无权修改模板');
+        return;
+      }
+      if (!String(pickupTemplate.value.subjectTemplate || '').trim()) {
+        ElementPlus.ElMessage.warning('请填写邮件标题模板');
+        return;
+      }
+      if (!String(pickupTemplate.value.bodyTemplate || '').trim()) {
+        ElementPlus.ElMessage.warning('请填写邮件正文模板');
+        return;
+      }
+      templateSaving.value = true;
+      try {
+        const data = await api('/v1/workspace/settings/notification-templates/ready_for_pickup', {
+          method: 'PUT',
+          headers: { 'Idempotency-Key': generateIdempotencyKey() },
+          body: JSON.stringify({
+            subjectTemplate: pickupTemplate.value.subjectTemplate,
+            bodyTemplate: pickupTemplate.value.bodyTemplate,
+          }),
+        });
+        pickupTemplate.value = { ...defaultPickupTemplate, ...(data.template || {}) };
+        ElementPlus.ElMessage.success('提货邮件模板已保存');
+      } catch {
+        ElementPlus.ElMessage.error('模板保存失败');
+      } finally {
+        templateSaving.value = false;
+      }
+    };
+
+    const viewCustomerOrders = (customer) => {
+      page.value = 'order-confirm';
+      ElementPlus.ElMessage.info(`已切换到订单页，可继续跟进客户 ${customer.name} 的订单。`);
+    };
+    const openCustomerCreate = () => {
+      if (!canOfficeManage.value) {
+        ElementPlus.ElMessage.warning('当前账号无权维护客户资料');
+        return;
+      }
+      customerDialogMode.value = 'create';
+      customerForm.value = buildCustomerForm();
+      customerDialogVisible.value = true;
+    };
+    const openCustomerEdit = (customer) => {
+      if (!canOfficeManage.value) {
+        ElementPlus.ElMessage.warning('当前账号无权维护客户资料');
+        return;
+      }
+      customerDialogMode.value = 'edit';
+      customerForm.value = {
+        id: customer.id,
+        companyName: customer.name,
+        contactName: customer.contact_name,
+        phone: customer.contact_phone,
+        email: customer.email,
+        notes: customer.notes,
+        creditLimit: customer.credit_limit,
+      };
+      customerDialogVisible.value = true;
+    };
+    const submitCustomer = async () => {
+      if (!customerForm.value.companyName) {
+        ElementPlus.ElMessage.warning('请填写公司名称');
+        return;
+      }
+      customerLoading.value = true;
+      try {
+        const payload = {
+          companyName: customerForm.value.companyName,
+          contactName: customerForm.value.contactName,
+          phone: customerForm.value.phone,
+          email: customerForm.value.email,
+          notes: customerForm.value.notes,
+          creditLimit: customerForm.value.creditLimit,
+        };
+        if (customerDialogMode.value === 'edit' && customerForm.value.id) {
+          await api(`/v1/workspace/customers/${customerForm.value.id}`, {
+            method: 'PATCH',
+            headers: { 'Idempotency-Key': generateIdempotencyKey() },
+            body: JSON.stringify(payload),
+          });
+        } else {
+          await api('/v1/workspace/customers', {
+            method: 'POST',
+            headers: { 'Idempotency-Key': generateIdempotencyKey() },
+            body: JSON.stringify(payload),
+          });
+        }
+        customerDialogVisible.value = false;
+        ElementPlus.ElMessage.success('客户资料已保存');
+        await loadAllData();
+      } catch {
+        ElementPlus.ElMessage.error('客户资料保存失败');
+      } finally {
+        customerLoading.value = false;
+      }
+    };
+    const markNotificationsRead = async () => {
+      if (!alertBadge.value) {
+        ElementPlus.ElMessage.info('当前没有未读通知');
+        return;
+      }
+      try {
+        const data = await api('/v1/workspace/notifications/read', {
+          method: 'POST',
+          headers: { 'Idempotency-Key': generateIdempotencyKey() },
+          body: JSON.stringify({}),
+        });
+        notifications.value = data.notifications || [];
+        ElementPlus.ElMessage.success('通知已标记为已读');
+      } catch {
+        ElementPlus.ElMessage.error('通知更新失败');
+      }
+    };
+
+    onMounted(async () => {
+      if ('serviceWorker' in navigator) {
+        try { await navigator.serviceWorker.register('/sw.js'); } catch {}
+      }
+      if (!token.value) return;
+      try {
+        const normalized = normalizeUser(currentUser.value || {});
+        if (normalized.homePath === '/app') {
+          window.location.href = '/app';
+          return;
+        }
+        syncLoginUser(normalized);
+        await loadAllData();
+      } catch {
+        resetAuth();
+      }
+    });
+
+    return {
+      token, currentUser, loginVisible, loginForm, loginLoading, login, logout,
+      locale, sideCollapsed, page, pageTitles, alertBadge, todayStr, currentTime,
+      displayUserName, displayRoleText, userInitial, canOfficeManage, isManagerLike,
+      pendingOrders, confirmOrd, openAdjustDlg, rejectOrd, loadAllData, markNotificationsRead,
+      glassTypes, thicknesses, thicknessLabel, priorityOptions, customerList, entryOrder, addEntryItem, todayEntries, resetEntry, submitEntry,
+      entryDrawingInput, entryDrawingFileName, handleEntryDrawingChange, clearEntryDrawing,
+      productionViewMode, kanbanLine, prodLines, kanbanCols, workerClassifiedRows, totalActiveWO, isOverdue, loadWorkOrders, canOperateWorkOrder,
+      newWOVisible, newWOForm, allConfirmedOrders, createWO,
+      woDetailVisible, selectedWO, openWODetail, startWO, completeWO, acknowledgeRework, sendToQC,
+      qcableWOs, qcForm, qcYieldRate, qcRecords, selectedQcTarget, qcReworkPieceOptions, submitQC, resetQC,
+      invStats, inventoryItems, adjVisible, adjType, adjForm, openInventoryAdjust, submitAdj,
+      editOrderVisible, editOrderForm, editOrderDrawingInput, handleEditOrderDrawingChange, clearEditOrderDrawing, submitOrderEdit,
+      shipForm, shipableOrders, shipments, createShipment, markDelivered,
+      pickupSearch, filteredPickupOrders, approvePickup, sendPickupEmail, openPickupSignature, downloadOrderDocument,
+      pickupSignatureVisible, pickupSignatureTarget, pickupSignerName, pickupSignatureCanvas,
+      clearPickupSignature, startPickupSignature, movePickupSignature, endPickupSignature, submitPickupSignature,
+      cusSearch, customerGroupMode, customerSections, openCustomerCreate, openCustomerEdit, submitCustomer, customerDialogVisible, customerDialogModeLabel, customerForm, customerLoading, viewCustomerOrders,
+      settingsGlassTypes, newGlassTypeName, pickupTemplate, templateSaving, emailLogs, createGlassType, renameGlassType, toggleGlassType, savePickupTemplate, loadSettings,
+      statusLabel, formatMoney, formatDateTime,
+    };
+  }
+});
+
+for (const [k, c] of Object.entries(ElementPlusIconsVue)) { app.component(k, c); }
+app.use(ElementPlus);
+app.mount('#app');
+</script>
+</body>
 </html>

@@ -69,6 +69,8 @@ class CustomersRepository:
             customer.email = payload.email
         if "address" in provided_fields:
             customer.address = payload.address
+        if "credit_limit" in provided_fields and payload.credit_limit is not None:
+            customer.credit_limit = payload.credit_limit
 
         await session.flush()
         await session.refresh(customer)

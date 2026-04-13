@@ -139,7 +139,14 @@ async def login_workspace_user(
     payload: dict[str, Any],
     service: AuthService | None = None,
 ) -> dict[str, Any]:
-    principal = str(payload.get("email") or payload.get("username") or "").strip()
+    principal = str(
+        payload.get("email")
+        or payload.get("username")
+        or payload.get("phone")
+        or payload.get("whatsappId")
+        or payload.get("wechatId")
+        or ""
+    ).strip()
     password = str(payload.get("password") or "")
 
     if not principal or not password:

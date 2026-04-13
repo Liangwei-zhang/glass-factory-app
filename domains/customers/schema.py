@@ -40,6 +40,7 @@ class UpdateCustomerRequest(BaseModel):
     phone: str | None = None
     email: str | None = None
     address: str | None = None
+    credit_limit: Decimal | None = None
 
 
 class CreditCheckResult(BaseModel):
