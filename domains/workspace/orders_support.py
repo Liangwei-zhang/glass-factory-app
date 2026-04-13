@@ -255,14 +255,14 @@ async def get_order_drawing_file(
         )
 
     storage = ObjectStorage()
-    local_path = storage.resolve_local_path("drawings", order.drawing_object_key)
-    if not local_path.exists():
+    if not await storage.exists("drawings", order.drawing_object_key):
         raise AppError(
             code=ErrorCode.VALIDATION_ERROR,
             message="图纸不存在。",
             status_code=404,
             details={"order_id": order_id},
         )
+    local_path = await storage.get_downloadable_path("drawings", order.drawing_object_key)
     return local_path, order.drawing_original_name or "drawing.pdf"
 
 

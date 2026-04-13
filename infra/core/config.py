@@ -89,6 +89,18 @@ class AnalyticsSettings(BaseModel):
     )
 
 
+class RateLimitSettings(BaseModel):
+    storage_url: str = Field(
+        default_factory=lambda: env_or_file("RATE_LIMIT_STORAGE_URL", "memory://")
+    )
+    key_prefix: str = Field(
+        default_factory=lambda: os.getenv("RATE_LIMIT_KEY_PREFIX", "glass-factory").strip()
+    )
+    in_memory_fallback_enabled: bool = Field(
+        default_factory=lambda: env_bool("RATE_LIMIT_IN_MEMORY_FALLBACK_ENABLED", True)
+    )
+
+
 class SchedulerSettings(BaseModel):
     heartbeat_only: bool = Field(
         default_factory=lambda: env_bool("SCHEDULER_HEARTBEAT_ONLY", False)
@@ -114,6 +126,39 @@ class SMTPSettings(BaseModel):
     from_address: str = Field(default_factory=lambda: env_or_file("SMTP_FROM", ""))
 
 
+class ObjectStorageSettings(BaseModel):
+    backend: str = Field(
+        default_factory=lambda: os.getenv("OBJECT_STORAGE_BACKEND", "local").strip().lower()
+    )
+    local_dir: str = Field(
+        default_factory=lambda: os.getenv("OBJECT_STORAGE_LOCAL_DIR", "data/object_storage")
+    )
+    download_cache_dir: str = Field(
+        default_factory=lambda: os.getenv(
+            "OBJECT_STORAGE_DOWNLOAD_CACHE_DIR",
+            "data/object_storage_cache",
+        )
+    )
+    s3_endpoint_url: str = Field(
+        default_factory=lambda: env_or_file("OBJECT_STORAGE_S3_ENDPOINT_URL", "")
+    )
+    s3_region: str = Field(
+        default_factory=lambda: env_or_file("OBJECT_STORAGE_S3_REGION", "us-east-1")
+    )
+    s3_access_key: str = Field(
+        default_factory=lambda: env_or_file("OBJECT_STORAGE_S3_ACCESS_KEY", "")
+    )
+    s3_secret_key: str = Field(
+        default_factory=lambda: env_or_file("OBJECT_STORAGE_S3_SECRET_KEY", "")
+    )
+    s3_bucket: str = Field(
+        default_factory=lambda: env_or_file("OBJECT_STORAGE_S3_BUCKET", "glass-factory")
+    )
+    s3_prefix: str = Field(
+        default_factory=lambda: os.getenv("OBJECT_STORAGE_S3_PREFIX", "").strip().strip("/")
+    )
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
@@ -127,9 +172,11 @@ class Settings(BaseSettings):
     redis: RedisSettings = Field(default_factory=RedisSettings)
     events: EventBrokerSettings = Field(default_factory=EventBrokerSettings)
     analytics: AnalyticsSettings = Field(default_factory=AnalyticsSettings)
+    rate_limit: RateLimitSettings = Field(default_factory=RateLimitSettings)
     scheduler: SchedulerSettings = Field(default_factory=SchedulerSettings)
     security: SecuritySettings = Field(default_factory=SecuritySettings)
     smtp: SMTPSettings = Field(default_factory=SMTPSettings)
+    object_storage: ObjectStorageSettings = Field(default_factory=ObjectStorageSettings)
 
 
 @lru_cache(maxsize=1)

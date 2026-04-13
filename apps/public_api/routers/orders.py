@@ -332,14 +332,17 @@ async def download_order_drawing(
         )
 
     storage = ObjectStorage()
-    local_path = storage.resolve_local_path(bucket="drawings", key=order.drawing_object_key)
-    if not local_path.exists():
+    if not await storage.exists(bucket="drawings", key=order.drawing_object_key):
         raise AppError(
             code=ErrorCode.VALIDATION_ERROR,
             message="Drawing file is not found in storage.",
             status_code=404,
             details={"order_id": order_id},
         )
+    local_path = await storage.get_downloadable_path(
+        bucket="drawings",
+        key=order.drawing_object_key,
+    )
 
     return FileResponse(
         path=local_path,

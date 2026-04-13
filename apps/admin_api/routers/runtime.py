@@ -29,9 +29,12 @@ async def runtime_probe(user: AuthUser = Depends(admin_guard)) -> dict:
 
 
 @router.get("/metrics", include_in_schema=False)
-async def runtime_metrics(user: AuthUser = Depends(admin_guard)) -> Response:
+async def runtime_metrics(
+    session: AsyncSession = Depends(get_db_session),
+    user: AuthUser = Depends(admin_guard),
+) -> Response:
     _ = user
-    return metrics_response()
+    return await metrics_response(session)
 
 
 @router.get("/alerts")
