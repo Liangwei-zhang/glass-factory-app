@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import mimetypes
 import smtplib
 import struct
 import zlib
@@ -7,6 +9,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal
 from email.message import EmailMessage
+from pathlib import Path
+from uuid import uuid4
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -442,6 +446,18 @@ DEFAULT_PICKUP_TEMPLATE_BODY = (
     "数量：{{quantity}}\n\n"
     "请安排到厂取货。\n"
 )
+ALLOWED_DRAWING_MIME_TYPES = {
+    "application/pdf",
+    "image/jpeg",
+    "image/png",
+}
+ALLOWED_DRAWING_EXTENSIONS = {
+    ".pdf",
+    ".jpg",
+    ".jpeg",
+    ".png",
+}
+MAX_DRAWING_SIZE_BYTES = 50 * 1024 * 1024
 
 
 def _normalize_priority(priority: str | None) -> str:
@@ -454,6 +470,69 @@ def _normalize_priority(priority: str | None) -> str:
             details={"priority": priority},
         )
     return candidate
+
+
+def _validate_drawing_upload(
+    *,
+    filename: str,
+    payload_bytes: bytes,
+    content_type: str | None,
+) -> tuple[str, str]:
+    safe_name = filename.strip().replace("\\", "/").split("/")[-1] or "drawing.pdf"
+    suffix = Path(safe_name).suffix.lower()
+    resolved_content_type = (content_type or "").strip().lower()
+    if not resolved_content_type:
+        guessed_type, _ = mimetypes.guess_type(safe_name)
+        resolved_content_type = (guessed_type or "").strip().lower()
+
+    if len(payload_bytes) > MAX_DRAWING_SIZE_BYTES:
+        raise AppError(
+            code=ErrorCode.VALIDATION_ERROR,
+            message="Drawing file must not exceed 50MB.",
+            status_code=400,
+        )
+
+    if suffix not in ALLOWED_DRAWING_EXTENSIONS or resolved_content_type not in ALLOWED_DRAWING_MIME_TYPES:
+        raise AppError(
+            code=ErrorCode.VALIDATION_ERROR,
+            message="Only PDF, JPG, and PNG drawing files are supported.",
+            status_code=400,
+            details={"filename": safe_name, "content_type": resolved_content_type or None},
+        )
+
+    return safe_name, resolved_content_type
+
+
+def _send_smtp_message_sync(message: EmailMessage, settings) -> None:
+    if settings.smtp.secure:
+        with smtplib.SMTP_SSL(
+            settings.smtp.host,
+            settings.smtp.port,
+            timeout=10,
+        ) as smtp:
+            if settings.smtp.user and settings.smtp.password:
+                smtp.login(settings.smtp.user, settings.smtp.password)
+            smtp.send_message(message)
+        return
+
+    with smtplib.SMTP(
+        settings.smtp.host,
+        settings.smtp.port,
+        timeout=10,
+    ) as smtp:
+        smtp.ehlo()
+        try:
+            smtp.starttls()
+            smtp.ehlo()
+        except smtplib.SMTPException:
+            pass
+        if settings.smtp.user and settings.smtp.password:
+            smtp.login(settings.smtp.user, settings.smtp.password)
+        smtp.send_message(message)
+
+
+async def _send_smtp_message_async(message: EmailMessage, settings) -> None:
+    await asyncio.to_thread(_send_smtp_message_sync, message, settings)
 
 
 def _render_template(raw: str, variables: dict[str, str]) -> str:
@@ -1089,31 +1168,7 @@ class OrdersService:
             message.set_content(body)
 
             try:
-                if settings.smtp.secure:
-                    with smtplib.SMTP_SSL(
-                        settings.smtp.host,
-                        settings.smtp.port,
-                        timeout=10,
-                    ) as smtp:
-                        if settings.smtp.user and settings.smtp.password:
-                            smtp.login(settings.smtp.user, settings.smtp.password)
-                        smtp.send_message(message)
-                else:
-                    with smtplib.SMTP(
-                        settings.smtp.host,
-                        settings.smtp.port,
-                        timeout=10,
-                    ) as smtp:
-                        smtp.ehlo()
-                        try:
-                            smtp.starttls()
-                            smtp.ehlo()
-                        except smtplib.SMTPException:
-                            pass
-                        if settings.smtp.user and settings.smtp.password:
-                            smtp.login(settings.smtp.user, settings.smtp.password)
-                        smtp.send_message(message)
-
+                await _send_smtp_message_async(message, settings)
                 status = "sent"
                 transport = "smtp"
                 provider_message_id = f"smtp-{uuid4().hex}"
@@ -1163,12 +1218,17 @@ class OrdersService:
         order_id: str,
         filename: str,
         payload_bytes: bytes,
+        content_type: str | None = None,
     ) -> OrderView:
         row = await self.repository.get_order(session, order_id)
         if row is None:
             raise order_not_found(order_id)
 
-        safe_name = filename.strip().replace("\\", "/").split("/")[-1] or "drawing.pdf"
+        safe_name, _ = _validate_drawing_upload(
+            filename=filename,
+            payload_bytes=payload_bytes,
+            content_type=content_type,
+        )
         now = datetime.now(timezone.utc)
         object_key = f"orders/{order_id}/drawings/{now:%Y%m%d%H%M%S}-{uuid4().hex}-{safe_name}"
 

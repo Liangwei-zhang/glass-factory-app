@@ -28,3 +28,10 @@ def test_resolve_local_path_normalizes_windows_separator(tmp_path) -> None:
     )
 
     assert path == tmp_path / "drawings" / "orders" / "abc" / "drawing.pdf"
+
+
+@pytest.mark.asyncio
+async def test_local_object_storage_is_available(tmp_path) -> None:
+    storage = ObjectStorage(base_dir=str(tmp_path / "storage"))
+
+    assert await storage.is_available() is True

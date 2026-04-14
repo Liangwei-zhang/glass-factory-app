@@ -377,6 +377,7 @@ async def create_workspace_order(
                 order_id=order_view.id,
                 filename=drawing.filename or "drawing.pdf",
                 payload_bytes=payload_bytes,
+                content_type=drawing.content_type,
             )
 
     return {"order": await serialize_workspace_order(session, order_view.id, include_detail=True)}
@@ -445,6 +446,7 @@ async def update_workspace_order(
                 order_id=order_id,
                 filename=drawing.filename or "drawing.pdf",
                 payload_bytes=payload_bytes,
+                content_type=drawing.content_type,
             )
 
     return {"order": await serialize_workspace_order(session, order_id, include_detail=True)}

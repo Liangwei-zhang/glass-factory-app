@@ -432,6 +432,7 @@ async def customer_create_order(
                 order_id=order_view.id,
                 filename=drawing.filename or "drawing.pdf",
                 payload_bytes=payload_bytes,
+                content_type=drawing.content_type,
             )
 
     result = await session.execute(

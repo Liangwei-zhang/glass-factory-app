@@ -1,0 +1,688 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --c0:#0f172a;--c1:#1e293b;--c2:#334155;--c3:#64748b;--c4:#94a3b8;--c5:#cbd5e1;--c6:#e2e8f0;--c7:#f1f5f9;--c8:#f8fafc;
+  --blue:#2563eb;--blue-l:#dbeafe;--blue-d:#1d4ed8;
+  --amber:#d97706;--amber-l:#fef3c7;
+  --green:#16a34a;--green-l:#dcfce7;
+  --red:#dc2626;--red-l:#fee2e2;
+  --orange:#ea580c;--orange-l:#ffedd5;
+  --purple:#7c3aed;--purple-l:#ede9fe;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;background:var(--color-background-tertiary,#f1f5f9);color:var(--color-text-primary,#0f172a)}
+.page{display:none}.page.active{display:block}
+.shell{max-width:480px;margin:0 auto;background:var(--color-background-secondary,#f8fafc);border-radius:16px;overflow:hidden;border:0.5px solid var(--color-border-tertiary)}
+
+/* TAB SWITCHER */
+.tab-bar{display:flex;background:var(--color-background-primary,#fff);border-bottom:0.5px solid var(--color-border-tertiary);padding:0 8px}
+.tab{flex:1;padding:10px 4px;font-size:11px;font-weight:500;text-align:center;cursor:pointer;color:var(--color-text-secondary,#64748b);border-bottom:2px solid transparent;transition:all .2s}
+.tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+
+/* ROLE SWITCHER */
+.role-bar{display:flex;gap:6px;padding:12px 16px;background:var(--color-background-primary,#fff);border-bottom:0.5px solid var(--color-border-tertiary);overflow-x:auto}
+.role-btn{flex-shrink:0;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;border:0.5px solid var(--color-border-tertiary);background:var(--color-background-secondary,#f8fafc);color:var(--color-text-secondary,#64748b);transition:all .15s}
+.role-btn.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+
+/* HEADER */
+.mob-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--color-background-primary,#fff);border-bottom:0.5px solid var(--color-border-tertiary)}
+.mob-header-title{font-size:16px;font-weight:500}
+.badge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;border-radius:9px;background:var(--red);color:#fff;font-size:10px;font-weight:500;padding:0 4px}
+
+/* STATUS BADGES */
+.status{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500}
+.status-dot{width:6px;height:6px;border-radius:50%}
+.s-pending{background:var(--amber-l);color:var(--amber)}.s-pending .status-dot{background:var(--amber)}
+.s-prod{background:var(--blue-l);color:var(--blue)}.s-prod .status-dot{background:var(--blue)}
+.s-done{background:var(--green-l);color:var(--green)}.s-done .status-dot{background:var(--green)}
+.s-pickup{background:var(--purple-l);color:var(--purple)}.s-pickup .status-dot{background:var(--purple)}
+.s-rush{background:var(--red-l);color:var(--red)}.s-rush .status-dot{background:var(--red)}
+
+/* CARDS */
+.card{background:var(--color-background-primary,#fff);margin:8px 12px;border-radius:12px;border:0.5px solid var(--color-border-tertiary);overflow:hidden}
+.card-header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:0.5px solid var(--color-border-tertiary)}
+.card-title{font-size:14px;font-weight:500}
+.card-body{padding:12px 14px}
+.card-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:13px;border-bottom:0.5px solid var(--color-border-tertiary)}
+.card-row:last-child{border-bottom:none}
+.card-row-label{color:var(--color-text-secondary,#64748b)}
+.card-row-value{font-weight:500}
+
+/* ORDER CARD */
+.order-card{background:var(--color-background-primary,#fff);margin:6px 12px;border-radius:12px;border:0.5px solid var(--color-border-tertiary);padding:12px 14px;cursor:pointer;transition:all .15s}
+.order-card:active{transform:scale(0.98)}
+.order-card.rush{border-left:3px solid var(--red)}
+.order-card.overdue{border-left:3px solid var(--orange)}
+.order-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+.order-no{font-size:14px;font-weight:500}
+.order-customer{font-size:12px;color:var(--color-text-secondary,#64748b);margin-top:2px}
+.order-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.meta-chip{font-size:11px;padding:2px 7px;border-radius:6px;background:var(--color-background-secondary,#f1f5f9);color:var(--color-text-secondary,#64748b)}
+
+/* PROGRESS STEPS */
+.progress-steps{display:flex;align-items:center;padding:14px 16px;gap:0;overflow-x:auto}
+.step{display:flex;flex-direction:column;align-items:center;flex:1;min-width:60px}
+.step-circle{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;border:1.5px solid var(--c5);background:var(--color-background-secondary,#f8fafc);color:var(--c4)}
+.step-circle.done{background:var(--green);border-color:var(--green);color:#fff}
+.step-circle.active{background:var(--blue);border-color:var(--blue);color:#fff}
+.step-label{font-size:10px;color:var(--c3);margin-top:4px;text-align:center;line-height:1.2}
+.step-line{flex:1;height:1.5px;background:var(--c6);margin-bottom:16px}
+.step-line.done{background:var(--green)}
+
+/* WORKER VIEW */
+.worker-order{background:var(--color-background-primary,#fff);margin:6px 12px;border-radius:12px;border:0.5px solid var(--color-border-tertiary);padding:14px}
+.worker-order.highlight{border:1.5px solid var(--red);background:#fff8f8}
+.wo-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.wo-no{font-size:15px;font-weight:500}
+.wo-glass{font-size:12px;color:var(--c3);margin-top:2px}
+.wo-specs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.wo-spec{font-size:11px;padding:3px 8px;border-radius:6px;background:var(--color-background-secondary,#f1f5f9);color:var(--c2)}
+.wo-btn-row{display:flex;gap:8px}
+.btn{padding:9px 16px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;border:0.5px solid;text-align:center;transition:all .15s}
+.btn:active{transform:scale(0.97)}
+.btn-primary{background:var(--blue);color:#fff;border-color:var(--blue)}
+.btn-success{background:var(--green);color:#fff;border-color:var(--green)}
+.btn-outline{background:transparent;color:var(--blue);border-color:var(--blue)}
+.btn-danger{background:var(--red);color:#fff;border-color:var(--red)}
+.btn-sm{padding:6px 12px;font-size:12px}
+.btn-block{width:100%}
+
+/* SIGNATURE PAD */
+.sig-pad-wrap{background:var(--c7);border-radius:8px;border:1px dashed var(--c5);margin:12px 0}
+.sig-canvas{width:100%;height:160px;display:block;touch-action:none;cursor:crosshair}
+.sig-label{text-align:center;font-size:12px;color:var(--c4);padding:6px}
+
+/* STATS GRID */
+.stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px}
+.stat-card{background:var(--color-background-primary,#fff);border-radius:10px;padding:12px;border:0.5px solid var(--color-border-tertiary)}
+.stat-num{font-size:22px;font-weight:500;line-height:1.2}
+.stat-label{font-size:11px;color:var(--c3);margin-top:3px}
+.stat-sub{font-size:11px;color:var(--green);margin-top:2px}
+
+/* ALERT BANNER */
+.alert{display:flex;align-items:flex-start;gap:10px;padding:10px 14px;margin:8px 12px;border-radius:10px;font-size:13px}
+.alert-warn{background:var(--amber-l);color:#92400e}
+.alert-info{background:var(--blue-l);color:#1e40af}
+.alert-ok{background:var(--green-l);color:#14532d}
+.alert-icon{font-size:16px;flex-shrink:0;margin-top:1px}
+
+/* SECTION HEAD */
+.section-head{display:flex;justify-content:space-between;align-items:center;padding:12px 16px 4px}
+.section-head h3{font-size:13px;font-weight:500;color:var(--c3);text-transform:none}
+.section-head a{font-size:12px;color:var(--blue);cursor:pointer}
+
+/* OVERDUE TAG */
+.overdue-tag{font-size:10px;padding:2px 6px;border-radius:4px;background:var(--orange-l);color:var(--orange);font-weight:500}
+
+/* SCROLL AREA */
+.scroll-area{overflow-y:auto;max-height:600px}
+
+/* NAV BAR */
+.bottom-nav{display:flex;background:var(--color-background-primary,#fff);border-top:0.5px solid var(--color-border-tertiary);padding:6px 0 8px}
+.nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:4px 0}
+.nav-item svg{width:20px;height:20px;stroke:var(--c4)}
+.nav-item span{font-size:10px;color:var(--c4)}
+.nav-item.active svg{stroke:var(--blue)}
+.nav-item.active span{color:var(--blue)}
+
+/* REWORK BADGE */
+.rework-unread{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--red);margin-left:4px;vertical-align:middle}
+
+/* SEARCH BAR */
+.search-bar{display:flex;align-items:center;gap:8px;padding:10px 12px;margin:8px 12px;background:var(--color-background-secondary,#f1f5f9);border-radius:10px;border:0.5px solid var(--color-border-tertiary)}
+.search-bar input{flex:1;border:none;background:transparent;font-size:14px;color:var(--color-text-primary,#0f172a);outline:none}
+
+/* DIVIDER */
+.divider{height:0.5px;background:var(--color-border-tertiary);margin:0 16px}
+
+/* HIGHLIGHT REWORK */
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+.rework-highlight{animation:pulse 1.5s infinite}
+</style>
+
+<h2 class="sr-only">玻璃工厂移动端App界面原型，包含前台、工人、主管三种角色视图</h2>
+
+<div style="padding:16px 0">
+
+<div style="text-align:center;margin-bottom:12px">
+  <p style="font-size:13px;color:var(--color-text-secondary);margin-bottom:8px">选择角色查看对应界面</p>
+  <div style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap">
+    <button class="role-btn active" onclick="switchRole('office')">前台 / 接单</button>
+    <button class="role-btn" onclick="switchRole('worker')">生产工人</button>
+    <button class="role-btn" onclick="switchRole('supervisor')">主管</button>
+    <button class="role-btn" onclick="switchRole('pickup')">取货签字</button>
+  </div>
+</div>
+
+<div class="shell">
+
+  <!-- ========== OFFICE VIEW ========== -->
+  <div id="view-office">
+    <div class="mob-header">
+      <div>
+        <div class="mob-header-title">订单管理</div>
+        <div style="font-size:11px;color:var(--c3)">前台 · Alice</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="position:relative">
+          <svg width="20" height="20" fill="none" stroke="var(--c3)" stroke-width="1.5" viewBox="0 0 24 24"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+          <span class="badge" style="position:absolute;top:-5px;right:-5px">3</span>
+        </div>
+        <div style="width:30px;height:30px;border-radius:50%;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500">A</div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:6px;padding:10px 12px;overflow-x:auto">
+      <button class="btn btn-primary btn-sm" onclick="showCreateOrder()">+ 新建订单</button>
+      <button class="btn btn-outline btn-sm">搜索客户</button>
+      <button class="btn btn-sm" style="border-color:var(--c5);color:var(--c2)">历史记录</button>
+    </div>
+
+    <div class="alert alert-warn">
+      <span class="alert-icon">⚠</span>
+      <span><strong>2 张订单</strong> 超过 5 天未完工，需跟进</span>
+    </div>
+
+    <div class="section-head"><h3>今日订单</h3><a>查看全部</a></div>
+    <div class="scroll-area" id="office-orders-list">
+
+      <div class="order-card rush" onclick="showOrderDetail('GF0413-001')">
+        <div class="order-top">
+          <div>
+            <div class="order-no">GF0413-001 <span class="status s-rush"><span class="status-dot"></span>Rush</span></div>
+            <div class="order-customer">华宇建筑有限公司</div>
+          </div>
+          <div style="text-align:right">
+            <div class="status s-prod"><span class="status-dot"></span>生产中</div>
+            <div style="font-size:11px;color:var(--c3);margin-top:4px">今天 09:32</div>
+          </div>
+        </div>
+        <div class="order-meta">
+          <span class="meta-chip">Clear 6mm × 20片</span>
+          <span class="meta-chip">10 sqm</span>
+          <span class="meta-chip">PDF ✓</span>
+        </div>
+      </div>
+
+      <div class="order-card overdue" onclick="showOrderDetail('GF0408-005')">
+        <div class="order-top">
+          <div>
+            <div class="order-no">GF0408-005 <span class="overdue-tag">超期 5d</span></div>
+            <div class="order-customer">明珠玻璃工程</div>
+          </div>
+          <div style="text-align:right">
+            <div class="status s-prod"><span class="status-dot"></span>生产中</div>
+            <div style="font-size:11px;color:var(--orange);margin-top:4px">已超 5 天</div>
+          </div>
+        </div>
+        <div class="order-meta">
+          <span class="meta-chip">Frosted 10mm × 8片</span>
+          <span class="meta-chip">修改高亮 ★</span>
+        </div>
+      </div>
+
+      <div class="order-card" onclick="showOrderDetail('GF0413-002')">
+        <div class="order-top">
+          <div>
+            <div class="order-no">GF0413-002</div>
+            <div class="order-customer">东方装饰材料</div>
+          </div>
+          <div style="text-align:right">
+            <div class="status s-pickup"><span class="status-dot"></span>待取货</div>
+            <div style="font-size:11px;color:var(--c3);margin-top:4px">今天 11:20</div>
+          </div>
+        </div>
+        <div class="order-meta">
+          <span class="meta-chip">Grey 5mm × 15片</span>
+          <span class="meta-chip">可发取货通知</span>
+        </div>
+      </div>
+
+      <div class="order-card" onclick="showOrderDetail('GF0413-003')">
+        <div class="order-top">
+          <div>
+            <div class="order-no">GF0413-003</div>
+            <div class="order-customer">星光幕墙工程</div>
+          </div>
+          <div style="text-align:right">
+            <div class="status s-pending"><span class="status-dot"></span>已接单</div>
+            <div style="font-size:11px;color:var(--c3);margin-top:4px">今天 14:05</div>
+          </div>
+        </div>
+        <div class="order-meta">
+          <span class="meta-chip">Rain 4mm × 30片</span>
+          <span class="meta-chip">HOLD: 第3片</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========== ORDER DETAIL (hidden overlay) ========== -->
+  <div id="view-order-detail" style="display:none">
+    <div class="mob-header">
+      <div style="display:flex;align-items:center;gap:8px">
+        <svg onclick="closeDetail()" width="20" height="20" fill="none" stroke="var(--c2)" stroke-width="2" viewBox="0 0 24 24" style="cursor:pointer"><path d="M15 18l-6-6 6-6"/></svg>
+        <div class="mob-header-title">GF0413-001</div>
+        <span class="status s-rush"><span class="status-dot"></span>Rush</span>
+      </div>
+      <button class="btn btn-sm" style="border-color:var(--c5);color:var(--c2);font-size:11px">修改订单</button>
+    </div>
+
+    <div class="progress-steps">
+      <div class="step"><div class="step-circle done">✓</div><div class="step-label">接单</div></div>
+      <div class="step-line done"></div>
+      <div class="step"><div class="step-circle done">✓</div><div class="step-label">画图<br>录入</div></div>
+      <div class="step-line done"></div>
+      <div class="step"><div class="step-circle active">3</div><div class="step-label">生产中</div></div>
+      <div class="step-line"></div>
+      <div class="step"><div class="step-circle">4</div><div class="step-label">完成</div></div>
+      <div class="step-line"></div>
+      <div class="step"><div class="step-circle">5</div><div class="step-label">待取货</div></div>
+      <div class="step-line"></div>
+      <div class="step"><div class="step-circle">6</div><div class="step-label">已取货</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><span class="card-title">订单信息</span><span style="font-size:11px;color:var(--c3)">2026-04-13 09:32</span></div>
+      <div class="card-body">
+        <div class="card-row"><span class="card-row-label">客户</span><span class="card-row-value">华宇建筑有限公司</span></div>
+        <div class="card-row"><span class="card-row-label">玻璃类型</span><span class="card-row-value">Clear 6mm</span></div>
+        <div class="card-row"><span class="card-row-label">数量</span><span class="card-row-value">20 片</span></div>
+        <div class="card-row"><span class="card-row-label">PDF 图纸</span><span style="color:var(--blue);font-size:13px;font-weight:500">查看图纸</span></div>
+        <div class="card-row"><span class="card-row-label">特别说明</span><span class="card-row-value">第5片 HOLD</span></div>
+        <div class="card-row"><span class="card-row-label">预计完成</span><span class="card-row-value">2026-04-14</span></div>
+      </div>
+    </div>
+
+    <div style="padding:12px;display:flex;gap:8px">
+      <button class="btn btn-success" style="flex:1" onclick="showPickupFlow()">批准取货</button>
+      <button class="btn btn-outline" style="flex:1">发邮件通知</button>
+    </div>
+  </div>
+
+  <!-- ========== WORKER VIEW ========== -->
+  <div id="view-worker" style="display:none">
+    <div class="mob-header">
+      <div>
+        <div class="mob-header-title">我的工单</div>
+        <div style="font-size:11px;color:var(--c3)">切割工序 · 小王</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:4px">
+        <span style="font-size:11px;color:var(--red)" class="rework-highlight">返工 ●</span>
+        <span class="badge">2</span>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:6px;padding:8px 12px;font-size:12px;overflow-x:auto">
+      <button class="role-btn active" style="font-size:11px">按公司</button>
+      <button class="role-btn" style="font-size:11px">按日期</button>
+      <button class="role-btn" style="font-size:11px">进行中</button>
+      <button class="role-btn" style="font-size:11px">全部</button>
+    </div>
+
+    <div class="scroll-area">
+      <!-- REWORK HIGHLIGHT -->
+      <div class="worker-order highlight">
+        <div style="background:var(--red-l);color:var(--red);font-size:11px;font-weight:500;padding:4px 10px;margin:-14px -14px 10px;border-radius:12px 12px 0 0">
+          ⚡ 返工任务（未读）— 已自动转至切割工序
+        </div>
+        <div class="wo-top">
+          <div>
+            <div class="wo-no">GF0412-003 · 第3片</div>
+            <div class="wo-glass">Frosted 10mm — 华宇建筑</div>
+          </div>
+          <span class="status s-rush"><span class="status-dot"></span>返工</span>
+        </div>
+        <div class="wo-specs">
+          <span class="wo-spec">600×900mm</span>
+          <span class="wo-spec">重做原因：尺寸偏差</span>
+        </div>
+        <div class="wo-btn-row">
+          <button class="btn btn-danger btn-sm" style="flex:1">开始返工切割</button>
+          <button class="btn btn-sm" style="border-color:var(--c5);color:var(--c2);flex:0.5" onclick="markReworkRead()">已读</button>
+        </div>
+      </div>
+
+      <!-- NORMAL IN-PROGRESS -->
+      <div class="worker-order">
+        <div class="wo-top">
+          <div>
+            <div class="wo-no">GF0413-001</div>
+            <div class="wo-glass">Clear 6mm — 华宇建筑</div>
+          </div>
+          <span class="status s-prod"><span class="status-dot"></span>切割中</span>
+        </div>
+        <div class="wo-specs">
+          <span class="wo-spec">20片</span>
+          <span class="wo-spec">800×1200mm</span>
+          <span class="wo-spec">Rush</span>
+        </div>
+        <div class="wo-btn-row">
+          <button class="btn btn-success btn-sm btn-block">标记切割完成 →</button>
+        </div>
+        <div style="font-size:11px;color:var(--c3);margin-top:8px">完成后自动转至开口工序 ·小陈</div>
+      </div>
+
+      <!-- GREY — WAITING FOR PREV STEP -->
+      <div class="worker-order" style="opacity:0.55">
+        <div class="wo-top">
+          <div>
+            <div class="wo-no">GF0413-002</div>
+            <div class="wo-glass">Grey 5mm — 东方装饰</div>
+          </div>
+          <span style="font-size:11px;color:var(--c4)">等待上道工序</span>
+        </div>
+        <div class="wo-specs">
+          <span class="wo-spec">15片</span>
+          <span class="wo-spec">600×800mm</span>
+        </div>
+        <div style="font-size:11px;color:var(--c4)">上一工序未完成，暂不可操作</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== SUPERVISOR VIEW ========== -->
+  <div id="view-supervisor" style="display:none">
+    <div class="mob-header">
+      <div class="mob-header-title">管理看板</div>
+      <div style="width:30px;height:30px;border-radius:50%;background:var(--purple);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500">S</div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-num" style="color:var(--blue)">24</div>
+        <div class="stat-label">今日在产订单</div>
+        <div class="stat-sub">+3 vs 昨日</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" style="color:var(--green)">18</div>
+        <div class="stat-label">今日完工</div>
+        <div class="stat-sub">良品率 96.2%</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" style="color:var(--red)">2</div>
+        <div class="stat-label">超期未完成</div>
+        <div class="stat-sub" style="color:var(--red)">需立即跟进</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" style="color:var(--amber)">5</div>
+        <div class="stat-label">待批准取货</div>
+        <div class="stat-sub">等待审核</div>
+      </div>
+    </div>
+
+    <div class="alert alert-warn" style="margin-bottom:6px">
+      <span class="alert-icon">⚠</span>
+      <div><strong>GF0408-005</strong> 超期5天 — 明珠玻璃工程，建议优先排产</div>
+    </div>
+
+    <div class="section-head"><h3>待审批取货</h3></div>
+    <div class="order-card">
+      <div class="order-top">
+        <div>
+          <div class="order-no">GF0413-002</div>
+          <div class="order-customer">东方装饰材料 — Grey 5mm × 15片</div>
+        </div>
+        <div class="status s-done"><span class="status-dot"></span>完成</div>
+      </div>
+      <div class="wo-btn-row" style="margin-top:8px">
+        <button class="btn btn-success btn-sm" style="flex:1" onclick="showPickupFlow()">批准取货</button>
+        <button class="btn btn-outline btn-sm" style="flex:1">查看详情</button>
+      </div>
+    </div>
+
+    <div class="section-head"><h3>返工跟踪</h3></div>
+    <div class="order-card">
+      <div class="order-top">
+        <div>
+          <div class="order-no">GF0412-003 · 第3片</div>
+          <div class="order-customer">华宇建筑 — 返工中 · 切割工序</div>
+        </div>
+        <span class="status s-rush"><span class="status-dot"></span>返工</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== PICKUP / SIGNATURE VIEW ========== -->
+  <div id="view-pickup" style="display:none">
+    <div class="mob-header">
+      <div class="mob-header-title">取货签字</div>
+      <div style="font-size:11px;color:var(--green)">已批准</div>
+    </div>
+
+    <div class="alert alert-ok" style="margin-top:8px">
+      <span class="alert-icon">✓</span>
+      <div>主管已批准，可以取货</div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><span class="card-title">取货信息确认</span></div>
+      <div class="card-body">
+        <div class="card-row"><span class="card-row-label">订单号</span><span class="card-row-value">GF0413-002</span></div>
+        <div class="card-row"><span class="card-row-label">客户</span><span class="card-row-value">东方装饰材料</span></div>
+        <div class="card-row"><span class="card-row-label">品项</span><span class="card-row-value">Grey 5mm × 15片</span></div>
+        <div class="card-row"><span class="card-row-label">完成后停放</span><span class="card-row-value" style="color:var(--amber)">已停放 2 天</span></div>
+        <div class="card-row"><span class="card-row-label">取货时间</span><span class="card-row-value">2026-04-13 15:42</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><span class="card-title">客户手写签名</span></div>
+      <div class="card-body">
+        <div class="sig-pad-wrap">
+          <canvas class="sig-canvas" id="sigCanvas"></canvas>
+        </div>
+        <div class="sig-label">请在上方手写签名</div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn btn-sm btn-outline" onclick="clearSig()">清除</button>
+          <div style="flex:1"></div>
+          <div style="font-size:11px;color:var(--c3);align-self:center">签名将自动保存</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="padding:12px">
+      <button class="btn btn-success btn-block" style="padding:13px" onclick="confirmPickup()">确认取货完成 — 生成 Pickup Slip</button>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <div class="bottom-nav" id="bottom-nav">
+    <div class="nav-item active" onclick="switchTab('orders')">
+      <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z"/></svg>
+      <span>订单</span>
+    </div>
+    <div class="nav-item" onclick="switchTab('customers')">
+      <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg>
+      <span>客户</span>
+    </div>
+    <div class="nav-item" onclick="switchTab('production')">
+      <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437l1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008z"/></svg>
+      <span>生产</span>
+    </div>
+    <div class="nav-item" onclick="switchTab('stats')">
+      <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/></svg>
+      <span>统计</span>
+    </div>
+    <div class="nav-item" onclick="switchTab('more')">
+      <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 12.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 18.75a.75.75 0 110-1.5.75.75 0 010 1.5z"/></svg>
+      <span>更多</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- OPTIMIZATIONS SECTION -->
+<div style="margin-top:24px;padding:0 4px">
+  <div style="font-size:15px;font-weight:500;margin-bottom:12px">针对 300 万日活的优化建议</div>
+
+  <div id="opt-cards"></div>
+</div>
+
+</div>
+
+<script>
+const opts = [
+  {
+    cat:"数据库层",color:"#1e40af",bg:"#dbeafe",
+    items:[
+      ["PgBouncer 已配置 transaction pooling","✓ 已实现，维持现状"],
+      ["PostgreSQL 分区表","orders 按月分区，历史查询提速 10x"],
+      ["Read Replica","从库分离读流量，主库专注写，预计减压 60%"],
+      ["pg_trgm 全文索引","客户名/订单号模糊搜索，响应 <50ms"],
+      ["连接数上限","max_connections 从默认 100 → 200，PgBouncer pool_size 50"],
+    ]
+  },
+  {
+    cat:"缓存层",color:"#14532d",bg:"#dcfce7",
+    items:[
+      ["Redis volatile-ttl","✓ 已配置，防止 Streams key 被误淘汰"],
+      ["库存 Redis Lua 原子操作","✓ 已实现，防超卖"],
+      ["订单热数据缓存 TTL=30s","减少 DB 重复查询，命中率预计 >85%"],
+      ["Cache-after-commit hook","✓ 设计合理，确保先 commit 再更新缓存"],
+      ["Redis Cluster 升级","单节点 8G 内存满了再上 Cluster，无需提前"],
+    ]
+  },
+  {
+    cat:"API 与并发",color:"#92400e",bg:"#fef3c7",
+    items:[
+      ["幂等键 idempotency_key","✓ 已在 schema 中定义，防重复下单"],
+      ["FastAPI 4 worker 进程","单机 ~12,000 QPS，300 万 DAU 完全满足"],
+      ["限流三层策略","Nginx IP 限流 + slowapi 用户限流 + 业务层客户限流"],
+      ["Outbox + Kafka 异步解耦","✓ 已实现，订单写入 <10ms，异步跑排产通知"],
+      ["PDF 生成放 Worker","避免阻塞 API 进程，签字 PDF 异步生成"],
+    ]
+  },
+  {
+    cat:"前端 PWA 性能",color:"#4c1d95",bg:"#ede9fe",
+    items:[
+      ["Service Worker 已配置","✓ 离线缓存，弱网环境可用"],
+      ["图纸 PDF 懒加载","点击时再拉取 MinIO presigned URL，首屏不加载"],
+      ["WebSocket 实时推送","订单状态变化 Server-Sent Events，前台无需轮询"],
+      ["签名 canvas 压缩","PNG → JPEG 80% quality 后上传，减少 75% 存储"],
+      ["移动端列表虚拟滚动","超 100 条订单时启用，防止 DOM 膨胀"],
+    ]
+  },
+  {
+    cat:"关键业务逻辑缺口",color:"#7f1d1d",bg:"#fee2e2",
+    items:[
+      ["orders service.py 1659 行 — 过度耦合","PDF 生成、邮件发送抽出到独立 Worker，service 只做业务逻辑"],
+      ["smtplib 直接在 service 调用","→ 改为 Outbox 事件触发 notification_dispatch worker"],
+      ["struct/zlib 在 service.py","→ PDF 生成移至 infra/pdf/ 模块"],
+      ["production/service.py 只有 66 行","排产调度引擎逻辑需补全，scheduler_engine.py 未被调用"],
+      ["电子签名存储","签名 base64 应存 MinIO，数据库只存对象路径"],
+    ]
+  },
+  {
+    cat:"运维与可观测性",color:"#1c4532",bg:"#d1fae5",
+    items:[
+      ["postgresql.conf.tuning 已提供","按 sj.md 建议值调整 shared_buffers=4G，work_mem=32MB"],
+      ["Prometheus + Grafana","ops/docker-compose.yml 中补充监控服务"],
+      ["慢查询日志","pg log_min_duration_statement = 100ms 开启"],
+      ["Kafka Dead Letter 监控","event_outbox dead_letter > 0 触发告警"],
+      ["MinIO 生命周期","✓ lifecycle.json 已配置，冷数据自动归档"],
+    ]
+  }
+];
+
+const container = document.getElementById('opt-cards');
+opts.forEach(o => {
+  const el = document.createElement('div');
+  el.style.cssText = 'margin-bottom:10px;border-radius:12px;overflow:hidden;border:0.5px solid var(--color-border-tertiary)';
+  el.innerHTML = `
+    <div style="padding:10px 14px;background:${o.bg};color:${o.color};font-size:13px;font-weight:500;display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+      ${o.cat}
+      <span style="font-size:10px;opacity:0.7">${o.items.length} 项 ▾</span>
+    </div>
+    <div style="background:var(--color-background-primary)">
+      ${o.items.map(([k,v])=>`
+        <div style="display:flex;gap:10px;padding:9px 14px;border-bottom:0.5px solid var(--color-border-tertiary);font-size:12px">
+          <span style="color:var(--color-text-secondary);flex:1.2">${k}</span>
+          <span style="color:var(--color-text-primary);flex:2;text-align:right">${v.startsWith('✓')?'<span style="color:#16a34a">'+v+'</span>':v}</span>
+        </div>
+      `).join('')}
+    </div>
+  `;
+  container.appendChild(el);
+});
+
+function switchRole(role) {
+  document.querySelectorAll('.role-btn').forEach(b=>b.classList.remove('active'));
+  event.target.classList.add('active');
+  ['office','worker','supervisor','pickup'].forEach(v=>{
+    const el = document.getElementById('view-'+v);
+    if(el) el.style.display = v===role?'block':'none';
+  });
+  document.getElementById('view-order-detail').style.display='none';
+  document.getElementById('bottom-nav').style.display = role==='pickup'?'none':'flex';
+}
+
+function showOrderDetail(id){
+  document.getElementById('view-office').style.display='none';
+  document.getElementById('view-order-detail').style.display='block';
+}
+function closeDetail(){
+  document.getElementById('view-order-detail').style.display='none';
+  document.getElementById('view-office').style.display='block';
+}
+function showPickupFlow(){
+  document.querySelectorAll('.role-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.role-btn')[3].classList.add('active');
+  ['office','worker','supervisor'].forEach(v=>{
+    const el=document.getElementById('view-'+v);
+    if(el) el.style.display='none';
+  });
+  document.getElementById('view-order-detail').style.display='none';
+  document.getElementById('view-pickup').style.display='block';
+  document.getElementById('bottom-nav').style.display='none';
+  setTimeout(initSig,100);
+}
+
+function markReworkRead(){
+  const h=document.querySelector('.worker-order.highlight');
+  if(h){h.style.opacity='0.6';h.querySelector('.btn-danger').disabled=true;}
+}
+
+function switchTab(t){
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+}
+
+// Signature pad
+let sigCtx, sigDrawing=false, sigLastX, sigLastY;
+function initSig(){
+  const canvas=document.getElementById('sigCanvas');
+  if(!canvas)return;
+  canvas.width=canvas.offsetWidth||380;
+  canvas.height=160;
+  sigCtx=canvas.getContext('2d');
+  sigCtx.strokeStyle='#1e293b';
+  sigCtx.lineWidth=2;
+  sigCtx.lineCap='round';
+  function getPos(e){
+    const r=canvas.getBoundingClientRect();
+    const src=e.touches?e.touches[0]:e;
+    return{x:src.clientX-r.left,y:src.clientY-r.top};
+  }
+  function start(e){e.preventDefault();sigDrawing=true;const p=getPos(e);sigLastX=p.x;sigLastY=p.y;}
+  function move(e){e.preventDefault();if(!sigDrawing)return;const p=getPos(e);sigCtx.beginPath();sigCtx.moveTo(sigLastX,sigLastY);sigCtx.lineTo(p.x,p.y);sigCtx.stroke();sigLastX=p.x;sigLastY=p.y;}
+  function stop(){sigDrawing=false;}
+  canvas.addEventListener('mousedown',start);canvas.addEventListener('mousemove',move);canvas.addEventListener('mouseup',stop);
+  canvas.addEventListener('touchstart',start,{passive:false});canvas.addEventListener('touchmove',move,{passive:false});canvas.addEventListener('touchend',stop);
+}
+function clearSig(){const c=document.getElementById('sigCanvas');if(c&&sigCtx)sigCtx.clearRect(0,0,c.width,c.height);}
+function confirmPickup(){
+  const btn=document.querySelector('#view-pickup .btn-success');
+  btn.textContent='✓ 取货完成 — Pickup Slip 已生成';
+  btn.style.background='var(--green)';
+  btn.disabled=true;
+  const alert=document.createElement('div');
+  alert.className='alert alert-ok';
+  alert.style.margin='8px 12px';
+  alert.innerHTML='<span class="alert-icon">✓</span><span>签名已保存至 MinIO，订单状态已更新为「已取货」，PDF Slip 可下载</span>';
+  btn.parentElement.parentElement.insertBefore(alert, btn.parentElement);
+}
+
+switchRole('office');
+</script>

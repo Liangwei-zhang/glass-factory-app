@@ -7,6 +7,7 @@ from sqlalchemy import text
 from infra.cache.redis_client import get_redis
 from infra.core.config import get_settings
 from infra.db.session import build_engine
+from infra.storage.object_storage import ObjectStorage
 
 
 async def check_database() -> bool:
@@ -75,17 +76,27 @@ async def check_kafka() -> bool:
     return False
 
 
+async def check_object_storage() -> bool:
+    try:
+        storage = ObjectStorage()
+        return await storage.is_available()
+    except Exception:
+        return False
+
+
 async def run_runtime_probe() -> dict:
     db_ok = await check_database()
     redis_ok = await check_redis()
     kafka_ok = await check_kafka()
+    object_storage_ok = await check_object_storage()
 
-    status = "ok" if db_ok and redis_ok and kafka_ok else "degraded"
+    status = "ok" if db_ok and redis_ok and kafka_ok and object_storage_ok else "degraded"
     return {
         "status": status,
         "checks": {
             "database": db_ok,
             "redis": redis_ok,
             "kafka": kafka_ok,
+            "object_storage": object_storage_ok,
         },
     }

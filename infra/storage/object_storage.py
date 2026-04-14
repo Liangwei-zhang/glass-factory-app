@@ -186,6 +186,29 @@ class ObjectStorage:
         cache_path.write_bytes(await self.get_bytes(bucket, key))
         return cache_path
 
+    async def is_available(self) -> bool:
+        if self.backend == "local":
+            try:
+                self.base_dir.mkdir(parents=True, exist_ok=True)
+                self.download_cache_dir.mkdir(parents=True, exist_ok=True)
+                return True
+            except Exception:
+                return False
+
+        if not self.s3_bucket:
+            return False
+
+        client = self._build_s3_client()
+
+        def _head_bucket() -> bool:
+            try:
+                client.head_bucket(Bucket=self.s3_bucket)
+                return True
+            except Exception:
+                return False
+
+        return await asyncio.to_thread(_head_bucket)
+
     async def delete(self, bucket: str, key: str) -> None:
         if self.backend == "local":
             object_path = self.resolve_local_path(bucket=bucket, key=key)

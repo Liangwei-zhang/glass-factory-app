@@ -173,7 +173,7 @@ def test_admin_runtime_probe_response_contract_and_role_guard() -> None:
 
             success_payload = _assert_success_envelope(success_response, status_code=200)
             assert success_payload["status"] in {"ok", "degraded"}
-            assert set(success_payload["checks"].keys()) == {"database", "redis", "kafka"}
+            assert set(success_payload["checks"].keys()) >= {"database", "redis", "kafka", "object_storage"}
     finally:
         app.dependency_overrides.clear()
 

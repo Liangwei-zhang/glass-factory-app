@@ -11,3 +11,4 @@ async def test_runtime_probe_returns_expected_shape() -> None:
     assert "database" in result["checks"]
     assert "redis" in result["checks"]
     assert "kafka" in result["checks"]
+    assert "object_storage" in result["checks"]

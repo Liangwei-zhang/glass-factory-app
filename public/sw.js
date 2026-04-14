@@ -1,4 +1,4 @@
-const CACHE_NAME = 'glass-factory-static-v11';
+const CACHE_NAME = 'glass-factory-static-v14';
 const APP_SHELL = [
   '/',
   '/app',
@@ -6,6 +6,8 @@ const APP_SHELL = [
   '/admin',
   '/manifest.webmanifest',
   '/icon.svg',
+  '/mobile-shell.css',
+  '/mobile-shell.js',
 ];
 
 self.addEventListener('install', (event) => {

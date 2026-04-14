@@ -731,10 +731,17 @@ def test_orders_pickup_email_and_drawing_upload_response_contracts(monkeypatch) 
             }
         }
 
-    async def fake_upload_drawing(_session, order_id: str, filename: str, payload_bytes: bytes):
+    async def fake_upload_drawing(
+        _session,
+        order_id: str,
+        filename: str,
+        payload_bytes: bytes,
+        content_type: str | None = None,
+    ):
         assert _session is harness.session
         assert filename == "drawing.pdf"
         assert payload_bytes == b"drawing-payload"
+        assert content_type == "application/pdf"
         order = harness.orders_repository.orders_by_id[order_id]
         order.drawing_object_key = f"orders/{order_id}/drawings/drawing.pdf"
         order.drawing_original_name = filename

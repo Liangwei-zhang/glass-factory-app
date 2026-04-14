@@ -1,0 +1,1597 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Glass Factory — 操作台</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<style>
+/* ═══════════════════════════════════════
+   TOKENS & RESET
+═══════════════════════════════════════ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#0d1117;
+  --surface:#161b22;
+  --surface-2:#1f2937;
+  --surface-3:#2d3748;
+  --border:rgba(255,255,255,.08);
+  --border-2:rgba(255,255,255,.14);
+  --amber:#f59e0b;
+  --amber-dim:rgba(245,158,11,.15);
+  --amber-glow:rgba(245,158,11,.3);
+  --green:#22c55e;
+  --green-dim:rgba(34,197,94,.12);
+  --red:#ef4444;
+  --red-dim:rgba(239,68,68,.12);
+  --blue:#3b82f6;
+  --blue-dim:rgba(59,130,246,.12);
+  --purple:#8b5cf6;
+  --purple-dim:rgba(139,92,246,.12);
+  --text:#e6edf3;
+  --text-2:#8b949e;
+  --text-3:#484f58;
+  --font-head:'Barlow Condensed',sans-serif;
+  --font-body:'Barlow',sans-serif;
+  --font-mono:'JetBrains Mono',monospace;
+  --nav-h:56px;
+  --topbar-h:56px;
+  --sidebar-w:220px;
+  --bottom-nav-h:68px;
+  --radius:10px;
+  --radius-lg:14px;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:15px;line-height:1.5;overflow:hidden}
+[v-cloak]{display:none}
+button{font-family:var(--font-body);cursor:pointer;border:none;outline:none}
+input,select,textarea{font-family:var(--font-body);outline:none}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--surface-3);border-radius:2px}
+
+/* ═══════════════════════════════════════
+   APP SHELL
+═══════════════════════════════════════ */
+.app-shell{display:flex;flex-direction:column;height:100vh;overflow:hidden}
+.main-wrap{display:flex;flex:1;overflow:hidden}
+
+/* ═══════════════════════════════════════
+   TOPBAR
+═══════════════════════════════════════ */
+.topbar{
+  height:var(--topbar-h);background:var(--surface);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 16px;gap:12px;
+  flex-shrink:0;position:relative;z-index:50;
+}
+.topbar-brand{display:flex;align-items:center;gap:10px;flex:1}
+.brand-gem{
+  width:36px;height:36px;border-radius:8px;
+  background:linear-gradient(135deg,#92400e,var(--amber));
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.brand-gem svg{width:20px;height:20px;fill:#fff}
+.brand-name{font-family:var(--font-head);font-size:20px;font-weight:700;letter-spacing:.5px;line-height:1}
+.brand-role{font-size:11px;color:var(--text-2);margin-top:1px;font-weight:500;letter-spacing:.3px}
+.topbar-actions{display:flex;align-items:center;gap:6px}
+.icon-btn{
+  width:36px;height:36px;border-radius:8px;background:transparent;
+  display:flex;align-items:center;justify-content:center;color:var(--text-2);
+  transition:all .15s;position:relative;
+}
+.icon-btn:hover{background:var(--surface-2);color:var(--text)}
+.icon-btn svg{width:18px;height:18px}
+.notif-dot{
+  position:absolute;top:6px;right:6px;
+  width:8px;height:8px;border-radius:50%;background:var(--red);
+  border:2px solid var(--surface);
+}
+.lang-pill{
+  padding:4px 10px;border-radius:6px;background:var(--surface-2);
+  border:1px solid var(--border);color:var(--text-2);font-size:12px;font-weight:500;
+  cursor:pointer;transition:all .15s;
+}
+.lang-pill:hover{border-color:var(--border-2);color:var(--text)}
+.user-chip{
+  display:flex;align-items:center;gap:8px;padding:4px 10px 4px 4px;
+  border-radius:8px;background:var(--surface-2);border:1px solid var(--border);
+  cursor:pointer;transition:all .15s;
+}
+.user-chip:hover{border-color:var(--border-2)}
+.avatar{
+  width:28px;height:28px;border-radius:6px;
+  background:linear-gradient(135deg,var(--amber),#92400e);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--font-head);font-size:13px;font-weight:700;color:#fff;
+}
+.user-name{font-size:12px;font-weight:600;color:var(--text)}
+
+/* ═══════════════════════════════════════
+   SIDEBAR (desktop)
+═══════════════════════════════════════ */
+.sidebar{
+  width:var(--sidebar-w);background:var(--surface);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;flex-shrink:0;
+  overflow-y:auto;padding:12px 8px;
+}
+.nav-group-label{
+  font-family:var(--font-head);font-size:10px;font-weight:700;
+  letter-spacing:1.5px;text-transform:uppercase;color:var(--text-3);
+  padding:10px 10px 4px;
+}
+.nav-link{
+  display:flex;align-items:center;gap:10px;padding:9px 10px;
+  border-radius:8px;color:var(--text-2);font-size:13px;font-weight:500;
+  cursor:pointer;transition:all .15s;margin-bottom:2px;
+}
+.nav-link:hover{background:var(--surface-2);color:var(--text)}
+.nav-link.active{background:var(--amber-dim);color:var(--amber);border:1px solid var(--amber-glow)}
+.nav-link svg{width:16px;height:16px;flex-shrink:0}
+.nav-link .badge-count{
+  margin-left:auto;background:var(--red);color:#fff;
+  font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;
+  font-family:var(--font-mono);
+}
+
+/* ═══════════════════════════════════════
+   CONTENT AREA
+═══════════════════════════════════════ */
+.content{flex:1;overflow-y:auto;padding:20px;min-width:0}
+@media(max-width:768px){.sidebar{display:none}.content{padding:14px 12px 80px}}
+
+/* ═══════════════════════════════════════
+   BOTTOM NAV (mobile)
+═══════════════════════════════════════ */
+.bottom-nav{
+  display:none;height:var(--bottom-nav-h);
+  background:var(--surface);border-top:1px solid var(--border);
+  position:fixed;bottom:0;left:0;right:0;z-index:50;
+  display:flex;align-items:center;
+}
+@media(min-width:769px){.bottom-nav{display:none}}
+.bnav-item{
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:3px;padding:8px 4px;
+  color:var(--text-3);cursor:pointer;transition:color .15s;
+  position:relative;
+}
+.bnav-item.active{color:var(--amber)}
+.bnav-item svg{width:22px;height:22px}
+.bnav-label{font-size:10px;font-weight:600;letter-spacing:.3px;font-family:var(--font-head)}
+.bnav-dot{
+  position:absolute;top:6px;left:calc(50% + 6px);
+  width:7px;height:7px;border-radius:50%;background:var(--red);
+  border:2px solid var(--surface);
+}
+
+/* ═══════════════════════════════════════
+   PAGE HEADERS
+═══════════════════════════════════════ */
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px}
+.page-title{font-family:var(--font-head);font-size:28px;font-weight:800;letter-spacing:1px;color:var(--text);line-height:1}
+.page-sub{font-size:12px;color:var(--text-2);margin-top:2px}
+
+/* ═══════════════════════════════════════
+   FILTER BAR
+═══════════════════════════════════════ */
+.filter-bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.search-box{
+  display:flex;align-items:center;gap:8px;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:8px;padding:8px 12px;flex:1;min-width:180px;
+}
+.search-box svg{width:15px;height:15px;color:var(--text-3);flex-shrink:0}
+.search-box input{background:none;border:none;color:var(--text);font-size:13px;flex:1;min-width:0}
+.search-box input::placeholder{color:var(--text-3)}
+.filter-pill{
+  padding:7px 14px;border-radius:8px;font-size:12px;font-weight:600;
+  background:var(--surface);border:1px solid var(--border);color:var(--text-2);
+  cursor:pointer;transition:all .15s;white-space:nowrap;font-family:var(--font-head);letter-spacing:.5px;
+}
+.filter-pill:hover{border-color:var(--border-2);color:var(--text)}
+.filter-pill.active{background:var(--amber-dim);border-color:var(--amber-glow);color:var(--amber)}
+
+/* ═══════════════════════════════════════
+   ORDER CARDS
+═══════════════════════════════════════ */
+.order-list{display:flex;flex-direction:column;gap:10px}
+.order-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius-lg);overflow:hidden;
+  transition:border-color .15s,transform .1s;cursor:pointer;
+  position:relative;
+}
+.order-card:hover{border-color:var(--border-2);transform:translateY(-1px)}
+.order-card.rush{border-left:3px solid var(--red)}
+.order-card.rework{border-left:3px solid var(--amber)}
+.order-card.stale{border-left:3px solid var(--purple)}
+.order-card.hold{border-left:3px solid var(--text-3)}
+.order-card-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 16px 10px;border-bottom:1px solid var(--border);
+}
+.order-no{font-family:var(--font-mono);font-size:13px;font-weight:600;color:var(--amber);letter-spacing:.5px}
+.order-meta{font-size:11px;color:var(--text-2);margin-top:2px}
+.order-badges{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.order-card-body{padding:12px 16px;display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+.order-field{display:flex;flex-direction:column;gap:1px}
+.order-field .lbl{font-size:10px;color:var(--text-3);font-family:var(--font-head);letter-spacing:.5px;text-transform:uppercase;font-weight:600}
+.order-field .val{font-size:13px;font-weight:600;color:var(--text)}
+.order-card-foot{
+  padding:10px 16px;background:rgba(0,0,0,.15);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.order-card-foot .customer{font-size:12px;font-weight:600;color:var(--text-2)}
+.order-actions{display:flex;gap:6px}
+
+/* ═══════════════════════════════════════
+   STATUS BADGES
+═══════════════════════════════════════ */
+.badge{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:3px 9px;border-radius:6px;font-size:11px;font-weight:700;
+  font-family:var(--font-head);letter-spacing:.5px;white-space:nowrap;
+}
+.badge::before{content:'';width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.badge.received{background:var(--surface-2);color:var(--text-2)}
+.badge.received::before{background:var(--text-3)}
+.badge.entered{background:var(--blue-dim);color:var(--blue)}
+.badge.entered::before{background:var(--blue)}
+.badge.in_production{background:var(--amber-dim);color:var(--amber)}
+.badge.in_production::before{background:var(--amber);animation:pulse 1.5s infinite}
+.badge.completed{background:var(--green-dim);color:var(--green)}
+.badge.completed::before{background:var(--green)}
+.badge.ready_for_pickup{background:var(--purple-dim);color:var(--purple)}
+.badge.ready_for_pickup::before{background:var(--purple)}
+.badge.picked_up{background:var(--surface-2);color:var(--text-3)}
+.badge.picked_up::before{background:var(--text-3)}
+.badge.cancelled{background:var(--red-dim);color:var(--red)}
+.badge.cancelled::before{background:var(--red)}
+.badge.rush{background:var(--red-dim);color:var(--red);border:1px solid rgba(239,68,68,.3)}
+.badge.rush::before{background:var(--red)}
+.badge.rework{background:var(--amber-dim);color:var(--amber);border:1px solid var(--amber-glow)}
+.badge.rework::before{background:var(--amber)}
+.badge.hold{background:var(--surface-2);color:var(--text-3);border:1px solid var(--border)}
+.badge.hold::before{background:var(--text-3)}
+.badge.stale{background:var(--purple-dim);color:var(--purple)}
+.badge.stale::before{background:var(--purple);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* ═══════════════════════════════════════
+   STALE ALERT BANNER
+═══════════════════════════════════════ */
+.stale-banner{
+  background:var(--purple-dim);border:1px solid rgba(139,92,246,.3);
+  border-radius:8px;padding:8px 12px;font-size:12px;color:var(--purple);
+  display:flex;align-items:center;gap:8px;margin-bottom:12px;
+}
+
+/* ═══════════════════════════════════════
+   BUTTONS
+═══════════════════════════════════════ */
+.btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;
+  cursor:pointer;transition:all .15s;border:1px solid transparent;
+  font-family:var(--font-body);white-space:nowrap;
+}
+.btn svg{width:14px;height:14px}
+.btn-primary{background:var(--amber);color:#000;border-color:var(--amber)}
+.btn-primary:hover{background:#fbbf24}
+.btn-primary:active{transform:scale(.97)}
+.btn-ghost{background:transparent;color:var(--text-2);border-color:var(--border)}
+.btn-ghost:hover{background:var(--surface-2);color:var(--text);border-color:var(--border-2)}
+.btn-danger{background:var(--red-dim);color:var(--red);border-color:rgba(239,68,68,.3)}
+.btn-danger:hover{background:rgba(239,68,68,.2)}
+.btn-success{background:var(--green-dim);color:var(--green);border-color:rgba(34,197,94,.3)}
+.btn-success:hover{background:rgba(34,197,94,.2)}
+.btn-lg{padding:14px 24px;font-size:16px;border-radius:10px}
+.btn-xl{padding:18px 32px;font-size:20px;font-family:var(--font-head);font-weight:700;letter-spacing:1px;border-radius:12px;width:100%}
+
+/* ═══════════════════════════════════════
+   WORKER KANBAN (production page)
+═══════════════════════════════════════ */
+.stage-header{
+  display:flex;align-items:center;gap:10px;margin-bottom:14px;
+}
+.stage-name{font-family:var(--font-head);font-size:22px;font-weight:800;letter-spacing:1px}
+.stage-count{
+  padding:2px 10px;border-radius:6px;background:var(--amber-dim);
+  color:var(--amber);font-family:var(--font-mono);font-size:13px;font-weight:600;
+}
+.worker-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius-lg);padding:16px;margin-bottom:10px;
+  transition:all .15s;
+}
+.worker-card.rework-alert{
+  border-color:rgba(239,68,68,.4);
+  background:linear-gradient(135deg,rgba(239,68,68,.06),var(--surface));
+}
+.worker-card.rush-card{border-color:rgba(239,68,68,.3)}
+.worker-order-no{font-family:var(--font-mono);font-size:14px;font-weight:600;color:var(--amber);margin-bottom:6px}
+.worker-customer{font-size:16px;font-weight:600;color:var(--text);margin-bottom:4px}
+.worker-details{font-size:13px;color:var(--text-2);margin-bottom:12px;line-height:1.6}
+.worker-glass-tag{
+  display:inline-flex;align-items:center;gap:4px;
+  background:var(--surface-2);border:1px solid var(--border);
+  padding:3px 10px;border-radius:6px;font-size:12px;font-weight:600;
+  color:var(--text);margin-right:6px;margin-bottom:6px;
+}
+.rework-alert-bar{
+  background:var(--red-dim);border:1px solid rgba(239,68,68,.3);
+  border-radius:8px;padding:8px 12px;
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  margin-bottom:12px;
+}
+.rework-alert-text{font-size:12px;font-weight:600;color:var(--red)}
+.worker-btn-row{display:flex;gap:8px}
+
+/* Progress bar */
+.prog-bar{height:4px;background:var(--surface-3);border-radius:2px;margin-bottom:12px;overflow:hidden}
+.prog-fill{height:100%;border-radius:2px;background:var(--amber);transition:width .4s}
+
+/* Stage tabs */
+.stage-tabs{display:flex;gap:0;margin-bottom:20px;background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.stage-tab{
+  flex:1;padding:10px 8px;text-align:center;font-size:12px;font-weight:700;
+  color:var(--text-3);cursor:pointer;transition:all .15s;border-right:1px solid var(--border);
+  font-family:var(--font-head);letter-spacing:.5px;
+}
+.stage-tab:last-child{border-right:none}
+.stage-tab.active{background:var(--amber-dim);color:var(--amber)}
+.stage-tab .cnt{display:block;font-size:18px;font-weight:800;margin-bottom:1px}
+
+/* ═══════════════════════════════════════
+   CUSTOMER LIST
+═══════════════════════════════════════ */
+.cust-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
+@media(max-width:600px){.cust-grid{grid-template-columns:1fr}}
+.cust-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius-lg);padding:14px 16px;cursor:pointer;
+  transition:all .15s;
+}
+.cust-card:hover{border-color:var(--border-2);transform:translateY(-1px)}
+.cust-card.has-active{border-color:var(--amber-glow);background:linear-gradient(135deg,rgba(245,158,11,.04),var(--surface))}
+.cust-header{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px}
+.cust-name{font-size:15px;font-weight:700;color:var(--text)}
+.cust-company{font-size:12px;color:var(--text-2);margin-top:1px}
+.cust-active-dot{
+  width:10px;height:10px;border-radius:50%;background:var(--amber);
+  flex-shrink:0;margin-top:4px;box-shadow:0 0 8px var(--amber);
+}
+.cust-stats{display:flex;gap:12px;font-size:12px;color:var(--text-2)}
+.cust-stat{display:flex;flex-direction:column;gap:1px}
+.cust-stat strong{font-size:14px;color:var(--text);font-weight:700}
+.active-orders-list{margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}
+.active-order-chip{
+  display:inline-flex;align-items:center;gap:4px;
+  background:var(--amber-dim);border:1px solid var(--amber-glow);
+  padding:2px 8px;border-radius:5px;font-size:11px;font-weight:600;
+  color:var(--amber);margin:2px 4px 2px 0;font-family:var(--font-mono);
+}
+
+/* ═══════════════════════════════════════
+   PICKUP PAGE
+═══════════════════════════════════════ */
+.pickup-search{max-width:560px;margin-bottom:24px}
+.pickup-search .search-box{padding:12px 16px}
+.pickup-search input{font-size:15px}
+.pickup-order-rows{display:flex;flex-direction:column;gap:10px}
+.pickup-row{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius-lg);padding:16px;
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;
+}
+.pickup-row.awaiting-approve{border-color:rgba(139,92,246,.3);background:var(--purple-dim)}
+.pickup-row.ready{border-color:rgba(34,197,94,.3);background:var(--green-dim)}
+.pickup-info{flex:1;min-width:160px}
+.pickup-order-no{font-family:var(--font-mono);font-size:14px;font-weight:600;color:var(--text);margin-bottom:3px}
+.pickup-customer{font-size:16px;font-weight:700;color:var(--text)}
+.pickup-meta{font-size:12px;color:var(--text-2);margin-top:2px}
+.waiting-days{
+  display:inline-flex;align-items:center;gap:4px;
+  background:var(--amber-dim);color:var(--amber);
+  padding:2px 8px;border-radius:5px;font-size:12px;font-weight:700;
+  font-family:var(--font-mono);margin-left:8px;
+}
+
+/* Signature modal overlay */
+.sig-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:200;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:16px;
+}
+.sig-box{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius-lg);width:100%;max-width:640px;overflow:hidden;
+}
+.sig-header{
+  padding:16px 20px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.sig-title{font-family:var(--font-head);font-size:20px;font-weight:700}
+.sig-body{padding:20px}
+.sig-field{margin-bottom:14px}
+.sig-label{font-size:11px;font-weight:700;color:var(--text-2);letter-spacing:.5px;font-family:var(--font-head);text-transform:uppercase;margin-bottom:5px}
+.sig-input{
+  width:100%;padding:10px 12px;background:var(--bg);border:1px solid var(--border-2);
+  border-radius:8px;color:var(--text);font-size:14px;
+}
+.sig-input:focus{border-color:var(--amber);outline:none}
+.sig-canvas-wrap{
+  border:1px solid var(--border-2);border-radius:8px;overflow:hidden;
+  background:#fff;position:relative;
+}
+.sig-canvas-wrap canvas{display:block;touch-action:none}
+.sig-clear{
+  position:absolute;top:8px;right:8px;
+  background:rgba(0,0,0,.6);color:#fff;border:none;
+  padding:4px 8px;border-radius:5px;font-size:11px;cursor:pointer;
+}
+.sig-footer{padding:16px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end}
+
+/* ═══════════════════════════════════════
+   ORDER DETAIL DRAWER
+═══════════════════════════════════════ */
+.drawer-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:150;
+}
+.drawer{
+  position:fixed;right:0;top:0;bottom:0;width:100%;max-width:520px;
+  background:var(--surface);border-left:1px solid var(--border);
+  z-index:160;overflow-y:auto;
+  transform:translateX(100%);transition:transform .25s cubic-bezier(.4,0,.2,1);
+}
+.drawer.open{transform:translateX(0)}
+@media(max-width:560px){.drawer{max-width:100%;border-left:none;border-top:1px solid var(--border)}}
+.drawer-header{
+  padding:16px 20px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;background:var(--surface);z-index:1;
+}
+.drawer-title{font-family:var(--font-head);font-size:20px;font-weight:700}
+.drawer-body{padding:20px}
+
+/* Items table */
+.items-table{width:100%;border-collapse:collapse;font-size:13px}
+.items-table th{
+  padding:8px 10px;text-align:left;font-size:10px;font-weight:700;
+  color:var(--text-3);font-family:var(--font-head);letter-spacing:.8px;text-transform:uppercase;
+  border-bottom:1px solid var(--border);
+}
+.items-table td{padding:10px;border-bottom:1px solid var(--border);color:var(--text)}
+.items-table tr:last-child td{border-bottom:none}
+.items-table .glass-type{
+  font-family:var(--font-mono);font-size:11px;font-weight:600;
+  padding:2px 7px;border-radius:4px;background:var(--surface-2);color:var(--text-2);
+}
+
+/* Hold toggle */
+.hold-toggle{
+  display:flex;align-items:center;gap:6px;cursor:pointer;
+  padding:4px 8px;border-radius:6px;background:transparent;
+  border:1px solid var(--border);transition:all .15s;
+}
+.hold-toggle.on{background:var(--surface-3);border-color:var(--border-2)}
+.hold-icon{width:14px;height:14px}
+
+/* Timeline */
+.timeline{margin-top:16px;padding-left:0;list-style:none}
+.tl-item{display:flex;gap:12px;padding-bottom:16px;position:relative}
+.tl-item:not(:last-child)::before{
+  content:'';position:absolute;left:10px;top:22px;bottom:0;
+  width:1px;background:var(--border);
+}
+.tl-dot{
+  width:22px;height:22px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  border:2px solid var(--border);background:var(--bg);
+}
+.tl-dot.done{background:var(--green);border-color:var(--green)}
+.tl-dot.active{background:var(--amber);border-color:var(--amber);box-shadow:0 0 8px var(--amber-glow)}
+.tl-content strong{font-size:13px;font-weight:600;color:var(--text);display:block}
+.tl-content span{font-size:11px;color:var(--text-2)}
+
+/* Form fields in drawer */
+.field-group{margin-bottom:16px}
+.field-label{font-size:11px;font-weight:700;color:var(--text-2);letter-spacing:.5px;font-family:var(--font-head);text-transform:uppercase;margin-bottom:6px;display:block}
+.field-input{
+  width:100%;padding:9px 12px;background:var(--bg);border:1px solid var(--border);
+  border-radius:8px;color:var(--text);font-size:13px;
+}
+.field-input:focus{border-color:var(--amber)}
+.glass-pills{display:flex;flex-wrap:wrap;gap:6px}
+.glass-pill{
+  padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;
+  background:var(--surface-2);border:1px solid var(--border);color:var(--text-2);
+  cursor:pointer;transition:all .15s;font-family:var(--font-head);letter-spacing:.5px;
+}
+.glass-pill.selected{background:var(--amber-dim);border-color:var(--amber-glow);color:var(--amber)}
+
+/* Priority selector */
+.priority-btns{display:flex;gap:8px}
+.pri-btn{
+  flex:1;padding:8px;border-radius:8px;font-size:12px;font-weight:700;
+  border:1px solid var(--border);background:var(--surface-2);color:var(--text-2);
+  cursor:pointer;transition:all .15s;text-align:center;font-family:var(--font-head);letter-spacing:.5px;
+}
+.pri-btn.normal.sel{background:var(--surface-3);border-color:var(--border-2);color:var(--text)}
+.pri-btn.rush.sel{background:var(--red-dim);border-color:rgba(239,68,68,.4);color:var(--red)}
+.pri-btn.hold.sel{background:var(--surface-3);border-color:var(--border-2);color:var(--text-3)}
+
+/* ═══════════════════════════════════════
+   CREATE ORDER FORM
+═══════════════════════════════════════ */
+.create-form{max-width:680px}
+.form-section{margin-bottom:24px}
+.form-section-title{
+  font-family:var(--font-head);font-size:16px;font-weight:700;letter-spacing:.5px;
+  color:var(--text-2);text-transform:uppercase;margin-bottom:12px;
+  display:flex;align-items:center;gap:8px;
+}
+.form-section-title::before{content:'';width:3px;height:16px;background:var(--amber);border-radius:2px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:480px){.form-row{grid-template-columns:1fr}}
+.item-row{
+  background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px;
+  position:relative;
+}
+.item-row-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.item-no{font-family:var(--font-mono);font-size:12px;color:var(--amber);font-weight:600}
+.add-item-btn{
+  width:100%;padding:10px;border-radius:8px;
+  border:1px dashed var(--border);background:transparent;color:var(--text-3);
+  font-size:13px;cursor:pointer;transition:all .15s;font-family:var(--font-body);
+}
+.add-item-btn:hover{border-color:var(--amber-glow);color:var(--amber)}
+
+/* Upload area */
+.upload-area{
+  border:1px dashed var(--border-2);border-radius:10px;padding:24px;
+  text-align:center;cursor:pointer;transition:all .15s;
+  background:var(--bg);
+}
+.upload-area:hover{border-color:var(--amber-glow);background:var(--amber-dim)}
+.upload-icon{font-size:32px;margin-bottom:8px}
+.upload-text{font-size:13px;color:var(--text-2)}
+.upload-hint{font-size:11px;color:var(--text-3);margin-top:4px}
+.upload-done{
+  background:var(--green-dim);border:1px solid rgba(34,197,94,.3);
+  border-radius:8px;padding:10px 14px;
+  display:flex;align-items:center;gap:10px;font-size:13px;color:var(--green);
+}
+
+/* ═══════════════════════════════════════
+   STATS ROW
+═══════════════════════════════════════ */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
+@media(max-width:600px){.stats-row{grid-template-columns:repeat(2,1fr)}}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px}
+.stat-num{font-family:var(--font-head);font-size:26px;font-weight:800;line-height:1;margin-bottom:2px}
+.stat-label{font-size:11px;color:var(--text-2);font-weight:500}
+
+/* ═══════════════════════════════════════
+   LOGIN SCREEN
+═══════════════════════════════════════ */
+.login-screen{
+  min-height:100vh;background:var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;
+}
+.login-gem{
+  width:72px;height:72px;border-radius:16px;
+  background:linear-gradient(135deg,#92400e,var(--amber));
+  display:flex;align-items:center;justify-content:center;margin-bottom:20px;
+  box-shadow:0 0 40px rgba(245,158,11,.25);
+}
+.login-gem svg{width:40px;height:40px;fill:#fff}
+.login-headline{font-family:var(--font-head);font-size:36px;font-weight:800;letter-spacing:2px;margin-bottom:4px;text-align:center}
+.login-sub{font-size:13px;color:var(--text-2);margin-bottom:32px;text-align:center}
+.login-card{
+  width:100%;max-width:380px;background:var(--surface);
+  border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px;
+}
+.login-field{margin-bottom:14px}
+.login-label{font-size:11px;font-weight:700;color:var(--text-2);letter-spacing:.5px;font-family:var(--font-head);text-transform:uppercase;margin-bottom:6px;display:block}
+.login-input{
+  width:100%;padding:11px 14px;background:var(--bg);border:1px solid var(--border);
+  border-radius:8px;color:var(--text);font-size:14px;
+}
+.login-input:focus{border-color:var(--amber)}
+.login-roles{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px}
+.role-card{
+  padding:12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);
+  cursor:pointer;transition:all .15s;text-align:center;
+}
+.role-card.selected{border-color:var(--amber-glow);background:var(--amber-dim)}
+.role-card-icon{font-size:20px;margin-bottom:4px}
+.role-card-name{font-size:12px;font-weight:700;color:var(--text);font-family:var(--font-head)}
+.role-card-desc{font-size:10px;color:var(--text-2);margin-top:1px}
+.login-err{
+  background:var(--red-dim);border:1px solid rgba(239,68,68,.3);
+  border-radius:6px;padding:8px 12px;font-size:12px;color:var(--red);
+  margin-bottom:14px;
+}
+
+/* ═══════════════════════════════════════
+   EMPTY STATES
+═══════════════════════════════════════ */
+.empty{text-align:center;padding:48px 20px;color:var(--text-3)}
+.empty-icon{font-size:40px;margin-bottom:12px;opacity:.5}
+.empty-msg{font-size:14px;font-weight:600}
+.empty-sub{font-size:12px;margin-top:4px}
+
+/* ═══════════════════════════════════════
+   MISC UTILS
+═══════════════════════════════════════ */
+.divider{height:1px;background:var(--border);margin:16px 0}
+.flex-between{display:flex;align-items:center;justify-content:space-between}
+.flex-gap{display:flex;align-items:center;gap:8px}
+.text-amber{color:var(--amber)}
+.text-green{color:var(--green)}
+.text-red{color:var(--red)}
+.text-muted{color:var(--text-2)}
+.text-mono{font-family:var(--font-mono)}
+</style>
+</head>
+<body>
+<div id="app" v-cloak>
+
+  <!-- ══════════════════════════════════
+       LOGIN SCREEN
+  ══════════════════════════════════ -->
+  <div v-if="!authed" class="login-screen">
+    <div class="login-gem">
+      <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+    </div>
+    <div class="login-headline">GLASS FACTORY</div>
+    <div class="login-sub">钢化玻璃工厂管理系统 · 请登录</div>
+
+    <div class="login-card">
+      <div class="login-err" v-if="loginErr">{{ loginErr }}</div>
+
+      <div class="login-field">
+        <label class="login-label">邮箱 / 手机号</label>
+        <input class="login-input" v-model="loginForm.email" placeholder="office@glass.com" @keyup.enter="doLogin"/>
+      </div>
+      <div class="login-field">
+        <label class="login-label">密码</label>
+        <input class="login-input" type="password" v-model="loginForm.password" placeholder="••••••••" @keyup.enter="doLogin"/>
+      </div>
+
+      <div style="margin-bottom:14px">
+        <label class="login-label">角色（Demo 快选）</label>
+        <div class="login-roles">
+          <div class="role-card" :class="{selected:loginForm.role==='office'}" @click="loginForm.role='office'">
+            <div class="role-card-icon">📋</div>
+            <div class="role-card-name">前台</div>
+            <div class="role-card-desc">接单 / 取货</div>
+          </div>
+          <div class="role-card" :class="{selected:loginForm.role==='worker'}" @click="loginForm.role='worker'">
+            <div class="role-card-icon">⚙️</div>
+            <div class="role-card-name">工人</div>
+            <div class="role-card-desc">生产 / 报工</div>
+          </div>
+          <div class="role-card" :class="{selected:loginForm.role==='manager'}" @click="loginForm.role='manager'">
+            <div class="role-card-icon">👔</div>
+            <div class="role-card-name">主管</div>
+            <div class="role-card-desc">全部权限</div>
+          </div>
+          <div class="role-card" :class="{selected:loginForm.role==='supervisor'}" @click="loginForm.role='supervisor'">
+            <div class="role-card-icon">🔬</div>
+            <div class="role-card-name">监察</div>
+            <div class="role-card-desc">质检 / 审核</div>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" style="width:100%;justify-content:center;padding:12px" :disabled="loginLoading" @click="doLogin">
+        {{ loginLoading ? '登录中...' : '进入系统' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════
+       MAIN APP
+  ══════════════════════════════════ -->
+  <div v-else class="app-shell">
+
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <div class="topbar-brand">
+        <div class="brand-gem">
+          <svg viewBox="0 0 24 24"><path stroke="#fff" stroke-width="2" fill="none" d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        </div>
+        <div>
+          <div class="brand-name">GLASS FACTORY</div>
+          <div class="brand-role">{{ roleLabel }}</div>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <button class="lang-pill" @click="lang=lang==='zh'?'en':'zh'">{{ lang==='zh'?'EN':'中文' }}</button>
+        <button class="icon-btn" @click="page='notifications'">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <div class="notif-dot" v-if="unreadCount>0"></div>
+        </button>
+        <div class="user-chip" @click="page='profile'">
+          <div class="avatar">{{ userInitials }}</div>
+          <span class="user-name">{{ currentUser.name }}</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="main-wrap">
+
+      <!-- SIDEBAR (desktop) -->
+      <nav class="sidebar">
+        <div class="nav-group-label">订单</div>
+        <div class="nav-link" :class="{active:page==='orders'}" @click="page='orders'">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          {{ t('nav_orders') }}
+          <span class="badge-count" v-if="urgentCount>0">{{ urgentCount }}</span>
+        </div>
+        <div class="nav-link" :class="{active:page==='new-order'}" @click="page='new-order'" v-if="canCreateOrder">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          {{ t('nav_new_order') }}
+        </div>
+
+        <div class="nav-group-label">生产</div>
+        <div class="nav-link" :class="{active:page==='production'}" @click="page='production'">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+          {{ t('nav_production') }}
+          <span class="badge-count" v-if="reworkCount>0">{{ reworkCount }}</span>
+        </div>
+
+        <div class="nav-group-label">客户 & 取货</div>
+        <div class="nav-link" :class="{active:page==='customers'}" @click="page='customers'">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          {{ t('nav_customers') }}
+        </div>
+        <div class="nav-link" :class="{active:page==='pickup'}" @click="page='pickup'" v-if="canManagePickup">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          {{ t('nav_pickup') }}
+          <span class="badge-count" v-if="readyPickupCount>0">{{ readyPickupCount }}</span>
+        </div>
+
+        <div class="nav-group-label" v-if="isManager">设置</div>
+        <div class="nav-link" :class="{active:page==='settings'}" @click="page='settings'" v-if="isManager">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          系统设置
+        </div>
+      </nav>
+
+      <!-- CONTENT -->
+      <main class="content">
+
+        <!-- ══ ORDERS LIST ══ -->
+        <div v-show="page==='orders'">
+          <div class="page-header">
+            <div>
+              <div class="page-title">{{ t('nav_orders') }}</div>
+              <div class="page-sub">{{ filteredOrders.length }} 条 · {{ today }}</div>
+            </div>
+            <button class="btn btn-primary" @click="page='new-order'" v-if="canCreateOrder">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              新建订单
+            </button>
+          </div>
+
+          <div class="filter-bar">
+            <div class="search-box">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input v-model="orderSearch" placeholder="订单号 / 客户名称 / 玻璃类型…"/>
+            </div>
+            <div v-for="f in statusFilters" :key="f.key" class="filter-pill" :class="{active:orderFilter===f.key}" @click="orderFilter=f.key">{{ f.label }}</div>
+          </div>
+
+          <div v-if="staleOrders.length" class="stale-banner">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <span>⚡ {{ staleOrders.length }} 个订单超过 5 天未完工，请尽快跟进</span>
+          </div>
+
+          <div class="order-list">
+            <div v-for="o in filteredOrders" :key="o.id" class="order-card" :class="orderCardClass(o)" @click="openOrder(o)">
+              <div class="order-card-head">
+                <div>
+                  <div class="order-no">{{ o.order_no }}</div>
+                  <div class="order-meta">{{ o.created_at }} · {{ o.item_count }} 项</div>
+                </div>
+                <div class="order-badges">
+                  <span class="badge rush" v-if="o.priority==='rush'">RUSH</span>
+                  <span class="badge rework" v-if="o.has_rework">REWORK</span>
+                  <span class="badge hold" v-if="o.has_hold">HOLD</span>
+                  <span class="badge stale" v-if="o.stale_days>=5">{{ o.stale_days }}天</span>
+                  <span :class="'badge '+o.status">{{ statusLabel(o.status) }}</span>
+                </div>
+              </div>
+              <div class="order-card-body">
+                <div class="order-field">
+                  <span class="lbl">客户</span>
+                  <span class="val">{{ o.customer_name }}</span>
+                </div>
+                <div class="order-field">
+                  <span class="lbl">玻璃类型</span>
+                  <span class="val">{{ o.glass_summary }}</span>
+                </div>
+                <div class="order-field">
+                  <span class="lbl">数量</span>
+                  <span class="val">{{ o.total_quantity }} 片</span>
+                </div>
+                <div class="order-field" v-if="o.expected_date">
+                  <span class="lbl">预计完成</span>
+                  <span class="val" :class="o.stale_days>=5?'text-red':''">{{ o.expected_date }}</span>
+                </div>
+              </div>
+              <div class="order-card-foot">
+                <span class="customer">{{ o.company || o.customer_name }}</span>
+                <div class="order-actions" @click.stop>
+                  <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" @click.stop="openOrder(o)">详情</button>
+                  <button class="btn btn-success" style="padding:5px 10px;font-size:12px" v-if="o.status==='completed'&&isManager" @click.stop="approvePickup(o)">批准取货</button>
+                </div>
+              </div>
+            </div>
+            <div class="empty" v-if="filteredOrders.length===0">
+              <div class="empty-icon">📋</div>
+              <div class="empty-msg">暂无匹配订单</div>
+              <div class="empty-sub">尝试更换筛选条件</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══ NEW ORDER FORM ══ -->
+        <div v-show="page==='new-order'" class="create-form">
+          <div class="page-header">
+            <div>
+              <div class="page-title">新建订单</div>
+              <div class="page-sub">系统自动生成订单编号</div>
+            </div>
+            <button class="btn btn-ghost" @click="page='orders'">← 返回</button>
+          </div>
+
+          <div class="form-section">
+            <div class="form-section-title">客户信息</div>
+            <div class="field-group">
+              <label class="field-label">公司名称</label>
+              <input class="field-input" v-model="newOrder.company" placeholder="如：ABC Glazing Ltd"/>
+            </div>
+            <div class="form-row">
+              <div class="field-group">
+                <label class="field-label">联系人</label>
+                <input class="field-input" v-model="newOrder.contact" placeholder="客户姓名（可选）"/>
+              </div>
+              <div class="field-group">
+                <label class="field-label">电话</label>
+                <input class="field-input" v-model="newOrder.phone" placeholder="联系电话"/>
+              </div>
+            </div>
+            <div class="field-group">
+              <label class="field-label">邮箱</label>
+              <input class="field-input" v-model="newOrder.email" placeholder="完成时发送取货通知（可选）"/>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <div class="form-section-title">玻璃订单明细</div>
+            <div v-for="(item,idx) in newOrder.items" :key="idx" class="item-row">
+              <div class="item-row-head">
+                <span class="item-no">ITEM {{ idx+1 }}</span>
+                <button class="btn btn-danger" style="padding:4px 8px;font-size:11px" @click="removeItem(idx)" v-if="newOrder.items.length>1">移除</button>
+              </div>
+              <div class="field-group">
+                <label class="field-label">玻璃类型</label>
+                <div class="glass-pills">
+                  <div v-for="g in glassTypes" :key="g" class="glass-pill" :class="{selected:item.glass_type===g}" @click="item.glass_type=g">{{ g }}</div>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="field-group">
+                  <label class="field-label">厚度</label>
+                  <select class="field-input" v-model="item.thickness">
+                    <option v-for="t in thicknesses" :key="t">{{ t }}</option>
+                  </select>
+                </div>
+                <div class="field-group">
+                  <label class="field-label">数量（片）</label>
+                  <input class="field-input" type="number" v-model.number="item.quantity" min="1"/>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="field-group">
+                  <label class="field-label">宽度（mm）</label>
+                  <input class="field-input" type="number" v-model.number="item.width_mm" placeholder="800"/>
+                </div>
+                <div class="field-group">
+                  <label class="field-label">高度（mm）</label>
+                  <input class="field-input" type="number" v-model.number="item.height_mm" placeholder="1200"/>
+                </div>
+              </div>
+              <div class="field-group">
+                <label class="field-label">特殊说明 / HOLD 片号</label>
+                <input class="field-input" v-model="item.notes" placeholder="如：片1 HOLD，片3 圆边"/>
+              </div>
+            </div>
+            <button class="add-item-btn" @click="addItem">＋ 添加一种玻璃</button>
+          </div>
+
+          <div class="form-section">
+            <div class="form-section-title">优先级 & 图纸</div>
+            <div class="field-group">
+              <label class="field-label">优先级</label>
+              <div class="priority-btns">
+                <button class="pri-btn normal" :class="{sel:newOrder.priority==='normal'}" @click="newOrder.priority='normal'">普通</button>
+                <button class="pri-btn rush" :class="{sel:newOrder.priority==='rush'}" @click="newOrder.priority='rush'">⚡ 加急</button>
+                <button class="pri-btn hold" :class="{sel:newOrder.priority==='hold'}" @click="newOrder.priority='hold'">⏸ HOLD</button>
+              </div>
+            </div>
+            <div class="field-group">
+              <label class="field-label">预计完成日期</label>
+              <input class="field-input" type="date" v-model="newOrder.expected_date"/>
+            </div>
+            <div class="field-group">
+              <label class="field-label">图纸 PDF / 图片</label>
+              <div v-if="!newOrder.drawing" class="upload-area" @click="triggerFileUpload" @dragover.prevent @drop.prevent="onDrop">
+                <div class="upload-icon">📄</div>
+                <div class="upload-text">点击上传或拖拽图纸至此</div>
+                <div class="upload-hint">PDF · JPG · PNG · 最大 20MB</div>
+                <input ref="fileInput" type="file" accept=".pdf,.jpg,.jpeg,.png" style="display:none" @change="onFileSelect"/>
+              </div>
+              <div v-else class="upload-done">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                {{ newOrder.drawing.name }}
+                <button class="btn btn-ghost" style="padding:4px 8px;font-size:11px;margin-left:auto" @click="newOrder.drawing=null">重选</button>
+              </div>
+            </div>
+            <div class="field-group">
+              <label class="field-label">特殊说明</label>
+              <textarea class="field-input" rows="3" v-model="newOrder.remark" placeholder="订单级特殊要求…" style="resize:vertical"></textarea>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:10px;padding-bottom:20px">
+            <button class="btn btn-ghost" @click="page='orders'" style="flex:1;justify-content:center">取消</button>
+            <button class="btn btn-primary" @click="submitOrder" style="flex:2;justify-content:center;padding:12px">提交订单</button>
+          </div>
+        </div>
+
+        <!-- ══ PRODUCTION (WORKER VIEW) ══ -->
+        <div v-show="page==='production'">
+          <div class="page-header">
+            <div>
+              <div class="page-title">生产看板</div>
+              <div class="page-sub">{{ isWorker ? '我的工序 · '+workerStageLabel : '全部工单' }}</div>
+            </div>
+          </div>
+
+          <!-- Stage tabs -->
+          <div class="stage-tabs">
+            <div v-for="s in stages" :key="s.key" class="stage-tab" :class="{active:prodStage===s.key}" @click="prodStage=s.key">
+              <span class="cnt">{{ s.count }}</span>{{ s.label }}
+            </div>
+          </div>
+
+          <div class="stage-header">
+            <div class="stage-name">{{ currentStage.label }}</div>
+            <div class="stage-count">{{ currentStageOrders.length }}</div>
+          </div>
+
+          <div v-if="currentStageOrders.length===0" class="empty">
+            <div class="empty-icon">✅</div>
+            <div class="empty-msg">当前工序无待处理工单</div>
+          </div>
+
+          <div v-for="wo in currentStageOrders" :key="wo.id" class="worker-card" :class="{'rework-alert':wo.rework_unread,'rush-card':wo.priority==='rush'}">
+            <div class="rework-alert-bar" v-if="wo.rework_unread">
+              <span class="rework-alert-text">⚠ 返工通知 — 请重新切割指定片数</span>
+              <button class="btn btn-ghost" style="padding:4px 8px;font-size:11px" @click="ackRework(wo)">已读</button>
+            </div>
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px">
+              <div class="worker-order-no">{{ wo.order_no }}</div>
+              <span class="badge rush" v-if="wo.priority==='rush'">RUSH</span>
+            </div>
+            <div class="worker-customer">{{ wo.customer_name }}</div>
+            <div class="worker-details">
+              <span class="worker-glass-tag">{{ wo.glass_type }}</span>
+              <span class="worker-glass-tag">{{ wo.specification }}</span>
+              <span class="worker-glass-tag">{{ wo.quantity }} 片</span>
+            </div>
+            <div class="prog-bar" v-if="wo.quantity>0">
+              <div class="prog-fill" :style="{width:((wo.completed_qty||0)/wo.quantity*100)+'%'}"></div>
+            </div>
+            <div style="font-size:11px;color:var(--text-2);margin-bottom:12px" v-if="wo.quantity>0">
+              {{ wo.completed_qty||0 }} / {{ wo.quantity }} 片完成
+            </div>
+            <div class="worker-btn-row">
+              <button class="btn btn-primary btn-lg" style="flex:1;justify-content:center" v-if="wo.status==='queued'" @click="startWO(wo)">
+                ▶ 开始生产
+              </button>
+              <button class="btn btn-success btn-lg" style="flex:1;justify-content:center" v-if="wo.status==='in_progress'" @click="completeWO(wo)">
+                ✓ 完工
+              </button>
+              <button class="btn btn-danger" style="padding:14px;justify-content:center" v-if="wo.status==='in_progress'&&canRework" @click="openReworkDialog(wo)" title="标记某片返工">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.12"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══ CUSTOMERS ══ -->
+        <div v-show="page==='customers'">
+          <div class="page-header">
+            <div>
+              <div class="page-title">客户管理</div>
+              <div class="page-sub">
+                <span style="display:inline-flex;align-items:center;gap:4px">
+                  <span style="width:8px;height:8px;border-radius:50%;background:var(--amber);display:inline-block"></span>
+                  有进行中订单
+                </span>
+              </div>
+            </div>
+          </div>
+          <div class="filter-bar" style="margin-bottom:14px">
+            <div class="search-box" style="max-width:320px">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input v-model="custSearch" placeholder="公司名 / 联系人…"/>
+            </div>
+            <div class="filter-pill" :class="{active:custSort==='name'}" @click="custSort='name'">公司名 A-Z</div>
+            <div class="filter-pill" :class="{active:custSort==='date'}" @click="custSort='date'">最近下单</div>
+            <div class="filter-pill" :class="{active:custSort==='active'}" @click="custSort='active'">进行中优先</div>
+          </div>
+          <div class="cust-grid">
+            <div v-for="c in filteredCustomers" :key="c.id" class="cust-card" :class="{'has-active':c.active_orders>0}" @click="openCustomer(c)">
+              <div class="cust-header">
+                <div>
+                  <div class="cust-name">{{ c.company_name }}</div>
+                  <div class="cust-company">{{ c.contact_name || '—' }}</div>
+                </div>
+                <div class="cust-active-dot" v-if="c.active_orders>0" :title="c.active_orders+'个进行中订单'"></div>
+              </div>
+              <div class="cust-stats">
+                <div class="cust-stat"><strong>{{ c.total_orders }}</strong>总订单</div>
+                <div class="cust-stat"><strong style="color:var(--amber)">{{ c.active_orders }}</strong>进行中</div>
+                <div class="cust-stat"><strong>{{ c.last_order_date||'—' }}</strong>最近下单</div>
+              </div>
+              <div class="active-orders-list" v-if="c.active_orders>0&&c.active_order_nos">
+                <span v-for="no in c.active_order_nos.slice(0,3)" :key="no" class="active-order-chip">{{ no }}</span>
+                <span class="active-order-chip" v-if="c.active_order_nos.length>3" style="opacity:.6">+{{ c.active_order_nos.length-3 }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="empty" v-if="filteredCustomers.length===0">
+            <div class="empty-icon">👥</div>
+            <div class="empty-msg">暂无客户</div>
+          </div>
+        </div>
+
+        <!-- ══ PICKUP & SIGNATURE ══ -->
+        <div v-show="page==='pickup'">
+          <div class="page-header">
+            <div>
+              <div class="page-title">提货 & 签字</div>
+              <div class="page-sub">{{ readyPickupCount }} 个订单待提货</div>
+            </div>
+          </div>
+          <div class="pickup-search">
+            <div class="search-box">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input v-model="pickupSearch" placeholder="搜索订单号 / 客户名 / 电话 / 邮箱…" style="font-size:15px"/>
+            </div>
+          </div>
+          <div class="pickup-order-rows">
+            <div v-for="o in pickupOrders" :key="o.id" class="pickup-row" :class="{'awaiting-approve':o.status==='completed','ready':o.status==='ready_for_pickup'}">
+              <div class="pickup-info">
+                <div class="pickup-order-no">{{ o.order_no }}</div>
+                <div class="pickup-customer">{{ o.customer_name }}</div>
+                <div class="pickup-meta">
+                  {{ o.company }}
+                  <span class="waiting-days" v-if="o.waiting_days>0">⏱ 等待 {{ o.waiting_days }} 天</span>
+                </div>
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+                <span :class="'badge '+o.status">{{ statusLabel(o.status) }}</span>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+                  <button class="btn btn-success" style="padding:8px 14px" v-if="o.status==='completed'&&isManager" @click="approvePickup(o)">批准取货</button>
+                  <button class="btn btn-primary" style="padding:8px 14px" v-if="o.status==='ready_for_pickup'" @click="openSig(o)">📝 现场签字</button>
+                  <button class="btn btn-ghost" style="padding:8px 14px" v-if="o.status==='ready_for_pickup'" @click="sendPickupEmail(o)">📧 发送通知</button>
+                  <button class="btn btn-ghost" style="padding:8px 14px" v-if="o.pickup_signature_url" @click="viewSig(o)">查看签名</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="empty" v-if="pickupOrders.length===0">
+            <div class="empty-icon">📦</div>
+            <div class="empty-msg">暂无待提货订单</div>
+            <div class="empty-sub">完成生产后由主管批准即可显示</div>
+          </div>
+        </div>
+
+        <!-- ══ SETTINGS ══ -->
+        <div v-show="page==='settings'" v-if="isManager">
+          <div class="page-header"><div class="page-title">系统设置</div></div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;max-width:560px">
+            <div class="form-section-title" style="margin-bottom:16px">玻璃类型管理</div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+              <div v-for="g in glassTypes" :key="g" style="display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--border);padding:6px 12px;border-radius:8px;font-size:13px;font-weight:600">
+                {{ g }}
+              </div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <input class="field-input" v-model="newGlassType" placeholder="新玻璃类型名称" style="flex:1"/>
+              <button class="btn btn-primary" @click="addGlassType">添加</button>
+            </div>
+
+            <div class="divider"></div>
+            <div class="form-section-title" style="margin-bottom:16px">取货邮件模板</div>
+            <div class="field-group">
+              <label class="field-label">主题</label>
+              <input class="field-input" v-model="emailTemplate.subject" placeholder="邮件主题"/>
+            </div>
+            <div class="field-group">
+              <label class="field-label">正文</label>
+              <textarea class="field-input" rows="5" v-model="emailTemplate.body" style="resize:vertical"></textarea>
+            </div>
+            <div style="font-size:11px;color:var(--text-2);margin-bottom:12px">可用变量：{order_no} {customer_name} {company} {pickup_date}</div>
+            <button class="btn btn-primary" @click="saveEmailTemplate">保存模板</button>
+          </div>
+        </div>
+
+      </main>
+    </div>
+
+    <!-- BOTTOM NAV (mobile) -->
+    <nav class="bottom-nav">
+      <div class="bnav-item" :class="{active:page==='orders'}" @click="page='orders'">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        <span class="bnav-label">订单</span>
+        <div class="bnav-dot" v-if="urgentCount>0"></div>
+      </div>
+      <div class="bnav-item" :class="{active:page==='production'}" @click="page='production'">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+        <span class="bnav-label">生产</span>
+        <div class="bnav-dot" v-if="reworkCount>0"></div>
+      </div>
+      <div class="bnav-item" :class="{active:page==='customers'}" @click="page='customers'">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+        <span class="bnav-label">客户</span>
+      </div>
+      <div class="bnav-item" :class="{active:page==='pickup'}" @click="page='pickup'" v-if="canManagePickup">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        <span class="bnav-label">取货</span>
+        <div class="bnav-dot" v-if="readyPickupCount>0"></div>
+      </div>
+      <div class="bnav-item" :class="{active:page==='new-order'}" @click="page='new-order'" v-if="canCreateOrder">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        <span class="bnav-label">新建</span>
+      </div>
+    </nav>
+  </div>
+
+  <!-- ══ ORDER DETAIL DRAWER ══ -->
+  <div class="drawer-overlay" v-if="drawerOpen" @click="drawerOpen=false"></div>
+  <div class="drawer" :class="{open:drawerOpen}">
+    <div class="drawer-header">
+      <div class="drawer-title" v-if="selectedOrder">
+        <span style="font-family:var(--font-mono);color:var(--amber)">{{ selectedOrder.order_no }}</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span :class="'badge '+(selectedOrder?.status||'')" v-if="selectedOrder">{{ statusLabel(selectedOrder?.status) }}</span>
+        <button class="icon-btn" @click="drawerOpen=false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="drawer-body" v-if="selectedOrder">
+
+      <!-- Priority & timing -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+        <span class="badge rush" v-if="selectedOrder.priority==='rush'">RUSH 加急</span>
+        <span class="badge rework" v-if="selectedOrder.has_rework">有返工工序</span>
+        <span class="badge hold" v-if="selectedOrder.has_hold">有 HOLD 片</span>
+        <span class="badge stale" v-if="selectedOrder.stale_days>=5">超时 {{ selectedOrder.stale_days }} 天</span>
+      </div>
+
+      <!-- Customer info -->
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:16px">
+        <div style="font-size:14px;font-weight:700;margin-bottom:4px">{{ selectedOrder.customer_name }}</div>
+        <div style="font-size:12px;color:var(--text-2)">{{ selectedOrder.company }}</div>
+        <div style="font-size:12px;color:var(--text-2)" v-if="selectedOrder.phone">📞 {{ selectedOrder.phone }}</div>
+        <div style="font-size:12px;color:var(--text-2)" v-if="selectedOrder.email">✉ {{ selectedOrder.email }}</div>
+      </div>
+
+      <!-- Items table -->
+      <div class="form-section-title" style="font-size:12px;font-weight:700;letter-spacing:.5px;color:var(--text-2);font-family:var(--font-head);text-transform:uppercase;margin-bottom:10px">玻璃明细</div>
+      <table class="items-table" style="margin-bottom:16px">
+        <thead>
+          <tr>
+            <th>类型</th><th>厚度</th><th>尺寸</th><th>数量</th><th>HOLD</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="item in selectedOrder.items||[]" :key="item.id">
+            <td><span class="glass-type">{{ item.glass_type }}</span></td>
+            <td>{{ item.specification }}</td>
+            <td style="font-family:var(--font-mono);font-size:11px">{{ item.width_mm }}×{{ item.height_mm }}</td>
+            <td>{{ item.quantity }}</td>
+            <td>
+              <div class="hold-toggle" :class="{on:item.on_hold}" @click="toggleHold(item)" style="font-size:11px;font-weight:700;font-family:var(--font-head)">
+                {{ item.on_hold ? 'ON HOLD' : 'HOLD?' }}
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Drawing -->
+      <div v-if="selectedOrder.drawing_original_name" style="margin-bottom:16px">
+        <div class="form-section-title" style="font-size:12px;font-weight:700;letter-spacing:.5px;color:var(--text-2);font-family:var(--font-head);text-transform:uppercase;margin-bottom:8px">图纸</div>
+        <div class="upload-done" @click="downloadDrawing(selectedOrder)" style="cursor:pointer">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          {{ selectedOrder.drawing_original_name }}
+          <span style="font-size:11px;margin-left:auto;opacity:.7">点击下载</span>
+        </div>
+      </div>
+
+      <!-- Remarks -->
+      <div v-if="selectedOrder.remark" style="margin-bottom:16px;background:var(--amber-dim);border:1px solid var(--amber-glow);border-radius:8px;padding:10px 12px;font-size:13px;color:var(--amber)">
+        ⚠ {{ selectedOrder.remark }}
+      </div>
+
+      <!-- Timeline -->
+      <div class="form-section-title" style="font-size:12px;font-weight:700;letter-spacing:.5px;color:var(--text-2);font-family:var(--font-head);text-transform:uppercase;margin-bottom:10px">状态时间线</div>
+      <ul class="timeline" style="margin-bottom:20px">
+        <li v-for="step in orderTimeline" :key="step.status" class="tl-item">
+          <div class="tl-dot" :class="{done:step.done,active:step.current}">
+            <svg v-if="step.done" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div class="tl-content">
+            <strong>{{ step.label }}</strong>
+            <span>{{ step.time || (step.current?'进行中':'等待中') }}</span>
+          </div>
+        </li>
+      </ul>
+
+      <!-- Action buttons -->
+      <div style="display:flex;flex-direction:column;gap:8px" v-if="canCreateOrder||isManager">
+        <button class="btn btn-primary" style="justify-content:center;padding:12px" v-if="selectedOrder.status==='received'&&canCreateOrder" @click="markEntered(selectedOrder)">
+          标记为：已录入系统
+        </button>
+        <button class="btn btn-success" style="justify-content:center;padding:12px" v-if="selectedOrder.status==='completed'&&isManager" @click="approvePickup(selectedOrder)">
+          ✓ 批准取货
+        </button>
+        <button class="btn btn-ghost" style="justify-content:center" @click="exportOrder(selectedOrder)">
+          📄 导出 PDF
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SIGNATURE OVERLAY ══ -->
+  <div class="sig-overlay" v-if="sigOpen" @click.self="sigOpen=false">
+    <div class="sig-box">
+      <div class="sig-header">
+        <div>
+          <div class="sig-title">📝 提货签字</div>
+          <div style="font-size:12px;color:var(--text-2);margin-top:2px" v-if="sigTarget">{{ sigTarget.order_no }} · {{ sigTarget.customer_name }}</div>
+        </div>
+        <button class="icon-btn" @click="sigOpen=false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="sig-body">
+        <div class="sig-field">
+          <div class="sig-label">提货人姓名</div>
+          <input class="sig-input" v-model="signerName" placeholder="请输入签字人全名"/>
+        </div>
+        <div class="sig-field">
+          <div class="sig-label">手写签名</div>
+          <div class="sig-canvas-wrap">
+            <canvas ref="sigCanvas" width="580" height="200" @mousedown="sigStart" @mousemove="sigDraw" @mouseup="sigEnd" @mouseleave="sigEnd" @touchstart.prevent="sigTouchStart" @touchmove.prevent="sigTouchDraw" @touchend="sigEnd"></canvas>
+            <button class="sig-clear" @click="clearSig">清除</button>
+          </div>
+          <div style="font-size:11px;color:var(--text-2);margin-top:6px">请在白色区域内手写签名</div>
+        </div>
+      </div>
+      <div class="sig-footer">
+        <button class="btn btn-ghost" @click="sigOpen=false">取消</button>
+        <button class="btn btn-primary" @click="submitSig" :disabled="!signerName||!hasSig">确认提货</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const { createApp, ref, computed, onMounted, nextTick, watch } = Vue;
+
+createApp({
+  setup() {
+    // ── AUTH ──
+    const authed = ref(false);
+    const loginForm = ref({ email:'office@glass.com', password:'demo123', role:'office' });
+    const loginErr = ref('');
+    const loginLoading = ref(false);
+    const currentUser = ref({ name:'Demo User', role:'office', stage:'' });
+
+    async function doLogin() {
+      loginLoading.value = true; loginErr.value = '';
+      await new Promise(r=>setTimeout(r,600));
+      // Demo: accept any credentials, role comes from selector
+      const roleMap = { office:'operator', worker:'operator', manager:'manager', supervisor:'manager' };
+      currentUser.value = {
+        name: loginForm.value.email.split('@')[0] || 'Staff',
+        role: roleMap[loginForm.value.role] || 'operator',
+        stage: loginForm.value.role === 'worker' ? 'cutting' : '',
+        display_role: loginForm.value.role,
+      };
+      authed.value = true; loginLoading.value = false;
+      loadData();
+    }
+
+    // ── ROLES ──
+    const isWorker = computed(()=>currentUser.value.display_role==='worker');
+    const isManager = computed(()=>['manager','supervisor'].includes(currentUser.value.display_role));
+    const canCreateOrder = computed(()=>['office','manager','supervisor'].includes(currentUser.value.display_role));
+    const canManagePickup = computed(()=>['office','manager','supervisor'].includes(currentUser.value.display_role));
+    const canRework = computed(()=>!isWorker.value||currentUser.value.stage!=='tempering');
+    const roleLabel = computed(()=>({office:'前台接单',worker:'生产工人',manager:'主管',supervisor:'监察'})[currentUser.value.display_role]||'操作员');
+    const userInitials = computed(()=>(currentUser.value.name||'U').slice(0,2).toUpperCase());
+
+    // ── LANG ──
+    const lang = ref('zh');
+    const i18n = {
+      zh:{ nav_orders:'订单列表',nav_new_order:'新建订单',nav_production:'生产看板',nav_customers:'客户管理',nav_pickup:'提货签字' },
+      en:{ nav_orders:'Orders',nav_new_order:'New Order',nav_production:'Production',nav_customers:'Customers',nav_pickup:'Pickup' }
+    };
+    function t(k){ return i18n[lang.value][k]||k; }
+
+    // ── NAVIGATION ──
+    const page = ref('orders');
+
+    // ── DATA ──
+    const orders = ref([]);
+    const customers = ref([]);
+    const workOrders = ref([]);
+    const unreadCount = ref(2);
+
+    const glassTypes = ref(['CLEAR','RAIN','PINHEAD','GREY','FROSTED']);
+    const thicknesses = ref(['4mm','5mm','6mm','8mm','10mm','12mm','15mm','19mm']);
+
+    function loadData() {
+      // Seed demo data
+      orders.value = [
+        { id:'1', order_no:'GF-20260413-001', customer_name:'John Smith', company:'ABC Glazing', status:'in_production', priority:'rush', glass_summary:'CLEAR / RAIN', total_quantity:8, item_count:2, stale_days:0, has_rework:true, has_hold:false, created_at:'2026-04-13 09:00', expected_date:'2026-04-14', phone:'604-123-4567', email:'john@abc.ca', remark:'片3需要圆角处理', items:[{id:'i1',glass_type:'CLEAR',specification:'6mm',width_mm:800,height_mm:1200,quantity:5,on_hold:false},{id:'i2',glass_type:'RAIN',specification:'6mm',width_mm:600,height_mm:900,quantity:3,on_hold:false}], drawing_original_name:'plan_abc_001.pdf' },
+        { id:'2', order_no:'GF-20260413-002', customer_name:'Mary Wong', company:'Pacific Builders', status:'ready_for_pickup', priority:'normal', glass_summary:'GREY / FROSTED', total_quantity:12, item_count:2, stale_days:0, has_rework:false, has_hold:true, created_at:'2026-04-12 14:30', expected_date:'2026-04-13', waiting_days:1, phone:'778-456-7890', email:'mary@pacific.ca', items:[{id:'i3',glass_type:'GREY',specification:'8mm',width_mm:1200,height_mm:2400,quantity:6,on_hold:true},{id:'i4',glass_type:'FROSTED',specification:'6mm',width_mm:800,height_mm:800,quantity:6,on_hold:false}], drawing_original_name:'pacific_layout.pdf', pickup_signature_url: null },
+        { id:'3', order_no:'GF-20260408-001', customer_name:'Bob Chen', company:'Chen Construction', status:'in_production', priority:'normal', glass_summary:'CLEAR', total_quantity:24, item_count:1, stale_days:6, has_rework:false, has_hold:false, created_at:'2026-04-08 10:00', expected_date:'2026-04-10', phone:'604-777-8888', email:'', remark:'', items:[{id:'i5',glass_type:'CLEAR',specification:'10mm',width_mm:1000,height_mm:2000,quantity:24,on_hold:false}], drawing_original_name:'chen_office_glazing.pdf' },
+        { id:'4', order_no:'GF-20260413-003', customer_name:'Sarah Li', company:'Li Design Studio', status:'received', priority:'normal', glass_summary:'PINHEAD', total_quantity:4, item_count:1, stale_days:0, has_rework:false, has_hold:false, created_at:'2026-04-13 11:30', expected_date:'2026-04-16', phone:'', email:'sarah@lids.ca', remark:'', items:[{id:'i6',glass_type:'PINHEAD',specification:'6mm',width_mm:500,height_mm:500,quantity:4,on_hold:false}], drawing_original_name:null },
+        { id:'5', order_no:'GF-20260412-002', customer_name:'Tom Baker', company:'Baker Renovations', status:'completed', priority:'rush', glass_summary:'CLEAR / GREY', total_quantity:16, item_count:2, stale_days:0, has_rework:false, has_hold:false, created_at:'2026-04-12 08:00', expected_date:'2026-04-13', phone:'604-321-9876', email:'tom@baker.ca', remark:'', items:[{id:'i7',glass_type:'CLEAR',specification:'12mm',width_mm:900,height_mm:2100,quantity:8,on_hold:false},{id:'i8',glass_type:'GREY',specification:'6mm',width_mm:400,height_mm:600,quantity:8,on_hold:false}], drawing_original_name:'baker_blueprints.pdf' },
+      ];
+      customers.value = [
+        { id:'c1', company_name:'ABC Glazing', contact_name:'John Smith', total_orders:12, active_orders:1, last_order_date:'2026-04-13', active_order_nos:['GF-20260413-001'] },
+        { id:'c2', company_name:'Pacific Builders', contact_name:'Mary Wong', total_orders:8, active_orders:1, last_order_date:'2026-04-12', active_order_nos:['GF-20260413-002'] },
+        { id:'c3', company_name:'Chen Construction', contact_name:'Bob Chen', total_orders:24, active_orders:1, last_order_date:'2026-04-08', active_order_nos:['GF-20260408-001'] },
+        { id:'c4', company_name:'Li Design Studio', contact_name:'Sarah Li', total_orders:3, active_orders:1, last_order_date:'2026-04-13', active_order_nos:['GF-20260413-003'] },
+        { id:'c5', company_name:'Baker Renovations', contact_name:'Tom Baker', total_orders:31, active_orders:0, last_order_date:'2026-04-12', active_order_nos:[] },
+        { id:'c6', company_name:'West Coast Glass', contact_name:'Linda Park', total_orders:7, active_orders:0, last_order_date:'2026-03-30', active_order_nos:[] },
+      ];
+      workOrders.value = [
+        { id:'w1', order_no:'GF-20260413-001', customer_name:'ABC Glazing', glass_type:'CLEAR', specification:'6mm', quantity:5, completed_qty:2, status:'in_progress', priority:'rush', process_step_key:'cutting', rework_unread:true },
+        { id:'w2', order_no:'GF-20260413-001', customer_name:'ABC Glazing', glass_type:'RAIN', specification:'6mm', quantity:3, completed_qty:0, status:'queued', priority:'rush', process_step_key:'processing', rework_unread:false },
+        { id:'w3', order_no:'GF-20260408-001', customer_name:'Chen Construction', glass_type:'CLEAR', specification:'10mm', quantity:24, completed_qty:18, status:'in_progress', priority:'normal', process_step_key:'cutting', rework_unread:false },
+      ];
+    }
+
+    // ── COMPUTED LISTS ──
+    const urgentCount = computed(()=>orders.value.filter(o=>o.priority==='rush'||o.stale_days>=5).length);
+    const reworkCount = computed(()=>workOrders.value.filter(w=>w.rework_unread).length);
+    const readyPickupCount = computed(()=>orders.value.filter(o=>['completed','ready_for_pickup'].includes(o.status)).length);
+    const staleOrders = computed(()=>orders.value.filter(o=>o.stale_days>=5));
+
+    const orderSearch = ref('');
+    const orderFilter = ref('all');
+    const statusFilters = computed(()=>[
+      {key:'all',label:'全部'},
+      {key:'active',label:'进行中'},
+      {key:'rush',label:'⚡ 加急'},
+      {key:'ready_for_pickup',label:'待取货'},
+      {key:'completed',label:'已完成'},
+    ]);
+    const filteredOrders = computed(()=>{
+      let list = orders.value;
+      if(orderFilter.value==='active') list=list.filter(o=>['received','entered','in_production'].includes(o.status));
+      else if(orderFilter.value==='rush') list=list.filter(o=>o.priority==='rush');
+      else if(orderFilter.value==='ready_for_pickup') list=list.filter(o=>o.status==='ready_for_pickup');
+      else if(orderFilter.value==='completed') list=list.filter(o=>o.status==='completed');
+      const q=orderSearch.value.toLowerCase();
+      if(q) list=list.filter(o=>(o.order_no+o.customer_name+o.company+o.glass_summary).toLowerCase().includes(q));
+      return list.sort((a,b)=>{
+        if(a.priority==='rush'&&b.priority!=='rush') return -1;
+        if(b.priority==='rush'&&a.priority!=='rush') return 1;
+        if(a.stale_days>=5&&b.stale_days<5) return -1;
+        if(b.stale_days>=5&&a.stale_days<5) return 1;
+        return 0;
+      });
+    });
+
+    const custSearch = ref('');
+    const custSort = ref('active');
+    const filteredCustomers = computed(()=>{
+      let list = customers.value;
+      const q=custSearch.value.toLowerCase();
+      if(q) list=list.filter(c=>(c.company_name+c.contact_name).toLowerCase().includes(q));
+      if(custSort.value==='name') list=[...list].sort((a,b)=>a.company_name.localeCompare(b.company_name));
+      else if(custSort.value==='date') list=[...list].sort((a,b)=>b.last_order_date?.localeCompare(a.last_order_date));
+      else if(custSort.value==='active') list=[...list].sort((a,b)=>b.active_orders-a.active_orders);
+      return list;
+    });
+
+    const pickupSearch = ref('');
+    const pickupOrders = computed(()=>{
+      let list=orders.value.filter(o=>['completed','ready_for_pickup','picked_up'].includes(o.status));
+      const q=pickupSearch.value.toLowerCase();
+      if(q) list=list.filter(o=>(o.order_no+o.customer_name+o.company+(o.phone||'')+(o.email||'')).toLowerCase().includes(q));
+      return list;
+    });
+
+    // ── PRODUCTION ──
+    const prodStage = ref('cutting');
+    const stages = computed(()=>[
+      { key:'cutting', label:'切割', count:workOrders.value.filter(w=>w.process_step_key==='cutting').length },
+      { key:'processing', label:'开切口', count:workOrders.value.filter(w=>w.process_step_key==='processing').length },
+      { key:'tempering', label:'钢化', count:workOrders.value.filter(w=>w.process_step_key==='tempering').length },
+      { key:'finish', label:'完工检验', count:workOrders.value.filter(w=>w.process_step_key==='finish').length },
+    ]);
+    const currentStage = computed(()=>stages.value.find(s=>s.key===prodStage.value)||stages.value[0]);
+    const workerStageLabel = computed(()=>currentStage.value?.label);
+    const currentStageOrders = computed(()=>{
+      let list=workOrders.value.filter(w=>w.process_step_key===prodStage.value);
+      if(isWorker.value) return list;
+      return list;
+    });
+
+    function startWO(wo) {
+      wo.status='in_progress';
+      // API: POST /v1/workspace/orders/{id}/steps {action:'start'}
+    }
+    function completeWO(wo) {
+      wo.status='done';
+      workOrders.value=workOrders.value.filter(w=>w.id!==wo.id);
+      // API: POST /v1/workspace/orders/{id}/steps {action:'complete'}
+    }
+    function ackRework(wo) {
+      wo.rework_unread=false;
+      // API: POST /v1/workspace/orders/{id}/steps {action:'ack_rework'}
+    }
+    function openReworkDialog(wo) {
+      alert(`返工功能：请在后端补充"按片返工"接口，将选中片数标记为返工并推送至切割工位。\n当前工单：${wo.order_no}`);
+    }
+
+    // ── ORDER CARD ──
+    const orderCardClass = (o)=>({
+      rush: o.priority==='rush',
+      rework: o.has_rework&&o.priority!=='rush',
+      stale: o.stale_days>=5&&!o.has_rework&&o.priority!=='rush',
+      hold: o.has_hold&&o.priority==='normal'&&!o.has_rework&&o.stale_days<5,
+    });
+
+    // ── DRAWER ──
+    const drawerOpen = ref(false);
+    const selectedOrder = ref(null);
+    function openOrder(o) {
+      selectedOrder.value = {...o};
+      drawerOpen.value = true;
+    }
+    const orderTimeline = computed(()=>{
+      if(!selectedOrder.value) return [];
+      const statuses=['received','entered','in_production','completed','ready_for_pickup','picked_up'];
+      const labels=['已接单','已录入系统','生产中','已完成','可取货','已取货'];
+      const cur=statuses.indexOf(selectedOrder.value.status);
+      return statuses.map((s,i)=>({status:s,label:labels[i],done:i<cur,current:i===cur,time:''}));
+    });
+    function toggleHold(item) { item.on_hold=!item.on_hold; }
+    function markEntered(o) { o.status='entered'; drawerOpen.value=false; }
+    function approvePickup(o) {
+      const target=orders.value.find(x=>x.id===o.id);
+      if(target) target.status='ready_for_pickup';
+      if(selectedOrder.value?.id===o.id) selectedOrder.value.status='ready_for_pickup';
+      drawerOpen.value=false;
+    }
+    function exportOrder(o) { alert('导出功能：GET /v1/workspace/orders/'+o.id+'/export?format=pdf'); }
+    function downloadDrawing(o) { alert('下载图纸：GET /v1/workspace/orders/'+o.id+'/drawing'); }
+
+    // ── NEW ORDER ──
+    const newOrder = ref(defaultNewOrder());
+    const fileInput = ref(null);
+    function defaultNewOrder() {
+      return { company:'', contact:'', phone:'', email:'', priority:'normal', expected_date:'', remark:'', drawing:null,
+        items:[{ glass_type:'CLEAR', thickness:'6mm', quantity:1, width_mm:null, height_mm:null, notes:'' }] };
+    }
+    function addItem() { newOrder.value.items.push({ glass_type:'CLEAR', thickness:'6mm', quantity:1, width_mm:null, height_mm:null, notes:'' }); }
+    function removeItem(i) { newOrder.value.items.splice(i,1); }
+    function triggerFileUpload() { fileInput.value?.click(); }
+    function onFileSelect(e) { const f=e.target.files[0]; if(f) newOrder.value.drawing=f; }
+    function onDrop(e) { const f=e.dataTransfer.files[0]; if(f) newOrder.value.drawing=f; }
+    function submitOrder() {
+      const newNo='GF-'+new Date().toISOString().slice(0,10).replace(/-/g,'')+'-'+(orders.value.length+1).toString().padStart(3,'0');
+      orders.value.unshift({
+        id:Date.now().toString(), order_no:newNo, customer_name:newOrder.value.contact||newOrder.value.company,
+        company:newOrder.value.company, status:'received', priority:newOrder.value.priority,
+        glass_summary:newOrder.value.items.map(i=>i.glass_type).filter((v,i,a)=>a.indexOf(v)===i).join(' / '),
+        total_quantity:newOrder.value.items.reduce((s,i)=>s+i.quantity,0),
+        item_count:newOrder.value.items.length, stale_days:0, has_rework:false, has_hold:false,
+        created_at:new Date().toLocaleString('zh-CN',{hour12:false}).slice(0,16),
+        expected_date:newOrder.value.expected_date, phone:newOrder.value.phone, email:newOrder.value.email,
+        remark:newOrder.value.remark, items:newOrder.value.items, drawing_original_name:newOrder.value.drawing?.name||null,
+      });
+      newOrder.value = defaultNewOrder();
+      page.value = 'orders';
+    }
+
+    // ── PICKUP SIG ──
+    const sigOpen = ref(false);
+    const sigTarget = ref(null);
+    const signerName = ref('');
+    const sigCanvas = ref(null);
+    let sigDrawing = false, lastX=0, lastY=0, hasSig=ref(false);
+    function openSig(o) { sigTarget.value=o; signerName.value=''; sigOpen.value=true; hasSig.value=false; nextTick(()=>clearSig()); }
+    function clearSig() { hasSig.value=false; const c=sigCanvas.value; if(!c) return; const ctx=c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height); }
+    function getPos(e,canvas) { const r=canvas.getBoundingClientRect(); const scaleX=canvas.width/r.width; const scaleY=canvas.height/r.height; return {x:(e.clientX-r.left)*scaleX,y:(e.clientY-r.top)*scaleY}; }
+    function sigStart(e) { sigDrawing=true; const p=getPos(e,sigCanvas.value); lastX=p.x; lastY=p.y; }
+    function sigDraw(e) { if(!sigDrawing) return; hasSig.value=true; const c=sigCanvas.value; const ctx=c.getContext('2d'); const p=getPos(e,sigCanvas.value); ctx.strokeStyle='#111'; ctx.lineWidth=2; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(lastX,lastY); ctx.lineTo(p.x,p.y); ctx.stroke(); lastX=p.x; lastY=p.y; }
+    function sigEnd() { sigDrawing=false; }
+    function sigTouchStart(e) { const t=e.touches[0]; sigDrawing=true; const c=sigCanvas.value; const r=c.getBoundingClientRect(); const scaleX=c.width/r.width; const scaleY=c.height/r.height; lastX=(t.clientX-r.left)*scaleX; lastY=(t.clientY-r.top)*scaleY; }
+    function sigTouchDraw(e) { if(!sigDrawing) return; hasSig.value=true; const t=e.touches[0]; const c=sigCanvas.value; const ctx=c.getContext('2d'); const r=c.getBoundingClientRect(); const scaleX=c.width/r.width; const scaleY=c.height/r.height; const x=(t.clientX-r.left)*scaleX; const y=(t.clientY-r.top)*scaleY; ctx.strokeStyle='#111'; ctx.lineWidth=2.5; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(lastX,lastY); ctx.lineTo(x,y); ctx.stroke(); lastX=x; lastY=y; }
+    function submitSig() {
+      const o=orders.value.find(x=>x.id===sigTarget.value.id);
+      if(o) { o.status='picked_up'; o.pickup_signer=signerName.value; }
+      sigOpen.value=false;
+      alert(`✅ 提货完成！\n签字人：${signerName.value}\n时间：${new Date().toLocaleString('zh-CN')}\n\n（正式版本将上传签名图片并生成 PDF 提货单）`);
+    }
+    function sendPickupEmail(o) { alert('发送邮件通知：POST /v1/workspace/orders/'+o.id+'/pickup/send-email'); }
+    function viewSig(o) { alert('查看签名：GET /v1/workspace/orders/'+o.id+'/pickup-signature'); }
+
+    // ── CUSTOMERS ──
+    function openCustomer(c) {
+      orderSearch.value=c.company_name; orderFilter.value='all'; page.value='orders';
+    }
+
+    // ── SETTINGS ──
+    const newGlassType = ref('');
+    function addGlassType() { if(newGlassType.value.trim()) { glassTypes.value.push(newGlassType.value.trim().toUpperCase()); newGlassType.value=''; } }
+    const emailTemplate = ref({ subject:'您的玻璃订单 {order_no} 已可取货', body:'尊敬的 {customer_name}，\n\n您的订单 {order_no} 已完成生产，可前来提货。\n\n请携带本邮件作为凭证。\n\nGlass Factory 敬上' });
+    function saveEmailTemplate() { alert('模板已保存（Demo）'); }
+
+    // ── DATE ──
+    const today = computed(()=>new Date().toLocaleDateString('zh-CN',{month:'long',day:'numeric',weekday:'long'}));
+
+    // ── STATUS LABELS ──
+    const statusLabelMap = { received:'已接单', entered:'已录入', in_production:'生产中', completed:'已完成', ready_for_pickup:'可取货', picked_up:'已取货', cancelled:'已取消', confirmed:'已确认' };
+    function statusLabel(s) { return statusLabelMap[s]||s; }
+
+    return {
+      authed,loginForm,loginErr,loginLoading,doLogin,currentUser,
+      isWorker,isManager,canCreateOrder,canManagePickup,canRework,roleLabel,userInitials,
+      lang,t,page,
+      orders,customers,workOrders,unreadCount,
+      glassTypes,thicknesses,
+      urgentCount,reworkCount,readyPickupCount,staleOrders,
+      orderSearch,orderFilter,statusFilters,filteredOrders,
+      custSearch,custSort,filteredCustomers,
+      pickupSearch,pickupOrders,
+      prodStage,stages,currentStage,workerStageLabel,currentStageOrders,
+      startWO,completeWO,ackRework,openReworkDialog,
+      orderCardClass,
+      drawerOpen,selectedOrder,openOrder,orderTimeline,toggleHold,markEntered,approvePickup,exportOrder,downloadDrawing,
+      newOrder,fileInput,addItem,removeItem,triggerFileUpload,onFileSelect,onDrop,submitOrder,
+      sigOpen,sigTarget,signerName,sigCanvas,hasSig,openSig,clearSig,sigStart,sigDraw,sigEnd,sigTouchStart,sigTouchDraw,submitSig,sendPickupEmail,viewSig,
+      filteredCustomers,openCustomer,
+      newGlassType,addGlassType,emailTemplate,saveEmailTemplate,
+      today,statusLabel,
+    };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

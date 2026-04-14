@@ -32,6 +32,7 @@ services:
       - "15432:5432"
     volumes:
       - gf_postgres_data:/var/lib/postgresql/data
+      - ./postgresql.conf.tuning:/etc/postgresql/postgresql.conf.tuning:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d glass_factory"]
       interval: 10s
@@ -114,7 +115,8 @@ services:
       context: ./pgbouncer
     container_name: gf-pgbouncer
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     environment:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
@@ -124,6 +126,11 @@ services:
       PGBOUNCER_LISTEN_PORT: 6432
     ports:
       - "16432:6432"
+    healthcheck:
+      test: ["CMD-SHELL", "ps | grep -q '[p]gbouncer'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
 
   migrate:
     build:
@@ -132,7 +139,8 @@ services:
     container_name: gf-migrate
     command: ["alembic", "upgrade", "head"]
     depends_on:
-      - pgbouncer
+      pgbouncer:
+        condition: service_healthy
     environment:
       <<: *app-env
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/glass_factory
@@ -142,7 +150,8 @@ services:
     image: apache/kafka:3.8.0
     container_name: gf-kafka-setup
     depends_on:
-      - kafka
+      kafka:
+        condition: service_healthy
     command: >
       /opt/kafka/bin/kafka-topics.sh
       --bootstrap-server kafka:9092
@@ -156,7 +165,8 @@ services:
     image: minio/mc:latest
     container_name: gf-minio-setup
     depends_on:
-      - minio
+      minio:
+        condition: service_healthy
     environment:
       MINIO_ROOT_USER: minio
       MINIO_ROOT_PASSWORD: minio12345
@@ -171,12 +181,22 @@ services:
       dockerfile: Dockerfile
     container_name: gf-public-api
     depends_on:
-      - pgbouncer
-      - redis
-      - kafka
-      - migrate
-      - kafka-setup
-      - minio-setup
+      pgbouncer:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      kafka-setup:
+        condition: service_completed_successfully
+      minio-setup:
+        condition: service_completed_successfully
     environment:
       <<: *app-env
     ports:
@@ -190,12 +210,22 @@ services:
     container_name: gf-admin-api
     command: ["uvicorn", "apps.admin_api.main:app", "--host", "0.0.0.0", "--port", "8001"]
     depends_on:
-      - pgbouncer
-      - redis
-      - kafka
-      - migrate
-      - kafka-setup
-      - minio-setup
+      pgbouncer:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      kafka-setup:
+        condition: service_completed_successfully
+      minio-setup:
+        condition: service_completed_successfully
     environment:
       <<: *app-env
     ports:
@@ -209,11 +239,16 @@ services:
     container_name: gf-scheduler
     command: ["python", "-m", "apps.scheduler"]
     depends_on:
-      - pgbouncer
-      - redis
-      - kafka
-      - migrate
-      - kafka-setup
+      pgbouncer:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      kafka-setup:
+        condition: service_completed_successfully
     environment:
       <<: *app-env
       SCHEDULER_HEARTBEAT_ONLY: "1"
@@ -226,11 +261,16 @@ services:
     container_name: gf-event-pipeline
     command: ["python", "-m", "apps.workers.daemon", "--worker", "event-pipeline"]
     depends_on:
-      - pgbouncer
-      - redis
-      - kafka
-      - migrate
-      - kafka-setup
+      pgbouncer:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      kafka-setup:
+        condition: service_completed_successfully
     environment:
       <<: *app-env
     restart: unless-stopped
@@ -242,9 +282,12 @@ services:
     container_name: gf-order-timeout
     command: ["python", "-m", "apps.workers.daemon", "--worker", "order-timeout"]
     depends_on:
-      - pgbouncer
-      - redis
-      - migrate
+      pgbouncer:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     environment:
       <<: *app-env
     restart: unless-stopped
@@ -256,9 +299,12 @@ services:
     container_name: gf-inventory-sync
     command: ["python", "-m", "apps.workers.daemon", "--worker", "inventory-sync"]
     depends_on:
-      - pgbouncer
-      - redis
-      - migrate
+      pgbouncer:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     environment:
       <<: *app-env
     restart: unless-stopped
@@ -270,9 +316,12 @@ services:
     container_name: gf-production-scheduler
     command: ["python", "-m", "apps.workers.daemon", "--worker", "production-scheduler"]
     depends_on:
-      - pgbouncer
-      - redis
-      - migrate
+      pgbouncer:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     environment:
       <<: *app-env
     restart: unless-stopped
@@ -284,9 +333,12 @@ services:
     container_name: gf-notification-dispatch
     command: ["python", "-m", "apps.workers.daemon", "--worker", "notification-dispatch"]
     depends_on:
-      - pgbouncer
-      - redis
-      - migrate
+      pgbouncer:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     environment:
       <<: *app-env
     restart: unless-stopped
@@ -298,9 +350,12 @@ services:
     container_name: gf-analytics-sink
     command: ["python", "-m", "apps.workers.daemon", "--worker", "analytics-sink"]
     depends_on:
-      - pgbouncer
-      - clickhouse
-      - migrate
+      pgbouncer:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     environment:
       <<: *app-env
     restart: unless-stopped
@@ -312,9 +367,12 @@ services:
     container_name: gf-retention
     command: ["python", "-m", "apps.workers.daemon", "--worker", "retention"]
     depends_on:
-      - pgbouncer
-      - minio
-      - migrate
+      pgbouncer:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     environment:
       <<: *app-env
     restart: unless-stopped
@@ -326,9 +384,12 @@ services:
     container_name: gf-cold-storage
     command: ["python", "-m", "apps.workers.daemon", "--worker", "cold-storage"]
     depends_on:
-      - pgbouncer
-      - minio
-      - migrate
+      pgbouncer:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     environment:
       <<: *app-env
     restart: unless-stopped
@@ -337,8 +398,10 @@ services:
     image: nginx:1.27
     container_name: gf-nginx
     depends_on:
-      - public-api
-      - admin-api
+      public-api:
+        condition: service_started
+      admin-api:
+        condition: service_started
     ports:
       - "3000:8080"
       - "28080:8080"

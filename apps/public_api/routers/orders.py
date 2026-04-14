@@ -341,6 +341,7 @@ async def upload_order_drawing(
         order_id=order_id,
         filename=drawing.filename or "drawing.pdf",
         payload_bytes=payload,
+        content_type=drawing.content_type,
     )
 
 

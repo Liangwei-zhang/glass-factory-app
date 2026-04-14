@@ -2,1661 +2,434 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Glass Factory — 客户采购平台</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Glass Factory - 客户端</title>
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+<link rel="stylesheet" href="/mobile-shell.css">
 <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-<script src="https://unpkg.com/element-plus/dist/index.full.js"></script>
-<script src="https://unpkg.com/@element-plus/icons-vue/dist/index.iife.min.js"></script>
-<style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-[v-cloak] { display: none; }
-:root {
-  --primary: #2563eb;
-  --primary-light: #eff6ff;
-  --success: #16a34a;
-  --warn: #d97706;
-  --danger: #dc2626;
-  --border: #e5e7eb;
-  --text: #111827;
-  --text-2: #6b7280;
-  --bg: #f9fafb;
-  --header-h: 60px;
-  --nav-h: 52px;
-}
-html, body { height: 100%; background: var(--bg); font-family: -apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif; color: var(--text); }
-
-/* ── HEADER ── */
-.app-header {
-  height: var(--header-h);
-  background: #fff;
-  border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0 24px;
-  position: sticky; top: 0; z-index: 100;
-  box-shadow: 0 1px 3px rgba(0,0,0,.06);
-}
-.brand { display: flex; align-items: center; gap: 10px; }
-.brand-logo {
-  width: 36px; height: 36px;
-  background: linear-gradient(135deg, var(--primary) 0%, #1d4ed8 100%);
-  border-radius: 10px; display: flex; align-items: center; justify-content: center;
-  color: #fff; font-size: 18px; font-weight: 800;
-}
-.brand-name { font-size: 17px; font-weight: 700; color: var(--text); }
-.brand-sub { font-size: 12px; color: var(--text-2); margin-top: 1px; }
-.header-right { display: flex; align-items: center; gap: 16px; }
-.header-user { display: flex; align-items: center; gap: 8px; cursor: pointer; }
-.user-ava {
-  width: 34px; height: 34px; border-radius: 50%;
-  background: linear-gradient(135deg, var(--primary) 0%, #7c3aed 100%);
-  display: flex; align-items: center; justify-content: center;
-  color: #fff; font-size: 13px; font-weight: 600;
-}
-
-/* ── NAV ── */
-.app-nav {
-  height: var(--nav-h);
-  background: #fff;
-  border-bottom: 1px solid var(--border);
-  display: flex; align-items: center;
-  padding: 0 24px; gap: 4px;
-  overflow-x: auto;
-}
-.nav-item {
-  padding: 6px 16px; border-radius: 6px;
-  font-size: 14px; font-weight: 500; color: var(--text-2);
-  cursor: pointer; white-space: nowrap;
-  display: flex; align-items: center; gap: 6px;
-  transition: all .15s;
-}
-.nav-item:hover { background: var(--primary-light); color: var(--primary); }
-.nav-item.active { background: var(--primary); color: #fff; }
-
-/* ── LAYOUT ── */
-.app-body { max-width: 1200px; margin: 0 auto; padding: 24px 20px; }
-
-/* ── CREDIT BANNER ── */
-.credit-banner {
-  background: linear-gradient(135deg, #1e40af 0%, #2563eb 50%, #3b82f6 100%);
-  border-radius: 14px; padding: 24px 28px;
-  color: #fff; margin-bottom: 24px;
-  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; align-items: center;
-}
-.credit-main h2 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
-.credit-main p { font-size: 13px; opacity: .8; }
-.credit-stat { text-align: center; }
-.credit-stat-num { font-size: 22px; font-weight: 700; }
-.credit-stat-label { font-size: 12px; opacity: .75; margin-top: 2px; }
-.credit-bar-wrap { background: rgba(255,255,255,.2); border-radius: 8px; padding: 12px 16px; }
-.credit-bar-label { display: flex; justify-content: space-between; font-size: 12px; opacity: .8; margin-bottom: 6px; }
-.credit-track { height: 8px; background: rgba(255,255,255,.25); border-radius: 4px; }
-.credit-fill { height: 8px; border-radius: 4px; background: #fbbf24; transition: width .4s; }
-
-/* ── SECTION TITLE ── */
-.section-title { font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
-.section-title::before { content:''; display:block; width:4px; height:18px; background: var(--primary); border-radius: 2px; }
-
-/* ── STAT ROW ── */
-.stat-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 24px; }
-.stat-mini { background:#fff; border-radius:10px; padding:16px; border:1px solid var(--border); }
-.stat-mini-num { font-size:22px; font-weight:700; color:var(--text); }
-.stat-mini-label { font-size:12px; color:var(--text-2); margin-top:4px; }
-
-/* ── ORDER FORM ── */
-.form-card { background:#fff; border-radius:12px; border:1px solid var(--border); padding:28px; margin-bottom:24px; }
-.form-section-title { font-size:15px; font-weight:600; color:var(--text); padding-bottom:10px; border-bottom:1px solid var(--border); margin-bottom:18px; }
-.item-table { width:100%; border-collapse:collapse; }
-.item-table thead th { background:#f9fafb; padding:9px 12px; font-size:12px; font-weight:600; color:var(--text-2); text-align:left; border-bottom:1px solid var(--border); }
-.item-table tbody td { padding:6px 8px; border-bottom:1px solid #f3f4f6; }
-.item-table .el-input-number { width:100%; }
-.add-item-row { text-align:center; padding:10px; border-top:1px dashed var(--border); cursor:pointer; color:var(--primary); font-size:13px; }
-.add-item-row:hover { background:#f0f7ff; }
-
-/* ── ORDER LIST ── */
-.order-card { background:#fff; border-radius:12px; border:1px solid var(--border); margin-bottom:14px; overflow:hidden; transition: box-shadow .15s; }
-.order-card:hover { box-shadow:0 4px 12px rgba(0,0,0,.08); }
-.order-card-head {
-  padding:14px 20px; display:flex; align-items:center; justify-content:space-between;
-  border-bottom:1px solid #f3f4f6;
-}
-.order-no { font-size:14px; font-weight:700; color:var(--primary); letter-spacing:.5px; }
-.order-time { font-size:12px; color:var(--text-2); }
-.order-card-body { padding:12px 20px; display:flex; align-items:center; gap:24px; }
-.order-body-item { display:flex; flex-direction:column; gap:2px; }
-.order-body-item span { font-size:11px; color:var(--text-2); }
-.order-body-item strong { font-size:14px; color:var(--text); }
-.order-timeline { padding:12px 20px 16px; }
-.timeline-steps { display:flex; align-items:flex-start; }
-.tl-step { flex:1; display:flex; flex-direction:column; align-items:center; position:relative; }
-.tl-step:not(:last-child)::after {
-  content:''; position:absolute; top:12px; left:calc(50% + 12px); right:calc(-50% + 12px);
-  height:2px; background:var(--border); z-index:0;
-}
-.tl-step.done:not(:last-child)::after { background:var(--primary); }
-.tl-dot { width:24px; height:24px; border-radius:50%; background:var(--border); display:flex; align-items:center; justify-content:center; font-size:11px; z-index:1; color:#fff; font-weight:700; }
-.tl-dot.done { background:var(--primary); }
-.tl-dot.active { background:#f59e0b; box-shadow:0 0 0 3px rgba(245,158,11,.25); }
-.tl-label { font-size:11px; color:var(--text-2); margin-top:4px; text-align:center; }
-.tl-time { font-size:10px; color:#9ca3af; text-align:center; }
-
-/* ── STATUS BADGE ── */
-.badge { display:inline-flex; align-items:center; gap:4px; padding:2px 10px; border-radius:12px; font-size:12px; font-weight:500; }
-.badge.pending  { background:#fdf6ec; color:#d97706; }
-.badge.confirmed{ background:#eff6ff; color:#2563eb; }
-.badge.producing{ background:#f0fdf4; color:#16a34a; }
-.badge.produced { background:#ecfdf5; color:#059669; }
-.badge.shipping { background:#f0fdfa; color:#0d9488; }
-.badge.delivered{ background:#ecfdf5; color:#16a34a; }
-.badge.completed{ background:#f9fafb; color:#6b7280; }
-.badge.cancelled{ background:#fef2f2; color:#dc2626; }
-.badge.received { background:#fdf6ec; color:#d97706; }
-.badge.entered { background:#eff6ff; color:#2563eb; }
-.badge.in_production { background:#f0fdf4; color:#16a34a; }
-.badge.ready_for_pickup { background:#eef2ff; color:#4f46e5; }
-.badge.picked_up { background:#ecfdf5; color:#16a34a; }
-.badge.unpaid   { background:#fdf6ec; color:#d97706; }
-.badge.paid     { background:#f0fdf4; color:#16a34a; }
-.badge.partial  { background:#fffbeb; color:#d97706; }
-.badge.overdue  { background:#fef2f2; color:#dc2626; }
-
-/* ── LOGISTICS ── */
-.track-card { background:#fff; border-radius:12px; border:1px solid var(--border); padding:24px; margin-bottom:14px; }
-.track-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; }
-.track-no { font-size:15px; font-weight:700; color:var(--text); }
-.logistics-timeline { padding-left:20px; }
-.log-item { display:flex; gap:14px; padding-bottom:16px; position:relative; }
-.log-item:not(:last-child)::before { content:''; position:absolute; left:9px; top:20px; bottom:0; width:2px; background:var(--border); }
-.log-dot { width:20px; height:20px; border-radius:50%; background:#fff; border:3px solid var(--border); flex-shrink:0; z-index:1; }
-.log-dot.active { border-color:var(--primary); background:var(--primary); }
-.log-body { flex:1; }
-.log-body strong { font-size:13px; color:var(--text); display:block; }
-.log-body span { font-size:12px; color:var(--text-2); display:block; margin-top:2px; }
-.log-body time { font-size:11px; color:#9ca3af; display:block; margin-top:1px; }
-
-/* ── FINANCE ── */
-.fin-summary { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:20px; }
-.fin-box { border-radius:10px; padding:16px 20px; }
-.fin-box.unpaid { background:#fffbeb; border:1px solid #fde68a; }
-.fin-box.overdue { background:#fef2f2; border:1px solid #fecaca; }
-.fin-box.paid { background:#f0fdf4; border:1px solid #bbf7d0; }
-.fin-box-label { font-size:12px; color:var(--text-2); margin-bottom:6px; }
-.fin-box-num { font-size:22px; font-weight:700; }
-
-/* ── RESPONSIVE ── */
-@media (max-width:768px) {
-  .credit-banner { grid-template-columns:1fr; }
-  .stat-row { grid-template-columns:repeat(2,1fr); }
-  .fin-summary { grid-template-columns:1fr; }
-}
-
-/* ── BRAND REFRESH ── */
-:root {
-  --primary: #f97316;
-  --primary-light: rgba(249, 115, 22, 0.08);
-  --success: #22c55e;
-  --warn: #f59e0b;
-  --danger: #ef4444;
-  --border: rgba(148, 163, 184, 0.16);
-  --text: #0f172a;
-  --text-2: #64748b;
-  --bg: #f8fafc;
-  --font-head: 'Barlow Condensed', sans-serif;
-  --font-body: 'Barlow', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
-}
-html, body {
-  font-family: var(--font-body);
-  background:
-    radial-gradient(circle at top left, rgba(249, 115, 22, 0.14), transparent 30%),
-    radial-gradient(circle at top right, rgba(59, 130, 246, 0.12), transparent 28%),
-    linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
-}
-.brand-name,
-.section-title,
-.order-no,
-.track-no,
-.stat-mini-num,
-.credit-main h2 {
-  font-family: var(--font-head);
-  letter-spacing: 0.03em;
-}
-.app-header,
-.app-nav,
-.form-card,
-.order-card,
-.track-card,
-.stat-mini {
-  border-color: rgba(148, 163, 184, 0.16);
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
-}
-.app-header {
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(20px);
-}
-.app-nav {
-  background: rgba(255, 255, 255, 0.84);
-  backdrop-filter: blur(18px);
-}
-.brand-logo {
-  border-radius: 12px;
-  background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
-  box-shadow: 0 14px 28px rgba(249, 115, 22, 0.24);
-}
-.nav-item {
-  border-radius: 999px;
-  font-weight: 600;
-}
-.nav-item.active {
-  background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
-  box-shadow: 0 12px 24px rgba(249, 115, 22, 0.22);
-}
-.credit-banner {
-  background:
-    radial-gradient(circle at top right, rgba(255,255,255,0.22), transparent 34%),
-    linear-gradient(135deg, #1e293b 0%, #0f172a 45%, #1d4ed8 100%);
-  box-shadow: 0 28px 56px rgba(15, 23, 42, 0.18);
-}
-.form-card,
-.order-card,
-.track-card {
-  border-radius: 18px;
-}
-.section-title::before {
-  background: linear-gradient(180deg, #f59e0b 0%, #f97316 100%);
-}
-.badge.ready_for_pickup {
-  background: rgba(99, 102, 241, 0.12);
-  color: #4f46e5;
-}
-  .badge.picked_up,
-  .badge.delivered,
-  .badge.paid {
-    background: rgba(34, 197, 94, 0.12);
-    color: #15803d;
-  }
-  @media (max-width: 768px) {
-    .app-header {
-      height: auto;
-      padding: 14px 14px 12px;
-      gap: 12px;
-      align-items: flex-start;
-      flex-wrap: wrap;
-    }
-    .header-right {
-      width: 100%;
-      justify-content: space-between;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-    .header-user {
-      width: 100%;
-      padding: 10px 12px;
-      border-radius: 16px;
-      border: 1px solid rgba(148, 163, 184, 0.14);
-      background: rgba(255, 255, 255, 0.82);
-    }
-    .app-nav {
-      position: fixed;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      z-index: 90;
-      height: auto;
-      padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
-      gap: 8px;
-      border-top: 1px solid rgba(148, 163, 184, 0.16);
-      box-shadow: 0 -12px 36px rgba(15, 23, 42, 0.14);
-    }
-    .nav-item {
-      flex: 0 0 auto;
-      padding: 10px 14px;
-      font-size: 12px;
-    }
-    .app-body {
-      padding: 18px 12px 96px;
-    }
-    .credit-banner {
-      padding: 18px;
-      gap: 16px;
-      border-radius: 22px;
-    }
-    .stat-row {
-      grid-template-columns: repeat(2, 1fr);
-      gap: 10px;
-    }
-    .form-card,
-    .track-card {
-      padding: 18px;
-    }
-    .order-card-head,
-    .order-card-body,
-    .track-header {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 10px;
-    }
-    .timeline-steps {
-      overflow-x: auto;
-      padding-bottom: 6px;
-    }
-    .tl-step {
-      min-width: 86px;
-    }
-    .item-table {
-      display: block;
-      overflow-x: auto;
-    }
-    .el-dialog {
-      width: min(96vw, 700px) !important;
-      margin: 4vh auto !important;
-    }
-    .el-dialog .el-dialog__body {
-      max-height: calc(100vh - 170px);
-      overflow: auto;
-    }
-  }
-  @media (max-width: 480px) {
-    .stat-row {
-      grid-template-columns: 1fr;
-    }
-    .credit-main h2 {
-      font-size: 20px;
-    }
-    .nav-item {
-      min-width: 84px;
-      justify-content: center;
-    }
-  }
-  @media (max-width: 768px) {
-    .app-nav {
-      scroll-snap-type: x proximity;
-      -webkit-overflow-scrolling: touch;
-    }
-    .nav-item {
-      scroll-snap-align: start;
-    }
-    .app-body .el-input,
-    .app-body .el-select,
-    .app-body .el-date-editor,
-    .app-body .el-input-number,
-    .app-body .el-button {
-      max-width: 100%;
-    }
-    .app-body .el-table {
-      display: block;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-    }
-    .app-body .el-table table {
-      min-width: 680px;
-    }
-    .app-body .el-table .cell {
-      white-space: nowrap;
-    }
-  }
-</style>
+<script src="/mobile-shell.js"></script>
 </head>
 <body>
 <div id="app" v-cloak>
-
-  <!-- HEADER -->
-  <div class="app-header">
-    <div class="brand">
-      <div class="brand-logo">G</div>
-      <div>
-        <div class="brand-name">Glass Factory</div>
-        <div class="brand-sub">{{ locale === 'en-US' ? 'Customer Portal' : '客户采购平台' }}</div>
+  <div v-if="!token" class="login-screen">
+    <div class="login-card">
+      <div class="eyebrow">Customer Portal</div>
+      <div class="hero-title">移动下单与查单</div>
+      <div class="hero-sub">订单、提货、账款和 PDF 导出全部集中在一个移动端入口，方便客户随时查看进度。</div>
+      <div class="field">
+        <label>账号</label>
+        <input v-model="loginForm.account" autocomplete="username">
       </div>
-    </div>
-    <div class="header-right">
-      <el-select v-model="locale" size="small" style="width:110px">
-        <el-option label="中文" value="zh-CN"></el-option>
-        <el-option label="English" value="en-US"></el-option>
-      </el-select>
-      <el-badge :value="pendingCount" :hidden="pendingCount===0">
-        <el-button :icon="'Bell'" text circle @click="markNotificationsRead"></el-button>
-      </el-badge>
-      <el-dropdown @command="onDropdownCmd">
-        <div class="header-user">
-          <div class="user-ava">{{ userInitial }}</div>
-          <div>
-            <div style="font-size:13px;font-weight:600">{{ displayCompanyName }}</div>
-            <div style="font-size:11px;color:var(--text-2)">{{ currentUser?.email || profile.email || '—' }}</div>
-          </div>
-          <el-icon><arrow-down></arrow-down></el-icon>
-        </div>
-        <template #dropdown>
-          <el-dropdown-menu>
-            <el-dropdown-item command="profile">公司资料</el-dropdown-item>
-            <el-dropdown-item command="orders">订单列表</el-dropdown-item>
-            <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
-          </el-dropdown-menu>
-        </template>
-      </el-dropdown>
+      <div class="field">
+        <label>密码</label>
+        <input v-model="loginForm.password" type="password" autocomplete="current-password">
+      </div>
+      <div class="field">
+        <button class="primary-btn full-btn" @click="login" :disabled="loading">{{ loading ? '登录中...' : '进入客户端' }}</button>
+      </div>
+      <div class="helper">默认测试账号：customer@glass.local / customer123</div>
     </div>
   </div>
 
-  <!-- NAV -->
-  <div class="app-nav">
-    <div v-for="n in navItems" :key="n.key" class="nav-item" :class="{active: activeNav===n.key}" @click="activeNav=n.key">
-      <el-icon><component :is="n.icon"></component></el-icon>
-      {{ n.label }}
+  <div v-else class="mobile-app">
+    <div class="topbar">
+      <div class="brand">
+        <div class="brand-badge">G</div>
+        <div>
+          <div class="brand-title">APP</div>
+          <div class="brand-sub">{{ user.display_name || user.username || '客户账号' }}</div>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button class="ghost-btn" @click="loadAllData">刷</button>
+        <button class="ghost-btn" @click="logout">退</button>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <div class="hero">
+        <div class="hero-card">
+          <div class="eyebrow">Customer Flow</div>
+          <div class="hero-title">客户订单<br>移动追踪</div>
+          <div class="hero-sub">支持移动端快速查看订单状态、提货进度、应收款和导出文档。</div>
+          <div class="stat-grid">
+            <div class="stat-card">
+              <div class="stat-num">{{ stats.totalOrders }}</div>
+              <div class="stat-label">订单总数</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-num">{{ stats.activeOrders }}</div>
+              <div class="stat-label">进行中</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-num">{{ stats.readyPickup }}</div>
+              <div class="stat-label">可提货</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-num">{{ money(stats.openBalance) }}</div>
+              <div class="stat-label">待收金额</div>
+            </div>
+          </div>
+          <div class="info-row">
+            <span class="info-pill">上次刷新 {{ lastRefreshText }}</span>
+            <span class="info-pill" v-if="refreshing">正在刷新数据</span>
+            <span class="info-pill" v-if="notificationsUnread">未读通知 {{ notificationsUnread }}</span>
+          </div>
+        </div>
+      </div>
+
+      <section v-if="currentTab==='dashboard'" class="section">
+        <div v-if="notificationsUnread" class="alert alert-info">
+          <div>i</div>
+          <div>你有 {{ notificationsUnread }} 条未读通知，订单状态已经同步到客户端。</div>
+        </div>
+        <div class="action-grid">
+          <button class="action-card" @click="currentTab='orders'">
+            <strong>查看全部订单</strong>
+            <span>快速进入订单列表，搜索订单号、状态和加工说明。</span>
+          </button>
+          <button class="action-card" @click="currentTab='finance'">
+            <strong>查看账款</strong>
+            <span>集中查看应收记录和发票信息，适合手机上快速核对。</span>
+          </button>
+        </div>
+        <div class="section-head">
+          <div class="section-title">最近订单</div>
+          <div class="section-link" @click="currentTab='orders'">查看全部</div>
+        </div>
+        <div class="stack">
+          <div v-for="order in recentOrders" :key="order.id" class="card order-card" @click="openOrder(order)">
+            <div class="order-head">
+              <div>
+                <div class="order-no">{{ order.order_no || order.orderNo || order.id }}</div>
+                <div class="order-customer">{{ order.customer_name || order.customerName || user.display_name || '--' }}</div>
+              </div>
+              <div :class="'status ' + tone(order.status)">{{ label(order.status) }}</div>
+            </div>
+            <div class="chips">
+              <div class="chip">{{ order.glass_summary || order.glassSummary || '玻璃加工订单' }}</div>
+              <div class="chip">{{ order.quantity_summary || order.quantitySummary || ((order.items||[]).length + ' 项') }}</div>
+            </div>
+            <div class="row-between muted">
+              <span>{{ datetime(order.created_at || order.createdAt) }}</span>
+              <span>{{ money(order.total_amount || order.totalAmount) }}</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section v-if="currentTab==='orders'" class="section">
+        <div class="section-head">
+          <div class="section-title">订单列表</div>
+          <div class="section-link" @click="loadOrders">刷新</div>
+        </div>
+        <div class="search-shell">
+          <input v-model.trim="searchQuery" class="search-input" placeholder="搜索订单号、玻璃说明、状态">
+        </div>
+        <div class="inline-meta">
+          <span>检索结果</span>
+          <strong>{{ filteredOrders.length }} 条</strong>
+        </div>
+        <div class="tab-strip">
+          <button v-for="filter in orderFilters" :key="filter.value" class="tab-pill" :class="{active: orderFilter===filter.value}" @click="orderFilter=filter.value">{{ filter.label }}</button>
+        </div>
+        <div class="stack" style="margin-top:10px">
+          <div v-for="order in filteredOrders" :key="order.id" class="card order-card" @click="openOrder(order)">
+            <div class="order-head">
+              <div>
+                <div class="order-no">{{ order.order_no || order.orderNo || order.id }}</div>
+                <div class="order-customer">{{ datetime(order.created_at || order.createdAt) }}</div>
+              </div>
+              <div :class="'status ' + tone(order.status)">{{ label(order.status) }}</div>
+            </div>
+            <div class="chips">
+              <div class="chip">{{ order.glass_summary || order.glassSummary || '订单' }}</div>
+              <div class="chip">{{ money(order.total_amount || order.totalAmount) }}</div>
+            </div>
+            <div class="button-row">
+              <button class="soft-btn" @click.stop="download(order,'order')">订单 PDF</button>
+              <button v-if="order.status==='picked_up' || order.pickup_signer_name" class="chip-btn" @click.stop="download(order,'pickup')">提货单</button>
+            </div>
+          </div>
+          <div v-if="!filteredOrders.length" class="empty">当前筛选下没有订单。</div>
+        </div>
+      </section>
+
+      <section v-if="currentTab==='finance'" class="section">
+        <div class="section-head">
+          <div class="section-title">账款与发票</div>
+        </div>
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="stat-num">{{ receivables.length }}</div>
+            <div class="stat-label">应收记录</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num">{{ invoices.length }}</div>
+            <div class="stat-label">发票记录</div>
+          </div>
+        </div>
+        <div class="stack">
+          <div class="card card-compact" v-for="item in receivables" :key="item.id">
+            <div class="row-between">
+              <div>
+                <div class="order-no">{{ item.order_no || item.orderNo || item.id }}</div>
+                <div class="muted">{{ datetime(item.due_at || item.dueAt || item.created_at) }}</div>
+              </div>
+              <div :class="'status ' + tone(item.status || 'unpaid')">{{ label(item.status || 'unpaid') }}</div>
+            </div>
+            <div class="kv"><div class="kv-label">应收金额</div><div class="kv-value">{{ money(item.amount_due || item.amountDue || item.balance) }}</div></div>
+          </div>
+          <div v-if="!receivables.length" class="empty">当前没有应收记录。</div>
+        </div>
+      </section>
+
+      <section v-if="currentTab==='account'" class="section">
+        <div class="section-head">
+          <div class="section-title">我的账户</div>
+        </div>
+        <div class="card">
+          <div class="kv"><div class="kv-label">显示名</div><div class="kv-value">{{ user.display_name || '--' }}</div></div>
+          <div class="kv"><div class="kv-label">用户名</div><div class="kv-value">{{ user.username || '--' }}</div></div>
+          <div class="kv"><div class="kv-label">角色</div><div class="kv-value">{{ user.role || '--' }}</div></div>
+          <div class="kv"><div class="kv-label">客户</div><div class="kv-value">{{ bootstrap.customer?.company_name || bootstrap.customer?.companyName || '--' }}</div></div>
+        </div>
+      </section>
+    </div>
+
+    <div class="bottom-nav">
+      <button v-for="item in navItems" :key="item.key" class="nav-item" :class="{active: currentTab===item.key}" @click="currentTab=item.key">
+        <span>{{ item.icon }}</span>
+        <span>{{ item.label }}</span>
+      </button>
+    </div>
+
+    <div v-if="detailVisible" class="sheet-backdrop" @click.self="detailVisible=false">
+      <div class="sheet">
+        <div class="row-between">
+          <div>
+            <div class="sheet-title">{{ activeOrder.order_no || activeOrder.orderNo || activeOrder.id }}</div>
+            <div class="muted" style="margin-top:6px">{{ datetime(activeOrder.created_at || activeOrder.createdAt) }}</div>
+          </div>
+          <div :class="'status ' + tone(activeOrder.status)">{{ label(activeOrder.status) }}</div>
+        </div>
+        <div class="field">
+          <label>订单说明</label>
+          <div class="card card-compact">{{ activeOrder.remark || activeOrder.notes || '暂无备注' }}</div>
+        </div>
+        <div class="field">
+          <label>核心信息</label>
+          <div class="card card-compact">
+            <div class="kv"><div class="kv-label">总金额</div><div class="kv-value">{{ money(activeOrder.total_amount || activeOrder.totalAmount) }}</div></div>
+            <div class="kv"><div class="kv-label">签收人</div><div class="kv-value">{{ activeOrder.pickup_signer_name || activeOrder.pickupSignerName || '--' }}</div></div>
+            <div class="kv"><div class="kv-label">签收时间</div><div class="kv-value">{{ datetime(activeOrder.pickup_signed_at || activeOrder.pickupSignedAt) }}</div></div>
+          </div>
+        </div>
+        <div class="button-row sheet-actions">
+          <button class="soft-btn" @click="download(activeOrder,'order')">订单 PDF</button>
+          <button class="chip-btn" @click="download(activeOrder,'pickup')">提货单</button>
+          <button class="primary-btn" @click="detailVisible=false">关闭</button>
+        </div>
+      </div>
     </div>
   </div>
-
-  <!-- BODY -->
-  <div class="app-body">
-
-    <!-- ===== HOME DASHBOARD ===== -->
-    <div v-show="activeNav==='home'">
-      <div class="credit-banner">
-        <div class="credit-main">
-          <h2>您好，{{ displayCompanyName }}</h2>
-          <p>{{ profileTagline }}</p>
-          <div style="margin-top:10px">
-            <el-button size="small" type="primary" :disabled="!currentUser?.canCreateOrders" @click="activeNav='new-order'" style="background:#fff;color:var(--primary);border:none">立即下单</el-button>
-          </div>
-        </div>
-        <div class="credit-stat">
-          <div class="credit-stat-num">¥ {{ formatMoney(credit.available) }}</div>
-          <div class="credit-stat-label">剩余可用额度</div>
-          <div style="margin-top:6px;font-size:11px;opacity:.7">授信额度 ¥ {{ formatMoney(credit.limit) }}</div>
-        </div>
-        <div class="credit-bar-wrap">
-          <div class="credit-bar-label">
-            <span>已用额度 ¥ {{ formatMoney(credit.used) }}</span>
-            <span>{{ creditUsagePercent }}%</span>
-          </div>
-          <div class="credit-track"><div class="credit-fill" :style="{ width: creditUsagePercent + '%' }"></div></div>
-          <div style="font-size:11px;opacity:.65;margin-top:6px;text-align:right">客户等级：{{ priceLevelLabel }}</div>
-        </div>
-      </div>
-
-      <div class="stat-row">
-        <div class="stat-mini">
-          <div class="stat-mini-num" style="color:#2563eb">{{ myOrderStats.inProgress }}</div>
-          <div class="stat-mini-label">进行中订单</div>
-        </div>
-        <div class="stat-mini">
-          <div class="stat-mini-num" style="color:#16a34a">{{ myOrderStats.completedMonth }}</div>
-          <div class="stat-mini-label">本月完成订单</div>
-        </div>
-        <div class="stat-mini">
-          <div class="stat-mini-num" style="color:#d97706">{{ myOrderStats.pendingPayment }}</div>
-          <div class="stat-mini-label">待付款账单</div>
-        </div>
-        <div class="stat-mini">
-          <div class="stat-mini-num" style="color:#7c3aed">{{ myOrderStats.totalArea }} ㎡</div>
-          <div class="stat-mini-label">本月下单件数</div>
-        </div>
-      </div>
-
-      <div class="section-title">近期订单动态</div>
-      <div class="order-card" v-for="o in myRecentOrders" :key="o.id">
-        <div class="order-card-head">
-          <div>
-            <div class="order-no">{{ o.order_no }}</div>
-            <div class="order-time">下单时间：{{ o.created_at }}</div>
-          </div>
-          <div style="display:flex;align-items:center;gap:10px">
-            <span :class="'badge ' + o.status">{{ statusLabel(o.status) }}</span>
-            <el-button size="small" text type="primary" @click="openTrack(o)">追踪</el-button>
-          </div>
-        </div>
-        <div class="order-card-body">
-          <div class="order-body-item">
-            <span>产品概况</span>
-            <strong>{{ o.product_summary }}</strong>
-          </div>
-          <div class="order-body-item">
-            <span>下单数量</span>
-            <strong>{{ o.total_area }} 件</strong>
-          </div>
-          <div class="order-body-item">
-            <span>账单金额</span>
-            <strong>{{ o.amount > 0 ? '¥ ' + formatMoney(o.amount) : '待生成' }}</strong>
-          </div>
-          <div class="order-body-item">
-            <span>承诺交货</span>
-            <strong>{{ o.delivery_date }}</strong>
-          </div>
-        </div>
-        <div class="order-timeline">
-          <div class="timeline-steps">
-            <div v-for="(step,i) in orderSteps" :key="step.status" class="tl-step" :class="{done: stepDone(o.status, step.status), active: o.status===step.status}">
-              <div class="tl-dot" :class="{done: stepDone(o.status, step.status) && o.status!==step.status, active: o.status===step.status}">
-                <span v-if="stepDone(o.status, step.status) && o.status!==step.status">✓</span>
-                <span v-else>{{ i+1 }}</span>
-              </div>
-              <div class="tl-label">{{ step.label }}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ===== NEW ORDER ===== -->
-    <div v-show="activeNav==='new-order'">
-      <div class="section-title">在线下单</div>
-      <div class="form-card">
-        <div class="form-section-title">基本信息</div>
-        <el-form :model="newOrder" label-width="110px" size="default">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 24px">
-            <el-form-item label="项目名称">
-              <el-input v-model="newOrder.project_name" placeholder="所属工程项目名称" clearable></el-input>
-            </el-form-item>
-            <el-form-item label="期望交货日期">
-              <el-date-picker v-model="newOrder.delivery_date" type="date" placeholder="选择日期" style="width:100%" :disabled-date="(d) => d < new Date()"></el-date-picker>
-            </el-form-item>
-            <el-form-item label="收货地址" style="grid-column:1/-1">
-              <el-input v-model="newOrder.delivery_address" placeholder="详细收货地址（省市区+街道）" clearable></el-input>
-            </el-form-item>
-            <el-form-item label="联系人">
-              <el-input v-model="newOrder.contact_name" placeholder="收货联系人" clearable></el-input>
-            </el-form-item>
-            <el-form-item label="联系电话">
-              <el-input v-model="newOrder.contact_phone" placeholder="收货联系电话" clearable></el-input>
-            </el-form-item>
-            <el-form-item label="备注" style="grid-column:1/-1">
-              <el-input v-model="newOrder.remark" type="textarea" :rows="2" placeholder="特殊工艺要求、包装要求等（可选）"></el-input>
-            </el-form-item>
-            <el-form-item label="图纸文件" style="grid-column:1/-1">
-              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;width:100%">
-                <input
-                  ref="orderDrawingInput"
-                  type="file"
-                  accept=".pdf,image/*"
-                  @change="handleOrderDrawingChange"
-                  style="max-width:320px"
-                />
-                <span style="font-size:12px;color:var(--text-2)">{{ orderDrawingFileName || (locale==='en-US' ? 'No file selected (PDF/Image)' : '未选择文件（支持 PDF / 图片）') }}</span>
-                <el-button size="small" plain :disabled="!orderDrawingFileName" @click="clearOrderDrawing">{{ locale==='en-US' ? 'Clear' : '清除' }}</el-button>
-              </div>
-            </el-form-item>
-          </div>
-        </el-form>
-      </div>
-
-      <div class="form-card">
-        <div class="form-section-title">明细行 — 玻璃清单</div>
-        <table class="item-table">
-          <thead>
-            <tr>
-              <th style="width:140px">玻璃种类</th>
-              <th style="width:90px">厚度 (mm)</th>
-              <th style="width:100px">宽度 (mm)</th>
-              <th style="width:100px">高度 (mm)</th>
-              <th style="width:80px">数量(件)</th>
-              <th style="width:90px">面积(㎡)</th>
-              <th style="min-width:160px">工艺要求</th>
-              <th style="width:50px">操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(item,idx) in newOrder.items" :key="idx">
-              <td>
-                <el-select v-model="item.glass_type" placeholder="选择" size="small" style="width:100%">
-                  <el-option v-for="t in glassTypes" :key="t" :label="t" :value="t"></el-option>
-                </el-select>
-              </td>
-              <td>
-                <el-select v-model="item.thickness" placeholder="厚度" size="small" style="width:100%">
-                  <el-option v-for="t in thicknesses" :key="t" :label="thicknessLabel(t)" :value="t"></el-option>
-                </el-select>
-              </td>
-              <td>
-                <el-input-number v-model="item.width_mm" :min="100" :max="5000" :step="10" size="small" style="width:100%" controls-position="right"></el-input-number>
-              </td>
-              <td>
-                <el-input-number v-model="item.height_mm" :min="100" :max="5000" :step="10" size="small" style="width:100%" controls-position="right"></el-input-number>
-              </td>
-              <td>
-                <el-input-number v-model="item.quantity" :min="1" :max="9999" size="small" style="width:100%" controls-position="right"></el-input-number>
-              </td>
-              <td style="text-align:right;font-size:13px;color:#374151;padding-right:12px">
-                {{ calcArea(item) }}
-              </td>
-              <td>
-                <el-input v-model="item.process_requirements" placeholder="如：磨边、钢化、均质…" size="small"></el-input>
-              </td>
-              <td style="text-align:center">
-                <el-button :icon="'Delete'" circle size="small" type="danger" text @click="removeItem(idx)" :disabled="newOrder.items.length===1"></el-button>
-              </td>
-            </tr>
-          </tbody>
-          <tfoot>
-            <tr>
-              <td colspan="8">
-                <div class="add-item-row" @click="addItem">
-                  <el-icon><plus></plus></el-icon> 添加明细行
-                </div>
-              </td>
-            </tr>
-          </tfoot>
-        </table>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
-          <div style="font-size:13px;color:var(--text-2)">
-            合计  <strong style="color:var(--text);font-size:15px">{{ totalItems }} 行</strong>，总面积  <strong style="color:var(--primary);font-size:15px">{{ totalArea }} ㎡</strong>，
-            预估金额  <strong style="color:#d97706;font-size:15px">¥ {{ estimatedAmount }}</strong>
-          </div>
-          <div style="display:flex;gap:10px">
-            <el-button size="default" @click="saveDraft">保存草稿</el-button>
-            <el-button size="default" type="primary" :disabled="!currentUser?.canCreateOrders" @click="submitOrder" :icon="'Check'">提交订单</el-button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ===== MY ORDERS ===== -->
-    <div v-show="activeNav==='orders'">
-      <div class="section-title">我的订单</div>
-      <div class="toolbar" style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
-        <el-input v-model="myOrderSearch" placeholder="订单号搜索" clearable style="width:220px" :prefix-icon="'Search'"></el-input>
-        <el-select v-model="myStatusFilter" placeholder="订单状态" clearable style="width:130px">
-          <el-option v-for="s in orderStatusOpts" :key="s.value" :label="s.label" :value="s.value"></el-option>
-        </el-select>
-        <el-date-picker v-model="myDateRange" type="daterange" range-separator="至" start-placeholder="开始" end-placeholder="结束" style="width:230px"></el-date-picker>
-      </div>
-      <div class="order-card" v-for="o in filteredMyOrders" :key="o.id">
-        <div class="order-card-head">
-          <div>
-            <div class="order-no">{{ o.order_no }}</div>
-            <div class="order-time">下单时间：{{ o.created_at }}</div>
-          </div>
-          <div style="display:flex;align-items:center;gap:10px">
-            <span :class="'badge ' + o.status">{{ statusLabel(o.status) }}</span>
-            <el-button size="small" plain type="primary" @click="openTrack(o)">查看详情</el-button>
-            <el-button size="small" plain type="warning" v-if="o.status==='shipping'" @click="openTrack(o)">追踪物流</el-button>
-            <el-button size="small" plain type="success" v-if="['ready_for_pickup','picked_up'].includes(o.status)" @click="downloadOrderDocument(o, 'pickup')">提货单</el-button>
-          </div>
-        </div>
-        <div class="order-card-body">
-          <div class="order-body-item"><span>产品概况</span><strong>{{ o.product_summary }}</strong></div>
-          <div class="order-body-item"><span>下单面积</span><strong>{{ o.total_area }} ㎡</strong></div>
-          <div class="order-body-item"><span>订单账单</span><strong>{{ o.amount > 0 ? '¥ ' + formatMoney(o.amount) : '待生成' }}</strong></div>
-          <div class="order-body-item"><span>交货日期</span><strong>{{ o.delivery_date }}</strong></div>
-          <div class="order-body-item"><span>收货地址</span><strong style="font-size:12px">{{ o.delivery_address }}</strong></div>
-        </div>
-        <div class="order-timeline">
-          <div class="timeline-steps">
-            <div v-for="(step,i) in orderSteps" :key="step.status" class="tl-step" :class="{done: stepDone(o.status, step.status)}">
-              <div class="tl-dot" :class="{done: stepDone(o.status, step.status) && o.status!==step.status, active: o.status===step.status}">
-                <span v-if="stepDone(o.status, step.status) && o.status!==step.status">✓</span>
-                <span v-else>{{ i+1 }}</span>
-              </div>
-              <div class="tl-label">{{ step.label }}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ===== PICKUP ===== -->
-    <div v-show="activeNav==='pickup'">
-      <div class="section-title">提货签收</div>
-      <div class="toolbar" style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
-        <el-input v-model="pickupSearch" placeholder="订单号搜索" clearable style="width:220px" :prefix-icon="'Search'"></el-input>
-        <el-select v-model="pickupStatusFilter" placeholder="提货状态" clearable style="width:150px">
-          <el-option label="可取货" value="ready_for_pickup"></el-option>
-          <el-option label="已取货" value="picked_up"></el-option>
-        </el-select>
-      </div>
-      <el-table :data="filteredPickupOrders" stripe border size="small" style="background:#fff;border-radius:10px;overflow:hidden">
-        <el-table-column prop="order_no" label="订单号" width="175"></el-table-column>
-        <el-table-column prop="created_at" label="创建时间" width="150"></el-table-column>
-        <el-table-column prop="delivery_date" label="预计交付" width="120"></el-table-column>
-        <el-table-column prop="product_summary" label="产品概况" min-width="180"></el-table-column>
-        <el-table-column label="提货状态" width="120">
-          <template #default="{ row }">
-            <span :class="'badge ' + row.status">{{ statusLabel(row.status) }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="280">
-          <template #default="{ row }">
-            <div style="display:flex;gap:8px;flex-wrap:wrap">
-              <el-button size="small" type="primary" plain @click="downloadOrderDocument(row, 'pickup')">下载提货单</el-button>
-              <el-button size="small" type="info" plain @click="downloadOrderDocument(row, 'order')">下载订单PDF</el-button>
-              <el-button size="small" plain @click="openTrack(row)">进度</el-button>
-            </div>
-          </template>
-        </el-table-column>
-      </el-table>
-      <div v-if="!filteredPickupOrders.length" style="margin-top:20px">
-        <el-empty description="暂无待提货订单" :image-size="72"></el-empty>
-      </div>
-    </div>
-
-    <!-- ===== LOGISTICS ===== -->
-    <div v-show="activeNav==='logistics'">
-      <div class="section-title">物流追踪</div>
-      <div style="margin-bottom:20px;display:flex;gap:10px">
-        <el-input v-model="trackQuery" placeholder="输入运单号 / 订单号查询" style="max-width:360px" clearable :prefix-icon="'Search'"></el-input>
-        <el-button type="primary" :icon="'Search'">查询</el-button>
-      </div>
-      <div class="track-card" v-for="shipment in shipments" :key="shipment.id || shipment.tracking_no">
-        <div class="track-header">
-          <div>
-            <div class="track-no">运单号：{{ shipment.tracking_no }}</div>
-            <div style="font-size:12px;color:var(--text-2);margin-top:2px">
-              关联订单：{{ shipment.order_no }} · {{ shipment.carrier }} · {{ shipment.vehicle_no }}
-            </div>
-          </div>
-          <span :class="'badge ' + shipment.status">{{ statusLabel(shipment.status) }}</span>
-        </div>
-        <div style="display:flex;gap:32px;margin-bottom:16px;padding:10px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
-          <div><span style="font-size:11px;color:var(--text-2)">发货地</span><div style="font-size:13px;font-weight:600;margin-top:2px">{{ shipment.from }}</div></div>
-          <div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--primary)">▶▶▶</div>
-          <div><span style="font-size:11px;color:var(--text-2)">目的地</span><div style="font-size:13px;font-weight:600;margin-top:2px">{{ shipment.to }}</div></div>
-        </div>
-        <div class="logistics-timeline">
-          <div class="log-item" v-for="(ev,i) in shipment.events" :key="i">
-            <div class="log-dot" :class="{active: i===0}"></div>
-            <div class="log-body">
-              <strong>{{ ev.desc }}</strong>
-              <span>{{ ev.location }}</span>
-              <time>{{ ev.ts }}</time>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ===== FINANCE ===== -->
-    <div v-show="activeNav==='finance'">
-      <div class="section-title">财务账单</div>
-      <div class="fin-summary">
-        <div class="fin-box unpaid">
-          <div class="fin-box-label">待付款</div>
-          <div class="fin-box-num" style="color:#d97706">¥ {{ finSummary.unpaid }}</div>
-        </div>
-        <div class="fin-box overdue">
-          <div class="fin-box-label">逾期未付</div>
-          <div class="fin-box-num" style="color:#dc2626">¥ {{ finSummary.overdue }}</div>
-        </div>
-        <div class="fin-box paid">
-          <div class="fin-box-label">本月已付</div>
-          <div class="fin-box-num" style="color:#16a34a">¥ {{ finSummary.paid }}</div>
-        </div>
-      </div>
-      <div class="toolbar" style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
-        <el-select v-model="finFilter" placeholder="账单状态" clearable style="width:130px">
-          <el-option label="待收款" value="unpaid"></el-option>
-          <el-option label="部分付款" value="partial"></el-option>
-          <el-option label="已结清" value="paid"></el-option>
-          <el-option label="逾期" value="overdue"></el-option>
-        </el-select>
-        <el-date-picker v-model="finDateRange" type="daterange" range-separator="至" start-placeholder="开始" end-placeholder="结束" style="width:230px"></el-date-picker>
-      </div>
-      <el-table :data="myBills" stripe border size="small" style="background:#fff;border-radius:10px;overflow:hidden">
-        <el-table-column prop="bill_no" label="账单编号" width="150"></el-table-column>
-        <el-table-column prop="order_no" label="关联订单" width="175"></el-table-column>
-        <el-table-column prop="amount" label="应付金额" width="110" align="right">
-          <template #default="{ row }">¥ {{ formatMoney(row.amount) }}</template>
-        </el-table-column>
-        <el-table-column prop="paid_amount" label="已付金额" width="110" align="right">
-          <template #default="{ row }">¥ {{ formatMoney(row.paid_amount) }}</template>
-        </el-table-column>
-        <el-table-column label="状态" width="90">
-          <template #default="{ row }">
-            <span :class="'badge ' + row.fin_status">{{ row.fin_status_label }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="due_date" label="应付日期" width="100"></el-table-column>
-        <el-table-column prop="invoice_no" label="发票号" width="130">
-          <template #default="{ row }">
-            <span v-if="row.invoice_no" style="color:var(--primary)">{{ row.invoice_no }}</span>
-            <span v-else style="color:#9ca3af">待开票</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="120">
-          <template #default="{ row }">
-            <el-button size="small" text type="primary">下载账单</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-    </div>
-
-    <!-- ===== PROFILE ===== -->
-    <div v-show="activeNav==='profile'">
-      <div class="section-title">个人中心</div>
-      <div class="form-card">
-        <div class="form-section-title">公司信息</div>
-        <el-descriptions :column="2" border size="default">
-          <el-descriptions-item label="公司名称">{{ profile.companyName || '—' }}</el-descriptions-item>
-          <el-descriptions-item label="客户档案 ID">{{ profile.id || '—' }}</el-descriptions-item>
-          <el-descriptions-item label="客户等级"><el-tag :type="profile.priceLevel === 'premium' ? 'danger' : profile.priceLevel === 'vip' ? 'warning' : 'info'">{{ priceLevelLabel }}</el-tag></el-descriptions-item>
-          <el-descriptions-item label="授信额度">¥ {{ formatMoney(credit.limit) }}</el-descriptions-item>
-          <el-descriptions-item label="主联系人">{{ profile.contactName || currentUser?.name || '—' }}</el-descriptions-item>
-          <el-descriptions-item label="联系电话">{{ profile.phone || '—' }}</el-descriptions-item>
-          <el-descriptions-item label="联系邮箱" :span="2">{{ profile.email || currentUser?.email || '—' }}</el-descriptions-item>
-          <el-descriptions-item label="默认收货地址" :span="2">{{ profile.address || '未设置默认收货地址' }}</el-descriptions-item>
-        </el-descriptions>
-      </div>
-      <div class="form-card">
-        <div class="form-section-title">常用联系人</div>
-        <el-table :data="myContacts" stripe border size="small">
-          <el-table-column prop="name" label="姓名" width="100"></el-table-column>
-          <el-table-column prop="title" label="职务" width="120"></el-table-column>
-          <el-table-column prop="phone" label="电话" width="140"></el-table-column>
-          <el-table-column prop="email" label="邮箱" min-width="180"></el-table-column>
-          <el-table-column label="操作" width="80">
-            <template #default>
-              <el-button size="small" text type="primary">编辑</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-        <div style="margin-top:12px">
-          <el-button :icon="'Plus'" size="small" type="primary" plain>添加联系人</el-button>
-        </div>
-      </div>
-      <div class="form-card">
-        <div class="form-section-title">常用收货地址</div>
-        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px">
-          <div v-for="addr in myAddresses" :key="addr.id" style="border:1px solid var(--border);border-radius:8px;padding:14px;position:relative">
-            <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px">{{ addr.label }}</div>
-            <div style="font-size:13px;color:var(--text-2)">{{ addr.address }}</div>
-            <div style="font-size:12px;color:var(--text-2);margin-top:4px">联系人：{{ addr.contact }} · {{ addr.phone }}</div>
-            <el-tag v-if="addr.isDefault" size="small" type="primary" style="position:absolute;top:10px;right:10px">默认</el-tag>
-          </div>
-        </div>
-        <div style="margin-top:12px">
-          <el-button :icon="'Plus'" size="small" type="primary" plain>添加收货地址</el-button>
-        </div>
-      </div>
-    </div>
-
-  </div><!-- /app-body -->
-
-  <el-dialog v-model="loginVisible" :title="locale==='en-US' ? 'Glass Factory — Customer Portal' : 'Glass Factory — 客户采购平台'" width="420px" :close-on-click-modal="false" :show-close="false" :close-on-press-escape="false" align-center>
-    <div style="padding:8px 0 0">
-      <el-form label-position="top" @submit.prevent="login">
-        <el-form-item label="账号（邮箱/手机号/WhatsApp/微信号）">
-          <el-input v-model="loginForm.account" placeholder="customer@glass.local" size="large" autocomplete="username"></el-input>
-        </el-form-item>
-        <el-form-item label="密码">
-          <el-input v-model="loginForm.password" placeholder="••••••••" type="password" size="large" autocomplete="current-password" @keyup.enter="login"></el-input>
-        </el-form-item>
-      </el-form>
-      <div style="font-size:12px;color:var(--text-2);line-height:1.6;margin-top:8px">
-        本地测试环境默认已填：customer@glass.local / customer123
-      </div>
-    </div>
-    <template #footer>
-      <el-button type="primary" size="large" style="width:100%" :loading="loginLoading" @click="login">登 录</el-button>
-    </template>
-  </el-dialog>
-
-  <!-- TRACKING DIALOG -->
-  <el-dialog v-model="trackDialogVisible" title="订单进度追踪" width="560px">
-    <div v-if="trackingOrder">
-      <div style="margin-bottom:16px">
-        <div style="font-size:14px;font-weight:700;color:#2563eb">{{ trackingOrder.order_no }}</div>
-        <div style="font-size:12px;color:var(--text-2);margin-top:2px">{{ trackingOrder.product_summary }} · {{ trackingOrder.total_area }}㎡</div>
-      </div>
-      <el-steps :active="stepIndex(trackingOrder.status)" finish-status="success" align-center>
-        <el-step v-for="s in orderSteps" :key="s.status" :title="s.label"></el-step>
-      </el-steps>
-      <div style="margin-top:20px">
-        <el-timeline>
-          <el-timeline-item v-for="log in trackingOrder.timeline" :key="log.ts" :timestamp="log.ts" placement="top" :color="log.current?'#2563eb':''">
-            <div style="font-size:13px;font-weight:600;color:#111827">{{ log.action }}</div>
-            <div style="font-size:12px;color:#6b7280;margin-top:2px">{{ log.desc }}</div>
-          </el-timeline-item>
-        </el-timeline>
-      </div>
-    </div>
-    <template #footer>
-      <el-button @click="trackDialogVisible=false">关闭</el-button>
-    </template>
-  </el-dialog>
-
 </div>
 
 <script>
-const { createApp, ref, computed, onMounted, watch } = Vue;
+const { createApp, ref, computed, onMounted, onUnmounted, watch } = Vue;
+const gf = window.GFMobile;
 
-const app = createApp({
+createApp({
   setup() {
-    for (const [k, c] of Object.entries(ElementPlusIconsVue)) { app.component(k, c); }
-
-    const defaultGlassTypes = ['钢化玻璃', '超白钢化', '夹层玻璃', '中空玻璃', 'Low-E 中空', '浮法玻璃'];
-    const defaultThicknesses = [4, 5, 6, 8, 10, 12];
-    const defaultProfile = () => ({
-      id: '',
-      companyName: '',
-      contactName: '',
-      phone: '',
-      email: '',
-      address: '',
-      priceLevel: '',
-    });
-    const defaultCredit = () => ({ limit: 0, used: 0, available: 0 });
-    const buildOrderItem = () => ({
-      glass_type: defaultGlassTypes[0],
-      thickness: 6,
-      width_mm: 1500,
-      height_mm: 2100,
-      quantity: 1,
-      process_requirements: '',
-    });
-    const buildNewOrder = (profileValue = defaultProfile()) => ({
-      project_name: '',
-      delivery_date: null,
-      delivery_address: profileValue.address || '',
-      contact_name: profileValue.contactName || '',
-      contact_phone: profileValue.phone || '',
-      remark: '',
-      priority: 'normal',
-      items: [buildOrderItem()],
-    });
-    const generateIdempotencyKey = () => (
-      crypto.randomUUID
-        ? crypto.randomUUID()
-        : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
-    );
-    const unwrapEnvelope = (payload) => (
-      payload && typeof payload === 'object' && 'data' in payload ? payload.data : payload
-    );
-    const safeJsonParse = (raw, fallback) => {
-      try {
-        return raw ? JSON.parse(raw) : fallback;
-      } catch {
-        return fallback;
-      }
-    };
-    const demoLogin = Object.freeze({ account: 'customer@glass.local', password: 'customer123' });
-    const shouldPrefillDemoLogin = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname)
-      || window.location.hostname.endsWith('.local');
-    const buildDefaultLoginForm = () => (
-      shouldPrefillDemoLogin ? { ...demoLogin } : { account: '', password: '' }
-    );
-    const resetAuth = () => {
-      token.value = '';
-      currentUser.value = null;
-      localStorage.removeItem('gf_app_token');
-      localStorage.removeItem('gf_app_user');
-      loginForm.value = buildDefaultLoginForm();
-      loginVisible.value = true;
-    };
-    const toDate = (value) => {
-      if (!value) return null;
-      const date = value instanceof Date ? value : new Date(value);
-      return Number.isNaN(date.getTime()) ? null : date;
-    };
-    const locale = ref(localStorage.getItem('gf_app_locale') || 'zh-CN');
-    watch(locale, (value) => {
-      localStorage.setItem('gf_app_locale', value);
-      document.documentElement.lang = value === 'en-US' ? 'en' : 'zh-CN';
-    }, { immediate: true });
-    const formatDate = (value) => {
-      const date = toDate(value);
-      return date ? date.toLocaleDateString(locale.value) : '—';
-    };
-    const formatDateTime = (value) => {
-      const date = toDate(value);
-      return date
-        ? date.toLocaleString(locale.value, { hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
-        : '—';
-    };
-    const formatDateInput = (value) => {
-      const date = toDate(value);
-      if (!date) return '';
-      return [date.getFullYear(), `${date.getMonth() + 1}`.padStart(2, '0'), `${date.getDate()}`.padStart(2, '0')].join('-');
-    };
-    const thicknessLabel = (value) => String(value).includes('mm') ? String(value) : `${value}mm`;
-    const normalizeThickness = (value) => String(value).includes('mm') ? String(value) : `${value}mm`;
-    const formatMoney = (value) => {
-      if (value === null || value === undefined || value === '') return '0';
-      const amount = Number(value);
-      if (Number.isNaN(amount)) return '0';
-      if (amount >= 10000) return `${(amount / 10000).toFixed(2)}万`;
-      return amount.toLocaleString(locale.value, { maximumFractionDigits: 2 });
-    };
-    const statusLabel = (status) => {
-      const mapping = locale.value === 'en-US'
-        ? {
-            received: 'Received',
-            entered: 'Entered',
-            in_production: 'In Production',
-            completed: 'Completed',
-            shipping: 'Shipping',
-            delivered: 'Delivered',
-            ready_for_pickup: 'Ready for Pickup',
-            picked_up: 'Picked Up',
-            cancelled: 'Cancelled',
-            unpaid: 'Unpaid',
-            partial: 'Partially Paid',
-            paid: 'Paid',
-            overdue: 'Overdue',
-          }
-        : {
-            received: '已接单',
-            entered: '已录入',
-            in_production: '生产中',
-            completed: '已完工',
-            shipping: '配送中',
-            delivered: '已送达',
-            ready_for_pickup: '可取货',
-            picked_up: '已取货',
-            cancelled: '已取消',
-            unpaid: '待付款',
-            partial: '部分付款',
-            paid: '已结清',
-            overdue: '已逾期',
-          };
-      return mapping[status] || status;
-    };
-    const statusStageIndex = (status) => {
-      const sequence = {
-        received: 0,
-        entered: 1,
-        in_production: 2,
-        completed: 3,
-        shipping: 4,
-        ready_for_pickup: 4,
-        delivered: 5,
-        picked_up: 5,
-      };
-      return sequence[status] ?? 0;
-    };
-    const formatTimelineTitle = (topic) => {
-      if (!topic) return '状态更新';
-      return String(topic)
-        .split('.')
-        .pop()
-        .replace(/_/g, ' ')
-        .replace(/\b\w/g, (char) => char.toUpperCase());
-    };
-    const formatTimelineDesc = (entry) => {
-      if (entry.message && entry.message !== entry.type) return entry.message;
-      const metadata = entry.metadata || {};
-      const pairs = Object.entries(metadata).slice(0, 3);
-      if (!pairs.length) return '订单状态已同步到客户端。';
-      return pairs.map(([key, value]) => `${key}: ${value}`).join(' · ');
-    };
-    const buildShipmentEvents = (shipment) => {
-      const events = [];
-      if (shipment.delivered_at) {
-        events.push({ desc: `客户 ${shipment.receiver_name || '已确认'} 签收`, location: shipment.receiver_phone || '客户现场', ts: formatDateTime(shipment.delivered_at) });
-      }
-      if (shipment.shipped_at) {
-        events.push({ desc: '货物已发运，运输进行中', location: shipment.vehicle_no || shipment.carrier_name || '工厂发运', ts: formatDateTime(shipment.shipped_at) });
-      }
-      events.push({ desc: '发货单已创建', location: shipment.carrier_name || 'Glass Factory', ts: formatDateTime(shipment.created_at) });
-      return events;
-    };
-
-    const token = ref(localStorage.getItem('gf_app_token') || '');
-    const currentUser = ref(safeJsonParse(localStorage.getItem('gf_app_user'), null));
-    const loginVisible = ref(!token.value);
-    const loginForm = ref(buildDefaultLoginForm());
-    const loginLoading = ref(false);
-
-    const activeNav = ref('home');
-    const navItems = computed(() => {
-      const baseItems = locale.value === 'en-US'
-        ? [
-            { key:'home', label:'Overview', icon:'HomeFilled' },
-            { key:'new-order', label:'New Order', icon:'DocumentAdd' },
-            { key:'orders', label:'My Orders', icon:'List' },
-            { key:'pickup', label:'Pickup', icon:'DocumentChecked' },
-            { key:'logistics', label:'Logistics', icon:'Van' },
-            { key:'finance', label:'Finance', icon:'Wallet' },
-            { key:'profile', label:'Profile', icon:'UserFilled' },
-          ]
-        : [
-            { key:'home', label:'首页概览', icon:'HomeFilled' },
-            { key:'new-order', label:'在线下单', icon:'DocumentAdd' },
-            { key:'orders', label:'我的订单', icon:'List' },
-            { key:'pickup', label:'提货签收', icon:'DocumentChecked' },
-            { key:'logistics', label:'物流追踪', icon:'Van' },
-            { key:'finance', label:'财务账单', icon:'Wallet' },
-            { key:'profile', label:'个人中心', icon:'UserFilled' },
-          ];
-      return baseItems.filter((item) => item.key !== 'new-order' || currentUser.value?.canCreateOrders);
-    });
-    watch(navItems, (items) => {
-      if (!items.some((item) => item.key === activeNav.value)) {
-        activeNav.value = items[0]?.key || 'home';
-      }
-    }, { immediate: true });
-
-    const profile = ref(defaultProfile());
-    const credit = ref(defaultCredit());
-    const notifications = ref([]);
-    const options = ref({ glassTypes: [], thicknessOptions: [], orderStatuses: [] });
-    const rawOrders = ref([]);
+    const token = ref(localStorage.getItem("gf_app_token") || "");
+    const loading = ref(false);
+    const currentTab = ref("dashboard");
+    const bootstrap = ref({});
+    const user = ref({});
+    const orders = ref([]);
     const receivables = ref([]);
     const invoices = ref([]);
-    const shipmentRows = ref([]);
+    const detailVisible = ref(false);
+    const activeOrder = ref({});
+    const orderFilter = ref("all");
+    const searchQuery = ref("");
+    const lastRefreshAt = ref("");
+    const refreshing = ref(false);
+    const loginForm = ref({ account: "customer@glass.local", password: "customer123" });
+    const orderFilters = [
+      { value: "all", label: "全部" },
+      { value: "active", label: "进行中" },
+      { value: "ready_for_pickup", label: "可提货" },
+      { value: "picked_up", label: "已完成" },
+    ];
+    const navItems = [
+      { key: "dashboard", label: "概览", icon: "总" },
+      { key: "orders", label: "订单", icon: "单" },
+      { key: "finance", label: "账款", icon: "款" },
+      { key: "account", label: "我的", icon: "我" },
+    ];
 
-    const orderSteps = computed(() => locale.value === 'en-US'
-      ? [
-          { status:'received', label:'Received' },
-          { status:'entered', label:'Entered' },
-          { status:'in_production', label:'In Production' },
-          { status:'completed', label:'Completed' },
-          { status:'shipping', label:'Shipping/Pickup' },
-          { status:'delivered', label:'Done' },
-        ]
-      : [
-          { status:'received', label:'已接单' },
-          { status:'entered', label:'订单录入' },
-          { status:'in_production', label:'生产中' },
-          { status:'completed', label:'已完工' },
-          { status:'shipping', label:'物流/提货' },
-          { status:'delivered', label:'已完成' },
-        ]);
-    const stepDone = (current, step) => statusStageIndex(current) >= statusStageIndex(step);
-    const stepIndex = (status) => Math.max(0, Math.min(orderSteps.value.length - 1, statusStageIndex(status)));
+    const api = (url, options = {}) => gf.request(url, options, token.value);
+    const datetime = gf.formatDateTime;
+    const money = gf.formatMoney;
+    const tone = gf.statusTone;
+    const label = gf.statusLabel;
 
-    const orderAmountById = computed(() => {
-      const amounts = {};
-      for (const receivable of receivables.value) {
-        amounts[receivable.order_id] = (amounts[receivable.order_id] || 0) + Number(receivable.amount || 0);
+    const notificationsUnread = computed(() => Number(bootstrap.value.unread_notifications || bootstrap.value.unreadNotifications || 0));
+    const lastRefreshText = computed(() => lastRefreshAt.value ? datetime(lastRefreshAt.value) : "刚刚");
+    const stats = computed(() => {
+      const all = orders.value;
+      return {
+        totalOrders: all.length,
+        activeOrders: all.filter((item) => !["picked_up", "cancelled", "completed"].includes(item.status)).length,
+        readyPickup: all.filter((item) => item.status === "ready_for_pickup").length,
+        openBalance: receivables.value.reduce((sum, item) => sum + Number(item.amount_due || item.amountDue || item.balance || 0), 0),
+      };
+    });
+    const recentOrders = computed(() => orders.value.slice(0, 4));
+    const filteredOrders = computed(() => {
+      const keyword = searchQuery.value.trim().toLowerCase();
+      let source = orders.value;
+      if (orderFilter.value === "active") {
+        source = source.filter((item) => !["picked_up", "cancelled", "completed"].includes(item.status));
+      } else if (orderFilter.value !== "all") {
+        source = source.filter((item) => item.status === orderFilter.value);
       }
-      return amounts;
-    });
-    const invoiceByOrderId = computed(() => Object.fromEntries(invoices.value.map((invoice) => [invoice.order_id, invoice])));
-    const myOrders = computed(() => rawOrders.value.map((order) => {
-      const items = Array.isArray(order.items) ? order.items : [];
-      return {
-        id: order.id,
-        order_no: order.orderNo,
-        status: order.status,
-        product_summary: items.length
-          ? items.map((item) => item.glass_type || item.product_name || order.glassType || '玻璃').slice(0, 2).join(' + ')
-          : `${order.glassType || '玻璃'} ${order.thickness || ''}`.trim(),
-        total_area: Number(order.total_area_sqm || 0).toFixed(2),
-        amount: orderAmountById.value[order.id] || 0,
-        delivery_date: formatDate(order.estimatedCompletionDate),
-        created_at: formatDateTime(order.createdAt),
-        delivery_address: order.delivery_address || profile.value.address || order.customer?.notes || '到厂自提',
-        priority_label: order.priorityLabel,
-      };
-    }));
-    const myRecentOrders = computed(() => myOrders.value.slice(0, 3));
-    const myOrderSearch = ref('');
-    const myStatusFilter = ref('');
-    const myDateRange = ref([]);
-    const filteredMyOrders = computed(() => {
-      const [start, end] = myDateRange.value || [];
-      return myOrders.value.filter((order) => {
-        const matchText = !myOrderSearch.value || order.order_no.includes(myOrderSearch.value);
-        const matchStatus = !myStatusFilter.value || order.status === myStatusFilter.value;
-        const createdAt = toDate(rawOrders.value.find((item) => item.id === order.id)?.createdAt);
-        const matchDate = !start || !end || !createdAt || (createdAt >= start && createdAt <= end);
-        return matchText && matchStatus && matchDate;
-      });
-    });
-    const pickupSearch = ref('');
-    const pickupStatusFilter = ref('');
-    const pickupOrders = computed(() => myOrders.value.filter((order) => ['ready_for_pickup', 'picked_up'].includes(order.status)));
-    const filteredPickupOrders = computed(() => pickupOrders.value.filter((order) => {
-      const matchText = !pickupSearch.value || order.order_no.includes(pickupSearch.value);
-      const matchStatus = !pickupStatusFilter.value || order.status === pickupStatusFilter.value;
-      return matchText && matchStatus;
-    }));
-    const orderStatusOpts = computed(() => {
-      const source = Array.isArray(options.value.orderStatuses) ? options.value.orderStatuses : [];
-      return source.length
-        ? source.map((status) => ({ label: status.label, value: status.value }))
-        : orderSteps.value.map((step) => ({ label: statusLabel(step.status), value: step.status }));
-    });
-    const pendingCount = computed(() => notifications.value.filter((item) => !item.isRead).length);
-    const creditUsagePercent = computed(() => {
-      const limit = Number(credit.value.limit || 0);
-      const used = Number(credit.value.used || 0);
-      if (!limit) return 0;
-      return Math.max(0, Math.min(100, Math.round((used / limit) * 100)));
-    });
-    const displayCompanyName = computed(() => profile.value.companyName || currentUser.value?.name || '客户门户');
-    const priceLevelLabel = computed(() => {
-      const mapping = locale.value === 'en-US'
-        ? { premium: 'Premium', vip: 'VIP', standard: 'Standard', basic: 'Basic' }
-        : { premium: 'Premium', vip: 'VIP', standard: '标准', basic: '基础' };
-      return mapping[profile.value.priceLevel] || (profile.value.priceLevel || (locale.value === 'en-US' ? 'Standard' : '标准'));
-    });
-    const profileTagline = computed(() => (
-      locale.value === 'en-US'
-        ? `${priceLevelLabel.value} account · ${currentUser.value?.canCreateOrders ? 'Ordering enabled' : 'Read-only access'}`
-        : `${priceLevelLabel.value} 客户 · ${currentUser.value?.canCreateOrders ? '支持在线下单' : '只读查询账号'}`
-    ));
-    const userInitial = computed(() => String(displayCompanyName.value || '客').trim().slice(0, 1));
-    const myOrderStats = computed(() => {
-      const now = new Date();
-      const sameMonth = (value) => {
-        const date = toDate(value);
-        return date && date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
-      };
-      return {
-        inProgress: rawOrders.value.filter((order) => !['delivered', 'picked_up', 'cancelled'].includes(order.status)).length,
-        completedMonth: rawOrders.value.filter((order) => ['delivered', 'picked_up'].includes(order.status) && sameMonth(order.updatedAt)).length,
-        pendingPayment: receivables.value.filter((item) => Number(item.paid_amount || 0) < Number(item.amount || 0)).length,
-        totalArea: rawOrders.value.filter((order) => sameMonth(order.createdAt)).reduce((sum, order) => sum + Number(order.total_area_sqm || 0), 0).toFixed(1),
-      };
-    });
-
-    const trackDialogVisible = ref(false);
-    const trackingOrder = ref(null);
-    const trackQuery = ref('');
-    const shipments = computed(() => {
-      const query = (trackQuery.value || '').trim();
-      return shipmentRows.value.filter((shipment) => {
-        if (!query) return true;
-        return [shipment.tracking_no, shipment.order_no, shipment.carrier].some((field) => String(field || '').includes(query));
+      if (!keyword) return source;
+      return source.filter((item) => {
+        const haystack = [
+          item.order_no,
+          item.orderNo,
+          item.glass_summary,
+          item.glassSummary,
+          item.status,
+        ].filter(Boolean).join(" ").toLowerCase();
+        return haystack.includes(keyword);
       });
     });
 
-    const finFilter = ref('');
-    const finDateRange = ref([]);
-    const myBills = computed(() => {
-      const [start, end] = finDateRange.value || [];
-      const today = formatDateInput(new Date());
-      return receivables.value
-        .map((receivable) => {
-          const invoice = invoiceByOrderId.value[receivable.order_id];
-          const amount = Number(receivable.amount || 0);
-          const paidAmount = Number(receivable.paid_amount || 0);
-          let finStatus = receivable.status;
-          if (finStatus !== 'paid' && receivable.due_date < today && paidAmount < amount) finStatus = 'overdue';
-          else if (paidAmount > 0 && paidAmount < amount) finStatus = 'partial';
-          else if (paidAmount >= amount) finStatus = 'paid';
-          else finStatus = 'unpaid';
-          return {
-            id: receivable.id,
-            bill_no: invoice?.invoice_no || receivable.id,
-            order_no: myOrders.value.find((order) => order.id === receivable.order_id)?.order_no || receivable.order_id,
-            amount,
-            paid_amount: paidAmount,
-            fin_status: finStatus,
-            fin_status_label: statusLabel(finStatus),
-            due_date: receivable.due_date,
-            invoice_no: invoice?.invoice_no || '',
-          };
-        })
-        .filter((bill) => {
-          const matchStatus = !finFilter.value || bill.fin_status === finFilter.value;
-          const dueDate = toDate(bill.due_date);
-          const matchDate = !start || !end || !dueDate || (dueDate >= start && dueDate <= end);
-          return matchStatus && matchDate;
-        });
-    });
-    const finSummary = computed(() => {
-      const today = formatDateInput(new Date());
-      let unpaid = 0;
-      let overdue = 0;
-      let paid = 0;
-      for (const receivable of receivables.value) {
-        const amount = Number(receivable.amount || 0);
-        const paidAmount = Number(receivable.paid_amount || 0);
-        const remaining = Math.max(0, amount - paidAmount);
-        paid += paidAmount;
-        if (!remaining) continue;
-        if (receivable.due_date < today) overdue += remaining;
-        else unpaid += remaining;
+    const syncUser = (payload) => {
+      user.value = payload || {};
+      if (payload && payload.homePath && payload.homePath !== "/app") {
+        window.location.href = payload.homePath;
       }
-      return {
-        unpaid: formatMoney(unpaid),
-        overdue: formatMoney(overdue),
-        paid: formatMoney(paid),
-      };
-    });
-
-    const myContacts = computed(() => [{
-      name: profile.value.contactName || currentUser.value?.name || '—',
-      title: currentUser.value?.canCreateOrders ? '采购联系人' : '查询联系人',
-      phone: profile.value.phone || '—',
-      email: profile.value.email || currentUser.value?.email || '—',
-    }]);
-    const myAddresses = computed(() => [{
-      id: profile.value.id || 'default-address',
-      label: '默认收货地址',
-      address: profile.value.address || '未维护收货地址',
-      contact: profile.value.contactName || currentUser.value?.name || '—',
-      phone: profile.value.phone || '—',
-      isDefault: true,
-    }]);
-
-    const glassTypes = computed(() => options.value.glassTypes?.length ? options.value.glassTypes : defaultGlassTypes);
-    const thicknesses = computed(() => {
-      const source = options.value.thicknessOptions || [];
-      if (!source.length) return defaultThicknesses;
-      return source.map((value) => {
-        const normalized = Number(String(value).replace('mm', ''));
-        return Number.isNaN(normalized) ? value : normalized;
-      });
-    });
-    const newOrder = ref(buildNewOrder());
-    const orderDrawingInput = ref(null);
-    const orderDrawingFile = ref(null);
-    const orderDrawingFileName = computed(() => orderDrawingFile.value?.name || '');
-    const clearOrderDrawing = () => {
-      orderDrawingFile.value = null;
-      if (orderDrawingInput.value) orderDrawingInput.value.value = '';
     };
-    const handleOrderDrawingChange = (event) => {
-      const file = event?.target?.files?.[0] || null;
-      if (!file) {
-        orderDrawingFile.value = null;
-        return;
-      }
-      if (file.size > 20 * 1024 * 1024) {
-        ElementPlus.ElMessage.warning(locale.value === 'en-US' ? 'Drawing file must be <= 20MB' : '图纸文件不能超过 20MB');
-        clearOrderDrawing();
-        return;
-      }
-      orderDrawingFile.value = file;
+    const restoreUiState = () => {
+      currentTab.value = localStorage.getItem("gf_app_tab") || "dashboard";
+      orderFilter.value = localStorage.getItem("gf_app_order_filter") || "all";
+      searchQuery.value = localStorage.getItem("gf_app_order_search") || "";
     };
-    const addItem = () => newOrder.value.items.push(buildOrderItem());
-    const removeItem = (index) => {
-      if (newOrder.value.items.length === 1) return;
-      newOrder.value.items.splice(index, 1);
+    const markRefreshed = () => {
+      lastRefreshAt.value = new Date().toISOString();
     };
-    const calcArea = (item) => ((item.width_mm * item.height_mm * item.quantity) / 1e6).toFixed(2);
-    const totalItems = computed(() => newOrder.value.items.length);
-    const totalArea = computed(() => newOrder.value.items.reduce((s, it) => s + parseFloat(calcArea(it)), 0).toFixed(2));
-    const estimatedAmount = computed(() => {
-      const area = parseFloat(totalArea.value);
-      const est = area * 230;
-      return est >= 10000 ? (est/10000).toFixed(2)+'万' : est.toFixed(0);
-    });
-    const saveDraft = () => {
-      localStorage.setItem('gf_app_order_draft', JSON.stringify(newOrder.value));
-      ElementPlus.ElMessage.success('草稿已保存到本地浏览器');
+    const loadBootstrap = async () => {
+      bootstrap.value = await api("/v1/app/bootstrap");
+      syncUser(bootstrap.value.user || bootstrap.value.current_user || user.value);
     };
-
-    const api = async (url, opts = {}) => {
-      const headers = { ...(opts.headers || {}) };
-      if (!(opts.body instanceof FormData) && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
-      if (token.value) headers.Authorization = `Bearer ${token.value}`;
-      const response = await fetch(url, { ...opts, headers });
-      if (response.status === 401) {
-        resetAuth();
-        throw new Error('登录已失效，请重新登录');
-      }
-      if (response.status === 403 && currentUser.value?.homePath && currentUser.value.homePath !== '/app') {
-        window.location.href = currentUser.value.homePath;
-        throw new Error('当前账号应访问其他工作台');
-      }
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(text || '请求失败');
-      }
-      if (response.status === 204) return null;
-      return unwrapEnvelope(await response.json());
+    const loadOrders = async () => {
+      const data = await api("/v1/app/orders");
+      orders.value = gf.safeArray(data.orders || data);
     };
-
-    const syncLoginUser = (user) => {
-      currentUser.value = user;
-      localStorage.setItem('gf_app_user', JSON.stringify(user));
+    const loadFinance = async () => {
+      const customerId = bootstrap.value.customer?.id || bootstrap.value.customerId;
+      if (!customerId) return;
+      const [receivableData, invoiceData] = await Promise.all([
+        api("/v1/finance/receivables?customer_id=" + encodeURIComponent(customerId)).catch(() => []),
+        api("/v1/finance/invoices?customer_id=" + encodeURIComponent(customerId)).catch(() => []),
+      ]);
+      receivables.value = gf.safeArray(receivableData.items || receivableData);
+      invoices.value = gf.safeArray(invoiceData.items || invoiceData);
+    };
+    const loadAllData = async () => {
+      refreshing.value = true;
+      try {
+        await loadBootstrap();
+        await loadOrders();
+        await loadFinance();
+        markRefreshed();
+      } finally {
+        refreshing.value = false;
+      }
     };
     const login = async () => {
-      loginLoading.value = true;
+      loading.value = true;
       try {
-        const response = await fetch('/v1/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Idempotency-Key': generateIdempotencyKey() },
+        const data = await gf.request("/v1/auth/login", {
+          method: "POST",
+          headers: { "Idempotency-Key": gf.createIdempotencyKey() },
           body: JSON.stringify({ username: loginForm.value.account, password: loginForm.value.password }),
         });
-        if (!response.ok) throw new Error(await response.text());
-        const data = unwrapEnvelope(await response.json());
-        if (data.user?.homePath && data.user.homePath !== '/app') {
-          window.location.href = data.user.homePath;
-          return;
-        }
-        token.value = data.access_token;
-        localStorage.setItem('gf_app_token', data.access_token);
-        syncLoginUser(data.user);
-        loginVisible.value = false;
+        token.value = data.access_token || "";
+        localStorage.setItem("gf_app_token", token.value);
+        syncUser(data.user || {});
         await loadAllData();
-      } catch {
-        ElementPlus.ElMessage.error('登录失败，请检查账号和密码');
+      } catch (error) {
+        alert("登录失败: " + error.message);
       } finally {
-        loginLoading.value = false;
+        loading.value = false;
       }
     };
     const logout = async () => {
       try {
-        await api('/v1/auth/logout', { method: 'POST', body: JSON.stringify({}) });
+        await api("/v1/auth/logout", { method: "POST", body: JSON.stringify({}) });
       } catch {}
-      resetAuth();
+      token.value = "";
+      localStorage.removeItem("gf_app_token");
     };
-    const onDropdownCmd = (command) => {
-      if (command === 'logout') logout();
-      if (command === 'profile') activeNav.value = 'profile';
-      if (command === 'orders') activeNav.value = 'orders';
-    };
-
-    const loadBootstrap = async () => {
-      const data = await api('/v1/app/bootstrap');
-      if (data.user) syncLoginUser(data.user);
-      options.value = data.options || options.value;
-      profile.value = { ...defaultProfile(), ...(data.data?.profile || {}) };
-      credit.value = { ...defaultCredit(), ...(data.data?.credit || {}) };
-      rawOrders.value = data.data?.orders || [];
-      notifications.value = data.data?.notifications || [];
-      const draft = safeJsonParse(localStorage.getItem('gf_app_order_draft'), null);
-      const baseForm = buildNewOrder(profile.value);
-      newOrder.value = draft ? { ...baseForm, ...draft } : baseForm;
-      orderDrawingFile.value = null;
-      if (!newOrder.value.items?.length) newOrder.value.items = [buildOrderItem()];
-      if (!newOrder.value.items[0].glass_type) newOrder.value.items[0].glass_type = glassTypes.value[0] || defaultGlassTypes[0];
-    };
-    const loadFinance = async () => {
-      const customerId = currentUser.value?.customerId || currentUser.value?.customer_id;
-      if (!customerId) {
-        receivables.value = [];
-        invoices.value = [];
-        return;
-      }
-      const [receivableRows, invoiceRows] = await Promise.all([
-        api(`/v1/finance/receivables?customer_id=${encodeURIComponent(customerId)}`),
-        api(`/v1/finance/invoices?customer_id=${encodeURIComponent(customerId)}`),
-      ]);
-      receivables.value = Array.isArray(receivableRows) ? receivableRows : [];
-      invoices.value = Array.isArray(invoiceRows) ? invoiceRows : [];
-    };
-    const loadShipments = async () => {
-      const candidateOrders = rawOrders.value.filter((order) => ['shipping', 'delivered', 'picked_up'].includes(order.status));
-      if (!candidateOrders.length) {
-        shipmentRows.value = [];
-        return;
-      }
-      const resultSets = await Promise.all(candidateOrders.map((order) => api(`/v1/logistics/shipments?order_id=${encodeURIComponent(order.id)}`).catch(() => [])));
-      const uniqueShipments = new Map();
-      for (const set of resultSets) {
-        const rows = Array.isArray(set) ? set : [];
-        for (const shipment of rows) {
-          if (uniqueShipments.has(shipment.id)) continue;
-          const order = rawOrders.value.find((item) => item.id === shipment.order_id);
-          uniqueShipments.set(shipment.id, {
-            id: shipment.id,
-            tracking_no: shipment.tracking_no || shipment.shipment_no || shipment.id,
-            order_no: order?.orderNo || shipment.order_id,
-            carrier: shipment.carrier_name || '工厂自送',
-            vehicle_no: shipment.vehicle_no || '—',
-            from: 'Glass Factory 工厂仓',
-            to: profile.value.address || '客户收货地址',
-            status: shipment.status,
-            events: buildShipmentEvents(shipment),
-          });
-        }
-      }
-      shipmentRows.value = Array.from(uniqueShipments.values()).sort((left, right) => String(right.tracking_no).localeCompare(String(left.tracking_no)));
-    };
-    const loadAllData = async () => {
-      await loadBootstrap();
-      await Promise.all([loadFinance(), loadShipments()]);
-    };
-
-    const openTrack = async (order) => {
+    const openOrder = async (order) => {
       try {
-        const data = await api(`/v1/app/orders/${order.id}`);
-        const detail = data.order || {};
-        trackingOrder.value = {
-          ...order,
-          status: detail.status || order.status,
-          timeline: (detail.timeline || []).map((entry, index) => ({
-            ts: formatDateTime(entry.createdAt),
-            action: formatTimelineTitle(entry.type),
-            desc: formatTimelineDesc(entry),
-            current: index === 0,
-          })),
-        };
-        trackDialogVisible.value = true;
+        activeOrder.value = await api("/v1/app/orders/" + encodeURIComponent(order.id));
       } catch {
-        ElementPlus.ElMessage.error('订单追踪信息加载失败');
+        activeOrder.value = order;
       }
+      detailVisible.value = true;
     };
-    const markNotificationsRead = async () => {
-      if (!pendingCount.value) {
-        ElementPlus.ElMessage.info('当前没有未读通知');
-        return;
-      }
+    const download = async (order, documentType) => {
       try {
-        const data = await api('/v1/app/notifications/read', {
-          method: 'POST',
-          headers: { 'Idempotency-Key': generateIdempotencyKey() },
-          body: JSON.stringify({}),
+        await gf.downloadDocument({
+          url: "/v1/app/orders/" + encodeURIComponent(order.id) + "/export?document=" + encodeURIComponent(documentType),
+          token: token.value,
+          filename: (order.order_no || order.orderNo || "order") + "-" + documentType + ".pdf",
         });
-        notifications.value = data.notifications || [];
-        ElementPlus.ElMessage.success('通知已全部标记为已读');
-      } catch {
-        ElementPlus.ElMessage.error('通知状态更新失败');
-      }
-    };
-    const buildSpecialInstructions = () => {
-      const parts = [
-        newOrder.value.project_name ? `项目名称：${newOrder.value.project_name}` : '',
-        newOrder.value.delivery_address ? `收货地址：${newOrder.value.delivery_address}` : '',
-        newOrder.value.contact_name ? `联系人：${newOrder.value.contact_name}` : '',
-        newOrder.value.contact_phone ? `联系电话：${newOrder.value.contact_phone}` : '',
-        newOrder.value.remark ? `备注：${newOrder.value.remark}` : '',
-      ];
-      return parts.filter(Boolean).join('\n');
-    };
-    const submitOrder = async () => {
-      if (!currentUser.value?.canCreateOrders) {
-        ElementPlus.ElMessage.warning('当前账号为只读账号，不能提交订单');
-        return;
-      }
-      if (!newOrder.value.delivery_date) {
-        ElementPlus.ElMessage.warning('请选择期望交货日期');
-        return;
-      }
-      const normalizedItems = (newOrder.value.items || []).map((item) => ({
-        glass_type: item.glass_type,
-        thickness: normalizeThickness(item.thickness),
-        width_mm: Number(item.width_mm || 0),
-        height_mm: Number(item.height_mm || 0),
-        quantity: Number(item.quantity || 0),
-        process_requirements: item.process_requirements || '',
-      }));
-      if (!normalizedItems.length || normalizedItems.some((item) => !item.glass_type || item.quantity <= 0 || item.width_mm <= 0 || item.height_mm <= 0)) {
-        ElementPlus.ElMessage.warning('请完善订单规格和数量');
-        return;
-      }
-      try {
-        const totalQty = normalizedItems.reduce((sum, item) => sum + item.quantity, 0);
-        await ElementPlus.ElMessageBox.confirm(
-          `确认提交订单？共 ${normalizedItems.length} 行，合计 ${totalQty} 件。`,
-          '提交确认',
-          { confirmButtonText: '确认提交', cancelButtonText: '取消', type: 'warning' },
-        );
-      } catch {
-        return;
-      }
-      try {
-        const formData = new FormData();
-        formData.set('glassType', normalizedItems[0].glass_type);
-        formData.set('thickness', normalizedItems[0].thickness);
-        formData.set('quantity', String(normalizedItems[0].quantity));
-        formData.set('priority', newOrder.value.priority || 'normal');
-        formData.set('estimatedCompletionDate', formatDateInput(newOrder.value.delivery_date));
-        formData.set('specialInstructions', buildSpecialInstructions());
-        formData.set('itemsJson', JSON.stringify(normalizedItems));
-        if (orderDrawingFile.value) {
-          formData.set('drawing', orderDrawingFile.value, orderDrawingFile.value.name);
-        }
-        const data = await api('/v1/app/orders', {
-          method: 'POST',
-          headers: { 'Idempotency-Key': generateIdempotencyKey() },
-          body: formData,
-        });
-        ElementPlus.ElMessage.success(`订单提交成功：${data.order?.orderNo || '已创建'}`);
-        localStorage.removeItem('gf_app_order_draft');
-        newOrder.value = buildNewOrder(profile.value);
-        clearOrderDrawing();
-        activeNav.value = 'orders';
-        await loadAllData();
-      } catch {
-        ElementPlus.ElMessage.error('订单提交失败');
-      }
-    };
-    const downloadOrderDocument = async (order, documentType) => {
-      try {
-        const response = await fetch(`/v1/app/orders/${order.id}/export?document=${encodeURIComponent(documentType)}`, {
-          headers: { Authorization: `Bearer ${token.value}` },
-        });
-        if (!response.ok) throw new Error('download-failed');
-        const blob = await response.blob();
-        const objectUrl = URL.createObjectURL(blob);
-        const anchor = document.createElement('a');
-        anchor.href = objectUrl;
-        anchor.download = `${order.order_no}-${documentType}.pdf`;
-        document.body.appendChild(anchor);
-        anchor.click();
-        anchor.remove();
-        URL.revokeObjectURL(objectUrl);
-      } catch {
-        ElementPlus.ElMessage.error('文件下载失败');
+      } catch (error) {
+        alert("导出失败: " + error.message);
       }
     };
 
+    let refreshTimer = null;
     onMounted(async () => {
-      if ('serviceWorker' in navigator) {
-        try { await navigator.serviceWorker.register('/sw.js'); } catch {}
-      }
-      if (!token.value) return;
-      try {
-        if (currentUser.value?.homePath && currentUser.value.homePath !== '/app') {
-          window.location.href = currentUser.value.homePath;
-          return;
+      restoreUiState();
+      if (token.value) {
+        try {
+          await loadAllData();
+        } catch {
+          token.value = "";
+          localStorage.removeItem("gf_app_token");
         }
-        await loadAllData();
-      } catch {
-        resetAuth();
       }
+      refreshTimer = window.setInterval(() => {
+        if (token.value) {
+          loadAllData().catch(() => {});
+        }
+      }, 30000);
     });
+    onUnmounted(() => {
+      if (refreshTimer) window.clearInterval(refreshTimer);
+    });
+    watch(currentTab, (value) => localStorage.setItem("gf_app_tab", value), { immediate: true });
+    watch(orderFilter, (value) => localStorage.setItem("gf_app_order_filter", value), { immediate: true });
+    watch(searchQuery, (value) => localStorage.setItem("gf_app_order_search", value), { immediate: true });
 
     return {
-      token, currentUser, loginVisible, loginForm, loginLoading, login, logout, onDropdownCmd,
-      locale,
-      activeNav, navItems, pendingCount, myOrderStats,
-      profile, credit, creditUsagePercent, displayCompanyName, profileTagline, priceLevelLabel, userInitial,
-      orderSteps, stepDone, stepIndex,
-      myOrders, myRecentOrders, filteredMyOrders, myOrderSearch, myStatusFilter, myDateRange, orderStatusOpts,
-      pickupSearch, pickupStatusFilter, filteredPickupOrders, downloadOrderDocument,
-      trackDialogVisible, trackingOrder, openTrack, trackQuery, shipments, markNotificationsRead,
-      finFilter, finDateRange, myBills, finSummary,
-      myContacts, myAddresses,
-      glassTypes, thicknesses, thicknessLabel, newOrder, addItem, removeItem, calcArea,
-      orderDrawingInput, orderDrawingFileName, handleOrderDrawingChange, clearOrderDrawing,
-      totalItems, totalArea, estimatedAmount, submitOrder, saveDraft,
-      statusLabel, formatMoney,
+      token, loading, currentTab, bootstrap, user, orders, receivables, invoices, detailVisible, activeOrder, orderFilter,
+      searchQuery, loginForm, orderFilters, navItems, stats, recentOrders, filteredOrders, notificationsUnread,
+      lastRefreshText, refreshing, datetime, money, tone, label, login, logout, loadAllData, loadOrders, openOrder, download,
     };
-  }
-});
-
-for (const [k, c] of Object.entries(ElementPlusIconsVue)) { app.component(k, c); }
-app.use(ElementPlus);
-app.mount('#app');
+  },
+}).mount("#app");
 </script>
 </body>
 </html>
